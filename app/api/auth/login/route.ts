@@ -1,49 +1,119 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { loginUser } from "@/lib/auth/auth"
+import { NextResponse } from "next/server";
+import pool from "../../../../lib/db";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-export async function POST(request: NextRequest) {
+interface LoginRequestBody {
+  email: string;
+  password: string;
+}
+
+interface LoginResponse {
+  success: boolean;
+  data?: {
+    user: { id: string; email: string };
+    profile: {
+      role: "admin" | "technician";
+      first_name: string;
+      last_name: string;
+    };
+    session: { access_token: string; expires_at: string };
+  };
+  error?: string;
+  code?: string;
+}
+
+export async function POST(req: Request) {
   try {
-    const { email, password } = await request.json()
+    const body: LoginRequestBody = await req.json();
+    const { email, password } = body;
 
+    // Validate input
     if (!email || !password) {
-      return NextResponse.json({ success: false, error: "Email and password are required" }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Email and password are required",
+          code: "VALIDATION_ERROR",
+        },
+        { status: 400 }
+      );
     }
 
-    console.log("[v0] Login attempt for:", email)
+    // Check if user exists
+    const [users] = await pool.query<
+      {
+        id: string;
+        email: string;
+        password: string;
+        role: "admin" | "technician";
+        first_name: string;
+        last_name: string;
+      }[]
+    >(
+      "SELECT id, email, password, role, first_name, last_name FROM users WHERE email = ?",
+      [email]
+    );
 
-    const result = await loginUser(email, password)
-
-    if (!result.success) {
-      console.log("[v0] Login failed:", result.error)
-      return NextResponse.json({ success: false, error: result.error }, { status: 401 })
+    if (users.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid email or password",
+          code: "INVALID_CREDENTIALS",
+        },
+        { status: 401 }
+      );
     }
 
-    const redirectUrl = result.user?.role === "admin" ? "/admin" : "/dashboard"
+    const user = users[0];
 
-    const sessionData = {
-      id: result.user!.id,
-      email: result.user!.email,
-      first_name: result.user!.first_name,
-      last_name: result.user!.last_name,
-      role: result.user!.role,
-      phone: result.user!.phone,
-      status: result.user!.status,
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid email or password",
+          code: "INVALID_CREDENTIALS",
+        },
+        { status: 401 }
+      );
     }
 
-    const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString("base64")
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "1d" }
+    );
 
-    console.log("[v0] Session created for user:", result.user!.email, "Role:", result.user!.role)
-    console.log("[v0] Session token length:", sessionToken.length)
-
-    return NextResponse.json({
-      success: true,
-      user: result.user,
-      redirectUrl,
-      sessionToken, // Send token to client for localStorage storage
-    })
+    // Return user data and token
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          user: { id: user.id, email: user.email },
+          profile: {
+            role: user.role,
+            first_name: user.first_name,
+            last_name: user.last_name,
+          },
+          session: {
+            access_token: token,
+            expires_at: new Date(
+              Date.now() + 24 * 60 * 60 * 1000
+            ).toISOString(),
+          },
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("Login error:", error)
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
+    console.error("Login error:", error);
+    return NextResponse.json(
+      { success: false, error: "Server error", code: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
