@@ -277,3 +277,17 @@ BEGIN
 END
 //
 DELIMITER ;
+
+
+CREATE TABLE activities (
+  id CHAR(36) PRIMARY KEY,
+  type ENUM('order', 'technician', 'redemption', 'supply_house') NOT NULL,
+  message VARCHAR
+(255) NOT NULL,
+  status ENUM
+('new', 'success', 'pending', 'info') NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE orders
+ADD FOREIGN KEY (truck_id) REFERENCES trucks(id);
