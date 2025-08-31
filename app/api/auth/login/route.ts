@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server";
-import pool from "../../../../lib/db";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import pool from "@/lib/db";
+import bcrypt from "bcrypt";
+import { sign } from "jsonwebtoken";
 
-interface LoginRequestBody {
+interface LoginRequest {
   email: string;
   password: string;
 }
 
-interface LoginResponse {
+interface AuthResponse {
   success: boolean;
   data?: {
     user: { id: string; email: string };
-    profile: {
-      role: "admin" | "technician";
-      first_name: string;
-      last_name: string;
-    };
+    profile: { first_name: string; last_name: string; role: string };
     session: { access_token: string; expires_at: string };
   };
   error?: string;
@@ -25,41 +21,34 @@ interface LoginResponse {
 
 export async function POST(req: Request) {
   try {
-    const body: LoginRequestBody = await req.json();
+    const body: LoginRequest = await req.json();
     const { email, password } = body;
 
-    // Validate input
     if (!email || !password) {
       return NextResponse.json(
         {
           success: false,
-          error: "Email and password are required",
-          code: "VALIDATION_ERROR",
+          error: "Missing email or password",
+          code: "BAD_REQUEST",
         },
         { status: 400 }
       );
     }
 
-    // Check if user exists
-    const [users] = await pool.query<
-      {
-        id: string;
-        email: string;
-        password: string;
-        role: "admin" | "technician";
-        first_name: string;
-        last_name: string;
-      }[]
-    >(
-      "SELECT id, email, password, role, first_name, last_name FROM users WHERE email = ?",
+    const [users] = await pool.query(
+      `
+      SELECT id, email, password, first_name, last_name, role, status
+      FROM users
+      WHERE email = ?
+      `,
       [email]
     );
 
-    if (users.length === 0) {
+    if ((users as any[]).length === 0) {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid email or password",
+          error: "Invalid credentials",
           code: "INVALID_CREDENTIALS",
         },
         { status: 401 }
@@ -68,51 +57,62 @@ export async function POST(req: Request) {
 
     const user = users[0];
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    if (user.status !== "active") {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid email or password",
+          error: "Account is not active",
+          code: "ACCOUNT_INACTIVE",
+        },
+        { status: 403 }
+      );
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid credentials",
           code: "INVALID_CREDENTIALS",
         },
         { status: 401 }
       );
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
+    const access_token = sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET as string,
-      { expiresIn: "1d" }
+      { expiresIn: "7d" }
     );
 
-    // Return user data and token
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          user: { id: user.id, email: user.email },
-          profile: {
-            role: user.role,
-            first_name: user.first_name,
-            last_name: user.last_name,
-          },
-          session: {
-            access_token: token,
-            expires_at: new Date(
-              Date.now() + 24 * 60 * 60 * 1000
-            ).toISOString(),
-          },
+    const response: AuthResponse = {
+      success: true,
+      data: {
+        user: { id: user.id, email: user.email },
+        profile: {
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+        },
+        session: {
+          access_token,
+          expires_at: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
         },
       },
-      { status: 200 }
-    );
-  } catch (error) {
+    };
+
+    return NextResponse.json(response);
+  } catch (error: any) {
     console.error("Login error:", error);
     return NextResponse.json(
-      { success: false, error: "Server error", code: "SERVER_ERROR" },
+      {
+        success: false,
+        error: error.sqlMessage || "Failed to login",
+        code: error.code || "SERVER_ERROR",
+      },
       { status: 500 }
     );
   }

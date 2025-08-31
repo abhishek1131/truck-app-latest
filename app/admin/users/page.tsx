@@ -1,15 +1,21 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/auth-provider"
-import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CreateUserModal } from "@/components/create-user-modal"
-import { EditUserModal } from "@/components/edit-user-modal"
-import { UserDetailsModal } from "@/components/user-details-modal"
+import { useAuth } from "@/components/auth-provider";
+import { Navigation } from "@/components/layout/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CreateUserModal } from "@/components/create-user-modal";
+import { EditUserModal } from "@/components/edit-user-modal";
+import { UserDetailsModal } from "@/components/user-details-modal";
 import {
   Users,
   Search,
@@ -19,167 +25,221 @@ import {
   UserPlus,
   Mail,
   Phone,
-  MapPin,
   Calendar,
   Shield,
   Trash2,
   UserCheck,
   UserX,
   Eye,
-} from "lucide-react"
-import { useState } from "react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-const mockUsers = [
-  {
-    id: "USER-001",
-    name: "Mike Rodriguez",
-    email: "mike.rodriguez@email.com",
-    phone: "(555) 123-4567",
-    location: "Dallas, TX",
-    role: "technician",
-    status: "active",
-    joinDate: "2023-08-15",
-    lastActive: "2024-01-15",
-    assignedTrucks: ["TRUCK-001", "TRUCK-002"],
-    totalOrders: 45,
-    avatar: "MR",
-  },
-  {
-    id: "USER-002",
-    name: "Sarah Chen",
-    email: "sarah.chen@email.com",
-    phone: "(555) 234-5678",
-    location: "Austin, TX",
-    role: "technician",
-    status: "active",
-    joinDate: "2023-09-22",
-    lastActive: "2024-01-14",
-    assignedTrucks: ["TRUCK-004"],
-    totalOrders: 38,
-    avatar: "SC",
-  },
-  {
-    id: "USER-003",
-    name: "David Thompson",
-    email: "david.thompson@email.com",
-    phone: "(555) 345-6789",
-    location: "Houston, TX",
-    role: "technician",
-    status: "inactive",
-    joinDate: "2023-07-10",
-    lastActive: "2024-01-10",
-    assignedTrucks: ["TRUCK-003"],
-    totalOrders: 52,
-    avatar: "DT",
-  },
-  {
-    id: "USER-004",
-    name: "Lisa Wang",
-    email: "lisa.wang@email.com",
-    phone: "(555) 456-7890",
-    location: "San Antonio, TX",
-    role: "technician",
-    status: "active",
-    joinDate: "2023-10-05",
-    lastActive: "2024-01-13",
-    assignedTrucks: [],
-    totalOrders: 29,
-    avatar: "LW",
-  },
-  {
-    id: "USER-005",
-    name: "Admin User",
-    email: "admin@truxtok.com",
-    phone: "(555) 999-0000",
-    location: "Corporate HQ",
-    role: "admin",
-    status: "active",
-    joinDate: "2023-01-01",
-    lastActive: "2024-01-15",
-    assignedTrucks: [],
-    totalOrders: 0,
-    avatar: "AU",
-  },
-  {
-    id: "USER-006",
-    name: "John Manager",
-    email: "john.manager@email.com",
-    phone: "(555) 777-8888",
-    location: "Regional Office",
-    role: "manager",
-    status: "active",
-    joinDate: "2023-03-15",
-    lastActive: "2024-01-14",
-    assignedTrucks: [],
-    totalOrders: 0,
-    avatar: "JM",
-  },
-]
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  role: "admin" | "manager" | "technician";
+  status: "active" | "inactive" | "pending" | "suspended";
+  created_at: string;
+  updated_at: string | null;
+  assigned_trucks: {
+    id: string;
+    truck_number: string;
+    make: string;
+    model: string;
+  }[];
+}
 
 const statusConfig = {
   active: { color: "bg-green-100 text-green-800", label: "Active" },
   inactive: { color: "bg-red-100 text-red-800", label: "Inactive" },
   pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending" },
   suspended: { color: "bg-gray-100 text-gray-800", label: "Suspended" },
-}
+};
 
 const roleConfig = {
-  admin: { color: "bg-purple-100 text-purple-800", label: "Admin", icon: Shield },
-  manager: { color: "bg-blue-100 text-blue-800", label: "Manager", icon: UserCheck },
-  technician: { color: "bg-green-100 text-green-800", label: "Technician", icon: Users },
-}
+  admin: {
+    color: "bg-purple-100 text-purple-800",
+    label: "Admin",
+    icon: Shield,
+  },
+  manager: {
+    color: "bg-blue-100 text-blue-800",
+    label: "Manager",
+    icon: UserCheck,
+  },
+  technician: {
+    color: "bg-green-100 text-green-800",
+    label: "Technician",
+    icon: Users,
+  },
+};
 
 export default function AdminUsersPage() {
-  const { user } = useAuth()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [roleFilter, setRoleFilter] = useState("all")
-  const [selectedUser, setSelectedUser] = useState<(typeof mockUsers)[0] | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false)
+  const { user, token } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dropdownKey, setDropdownKey] = useState(0);
 
-  const filteredUsers = mockUsers.filter((user) => {
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!token) {
+        setError("Please log in to view users");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch("/api/admin/users?page=1&limit=10", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+        if (result.success && result.data?.users) {
+          setUsers(result.data.users);
+        } else {
+          setError(result.error || "Failed to fetch users");
+        }
+      } catch (error) {
+        setError("Error fetching users");
+        console.error("Error fetching users:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [token]);
+
+  const filteredUsers = users.filter((user) => {
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${user.first_name} ${user.last_name}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || user.status === statusFilter
-    const matchesRole = roleFilter === "all" || user.role === roleFilter
-    return matchesSearch && matchesStatus && matchesRole
-  })
+      user.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || user.status === statusFilter;
+    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    return matchesSearch && matchesStatus && matchesRole;
+  });
 
-  const totalUsers = mockUsers.length
-  const activeUsers = mockUsers.filter((user) => user.status === "active").length
-  const technicians = mockUsers.filter((user) => user.role === "technician").length
-  const admins = mockUsers.filter((user) => user.role === "admin").length
+  const totalUsers = users.length;
+  const activeUsers = users.filter((user) => user.status === "active").length;
+  const technicians = users.filter((user) => user.role === "technician").length;
+  const admins = users.filter((user) => user.role === "admin").length;
 
-  const handleCreateUser = (userData: any) => {
-    console.log("Create user:", userData)
-    setShowCreateModal(false)
-  }
+  const handleCreateUser = async (userData: any) => {
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        setUsers([...users, result.data]);
+        setShowCreateModal(false);
+        setDropdownKey((prev) => prev + 1); // Force dropdown re-render
+      } else {
+        alert(`Failed to create user: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error creating user:", error);
+      alert("Error creating user. Please try again.");
+    }
+  };
 
-  const handleEditUser = (user: (typeof mockUsers)[0]) => {
-    setSelectedUser(user)
-    setShowEditModal(true)
-  }
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
 
-  const handleDeactivateUser = (user: (typeof mockUsers)[0]) => {
-    console.log("Deactivate user:", user.name)
-  }
+  const handleDeactivateUser = async (user: User) => {
+    try {
+      const newStatus = user.status === "active" ? "inactive" : "active";
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ...user, status: newStatus }),
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        setUsers(users.map((u) => (u.id === user.id ? result.data : u)));
+        setDropdownKey((prev) => prev + 1); // Force dropdown re-render
+      } else {
+        alert(`Failed to update user status: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      alert("Error updating user status. Please try again.");
+    }
+  };
 
-  const handleDeleteUser = (user: (typeof mockUsers)[0]) => {
-    console.log("Delete user:", user.name)
-  }
+  const handleDeleteUser = async (user: User) => {
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success) {
+        setUsers(users.filter((u) => u.id !== user.id));
+        setDropdownKey((prev) => prev + 1); // Force dropdown re-render
+      } else {
+        alert(`Failed to delete user: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      alert("Error deleting user. Please try again.");
+    }
+  };
 
-  const handleViewUserDetails = (user: (typeof mockUsers)[0]) => {
-    setSelectedUser(user)
-    setShowUserDetailsModal(true)
-  }
+  const handleViewUserDetails = (user: User) => {
+    setSelectedUser(user);
+    setShowUserDetailsModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowCreateModal(false);
+    setShowEditModal(false);
+    setShowUserDetailsModal(false);
+    setSelectedUser(null);
+    setDropdownKey((prev) => prev + 1); // Force dropdown re-render
+  };
 
   return (
-    <Navigation title="User Management" subtitle="Manage all system users and their roles">
+    <Navigation
+      title="User Management"
+      subtitle="Manage all system users and their roles"
+    >
       <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-end mb-6">
           <Button
@@ -191,11 +251,12 @@ export default function AdminUsersPage() {
           </Button>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Total Users
+              </CardTitle>
               <Users className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
@@ -206,7 +267,9 @@ export default function AdminUsersPage() {
 
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Technicians</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Technicians
+              </CardTitle>
               <UserCheck className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
@@ -217,7 +280,9 @@ export default function AdminUsersPage() {
 
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Administrators</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Administrators
+              </CardTitle>
               <Shield className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
@@ -228,17 +293,20 @@ export default function AdminUsersPage() {
 
           <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Active Rate</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Active Rate
+              </CardTitle>
               <Calendar className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{Math.round((activeUsers / totalUsers) * 100)}%</div>
+              <div className="text-2xl font-bold">
+                {totalUsers ? Math.round((activeUsers / totalUsers) * 100) : 0}%
+              </div>
               <p className="text-xs opacity-75">User engagement</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters */}
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -286,146 +354,220 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
 
-        {/* Users List */}
-        <div className="space-y-4">
-          {filteredUsers.map((user) => (
-            <Card key={user.id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex-1 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold">
-                          {user.avatar}
+        {isLoading ? (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="text-center py-12">
+              <p className="text-gray-500">Loading users...</p>
+            </CardContent>
+          </Card>
+        ) : error ? (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="text-center py-12">
+              <p className="text-red-500">{error}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredUsers.map((user) => (
+              <Card
+                key={user.id}
+                className="border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold">
+                            {`${user.first_name[0]}${user.last_name[0]}`.toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-[#10294B]">{`${user.first_name} ${user.last_name}`}</h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                              <span className="flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {user.email}
+                              </span>
+                              {user.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {user.phone}
+                                </span>
+                              )}
+                            </div>
+                            {user.assigned_trucks.length > 0 && (
+                              <div className="text-sm text-gray-500 mt-1">
+                                <span>
+                                  Trucks:{" "}
+                                  {user.assigned_trucks
+                                    .map((t) => t.truck_number)
+                                    .join(", ")}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={
+                              statusConfig[
+                                user.status as keyof typeof statusConfig
+                              ]?.color
+                            }
+                          >
+                            {
+                              statusConfig[
+                                user.status as keyof typeof statusConfig
+                              ]?.label
+                            }
+                          </Badge>
+                          <Badge
+                            className={
+                              roleConfig[user.role as keyof typeof roleConfig]
+                                ?.color
+                            }
+                          >
+                            {
+                              roleConfig[user.role as keyof typeof roleConfig]
+                                ?.label
+                            }
+                          </Badge>
+                          <Badge variant="outline">ID: {user.id}</Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-gray-100">
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Join Date
+                          </div>
+                          <div className="font-semibold">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </div>
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-[#10294B]">{user.name}</h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                            <span className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              {user.email}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {user.phone}
-                            </span>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Last Active
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {user.location}
-                            </span>
-                            {user.assignedTrucks.length > 0 && <span>Trucks: {user.assignedTrucks.join(", ")}</span>}
+                          <div className="font-semibold">
+                            {user.updated_at
+                              ? new Date(user.updated_at).toLocaleDateString()
+                              : "Never"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Total Orders
+                          </div>
+                          <div className="font-semibold">
+                            {user.assigned_trucks.length ? "N/A" : 0}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Assigned Trucks
+                          </div>
+                          <div className="font-semibold">
+                            {user.assigned_trucks.length}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={statusConfig[user.status as keyof typeof statusConfig]?.color}>
-                          {statusConfig[user.status as keyof typeof statusConfig]?.label}
-                        </Badge>
-                        <Badge className={roleConfig[user.role as keyof typeof roleConfig]?.color}>
-                          {roleConfig[user.role as keyof typeof roleConfig]?.label}
-                        </Badge>
-                        <Badge variant="outline">ID: {user.id}</Badge>
-                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-gray-100">
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Join Date</div>
-                        <div className="font-semibold">{user.joinDate}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Last Active</div>
-                        <div className="font-semibold">{user.lastActive}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Total Orders</div>
-                        <div className="font-semibold">{user.totalOrders}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Assigned Trucks</div>
-                        <div className="font-semibold">{user.assignedTrucks.length}</div>
-                      </div>
+                    <div className="flex flex-col gap-2 lg:ml-6">
+                      <DropdownMenu key={`dropdown-${user.id}-${dropdownKey}`}>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleViewUserDetails(user)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleEditUser(user)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeactivateUser(user)}
+                          >
+                            <UserX className="mr-2 h-4 w-4" />
+                            {user.status === "active"
+                              ? "Deactivate"
+                              : "Activate"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDeleteUser(user)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete User
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-                  <div className="flex flex-col gap-2 lg:ml-6">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewUserDetails(user)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeactivateUser(user)}>
-                          <UserX className="mr-2 h-4 w-4" />
-                          {user.status === "active" ? "Deactivate" : "Activate"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteUser(user)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredUsers.length === 0 && (
+        {filteredUsers.length === 0 && !isLoading && !error && (
           <Card className="border-0 shadow-lg">
             <CardContent className="text-center py-12">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No users found</h3>
-              <p className="text-gray-500 mb-6">Try adjusting your search or filter criteria</p>
-              <Button onClick={() => setShowCreateModal(true)} className="bg-[#E3253D] hover:bg-[#E3253D]/90">
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                No users found
+              </h3>
+              <p className="text-gray-500 mb-6">
+                Try adjusting your search or filter criteria
+              </p>
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+              >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add New User
               </Button>
             </CardContent>
           </Card>
         )}
+
+        <CreateUserModal
+          isOpen={showCreateModal}
+          onClose={handleModalClose}
+          onUserCreated={handleCreateUser}
+        />
+
+        {selectedUser && (
+          <EditUserModal
+            isOpen={showEditModal}
+            onClose={handleModalClose}
+            user={selectedUser}
+            onUserUpdated={(updatedUser) => {
+              setUsers(
+                users.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+              );
+              handleModalClose();
+            }}
+          />
+        )}
+
+        {selectedUser && (
+          <UserDetailsModal
+            isOpen={showUserDetailsModal}
+            onClose={handleModalClose}
+            user={selectedUser}
+          />
+        )}
       </div>
-
-      {/* Modals */}
-      <CreateUserModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onUserCreated={handleCreateUser}
-      />
-
-      {selectedUser && (
-        <EditUserModal
-          isOpen={showEditModal}
-          onClose={() => {
-            setShowEditModal(false)
-            setSelectedUser(null)
-          }}
-          user={selectedUser}
-        />
-      )}
-
-      {selectedUser && (
-        <UserDetailsModal
-          isOpen={showUserDetailsModal}
-          onClose={() => {
-            setShowUserDetailsModal(false)
-            setSelectedUser(null)
-          }}
-          user={selectedUser}
-        />
-      )}
     </Navigation>
-  )
+  );
 }

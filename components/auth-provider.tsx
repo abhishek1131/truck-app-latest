@@ -13,24 +13,25 @@ interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: "technician" | "admin";
-  status: "active" | "inactive" | "suspended";
+  role: "technician" | "admin" | "manager";
+  status: "active" | "inactive" | "suspended" | "pending";
 }
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean;
-  token?: string;
 }
 
 interface RegisterData {
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
   password: string;
-  role: "technician" | "admin";
+  role: "technician" | "admin" | "manager";
 }
 
 interface AuthResponse {
@@ -38,7 +39,7 @@ interface AuthResponse {
   data?: {
     user: { id: string; email: string };
     profile: {
-      role: "technician" | "admin";
+      role: "technician" | "admin" | "manager";
       first_name: string;
       last_name: string;
     };
@@ -52,6 +53,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -60,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedToken = localStorage.getItem("access_token");
     if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser) as User);
+      setToken(storedToken);
     }
     setLoading(false);
   }, []);
@@ -81,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Store user data and token in localStorage
+      // Store user data and token
       const { user: apiUser, profile, session } = result.data;
       const userData: User = {
         id: apiUser.id,
@@ -94,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("access_token", session.access_token);
       setUser(userData);
+      setToken(session.access_token);
 
       return true;
     } catch (error) {
@@ -121,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Store user data and token in localStorage
+      // Store user data and token
       const { user: apiUser, profile, session } = result.data;
       const userData: User = {
         id: apiUser.id,
@@ -134,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("access_token", session.access_token);
       setUser(userData);
+      setToken(session.access_token);
 
       return true;
     } catch (error) {
@@ -149,14 +154,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("user");
       localStorage.removeItem("access_token");
       setUser(null);
+      setToken(null);
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
-    const token = localStorage.getItem("access_token");
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading ,token }}>
+    <AuthContext.Provider
+      value={{ user, token, login, register, logout, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );
