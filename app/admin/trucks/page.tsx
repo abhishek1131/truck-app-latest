@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/auth-provider"
-import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CreateTruckModal } from "@/components/create-truck-modal"
-import { AssignTruckModal } from "@/components/assign-truck-modal"
-import { EditTruckModal } from "@/components/edit-truck-modal"
+import { useAuth } from "@/components/auth-provider";
+import { Navigation } from "@/components/layout/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CreateTruckModal } from "@/components/create-truck-modal";
+import { AssignTruckModal } from "@/components/assign-truck-modal";
+import { EditTruckModal } from "@/components/edit-truck-modal";
 import {
   Truck,
   Search,
@@ -24,160 +24,166 @@ import {
   Users,
   Settings,
   Trash2,
-} from "lucide-react"
-import { useState } from "react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import Link from "next/link"
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import Link from "next/link";
 
-const mockTrucks = [
-  {
-    id: "1",
-    name: "Truck #001",
-    location: "Downtown Route",
-    status: "Active",
-    totalItems: 127,
-    lowStockItems: 8,
-    bins: 12,
-    lastUpdated: "2 hours ago",
-    assignedTechnician: "Mike Rodriguez",
-    technicianId: "TECH-001",
-    model: "Ford Transit 350",
-    year: "2023",
-    licensePlate: "TX-TRK-001",
-    mileage: 15420,
-    nextMaintenance: "2024-02-15",
-    createdDate: "2023-08-15",
-  },
-  {
-    id: "2",
-    name: "Truck #002",
-    location: "Suburban Route",
-    status: "Active",
-    totalItems: 143,
-    lowStockItems: 3,
-    bins: 15,
-    lastUpdated: "4 hours ago",
-    assignedTechnician: "Sarah Chen",
-    technicianId: "TECH-002",
-    model: "Chevrolet Express 3500",
-    year: "2022",
-    licensePlate: "TX-TRK-002",
-    mileage: 28750,
-    nextMaintenance: "2024-01-28",
-    createdDate: "2023-09-22",
-  },
-  {
-    id: "3",
-    name: "Truck #003",
-    location: "Industrial Route",
-    status: "Maintenance",
-    totalItems: 117,
-    lowStockItems: 12,
-    bins: 10,
-    lastUpdated: "1 day ago",
-    assignedTechnician: "David Thompson",
-    technicianId: "TECH-003",
-    model: "Ram ProMaster 3500",
-    year: "2021",
-    licensePlate: "TX-TRK-003",
-    mileage: 42180,
-    nextMaintenance: "2024-01-20",
-    createdDate: "2023-07-10",
-  },
-  {
-    id: "4",
-    name: "Truck #004",
-    location: "North Route",
-    status: "Active",
-    totalItems: 98,
-    lowStockItems: 5,
-    bins: 8,
-    lastUpdated: "6 hours ago",
-    assignedTechnician: "Lisa Wang",
-    technicianId: "TECH-004",
-    model: "Ford Transit 250",
-    year: "2023",
-    licensePlate: "TX-TRK-004",
-    mileage: 8920,
-    nextMaintenance: "2024-03-10",
-    createdDate: "2023-10-05",
-  },
-  {
-    id: "5",
-    name: "Truck #005",
-    location: "Unassigned",
-    status: "Available",
-    totalItems: 0,
-    lowStockItems: 0,
-    bins: 12,
-    lastUpdated: "Never",
-    assignedTechnician: null,
-    technicianId: null,
-    model: "Ford Transit 350",
-    year: "2024",
-    licensePlate: "TX-TRK-005",
-    mileage: 450,
-    nextMaintenance: "2024-06-01",
-    createdDate: "2024-01-10",
-  },
-]
-
-const statusConfig = {
-  Active: { color: "bg-green-100 text-green-800", label: "Active" },
-  Maintenance: { color: "bg-orange-100 text-orange-800", label: "Maintenance" },
-  Available: { color: "bg-blue-100 text-blue-800", label: "Available" },
-  "Out of Service": { color: "bg-red-100 text-red-800", label: "Out of Service" },
+interface Truck {
+  id: string;
+  truck_number: string;
+  location: string | null;
+  status: "active" | "maintenance" | "inactive";
+  totalItems: number;
+  lowStockItems: number;
+  bins: number;
+  lastUpdated: string;
+  assigned_technician: { id: string; first_name: string; last_name: string; email: string } | null;
+  model: string;
+  year: number;
+  license_plate: string;
+  mileage: number;
+  next_maintenance: string | null;
 }
 
-export default function AdminTrucksPage() {
-  const { user } = useAuth()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [assignmentFilter, setAssignmentFilter] = useState("all")
-  const [selectedTruck, setSelectedTruck] = useState<(typeof mockTrucks)[0] | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showAssignModal, setShowAssignModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
+const statusConfig = {
+  active: { color: "bg-green-100 text-green-800", label: "Active" },
+  maintenance: { color: "bg-orange-100 text-orange-800", label: "Maintenance" },
+  inactive: { color: "bg-red-100 text-red-800", label: "Inactive" },
+};
 
-  const filteredTrucks = mockTrucks.filter((truck) => {
+export default function AdminTrucksPage() {
+  const { user, token } = useAuth();
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [selectedTruck, setSelectedTruck] = useState<Truck | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTrucks = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/admin/trucks?page=1&limit=10", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+        if (result.success) {
+          setTrucks(result.data.trucks);
+        } else {
+          console.error("Failed to fetch trucks:", result.error);
+        }
+      } catch (error) {
+        console.error("Error fetching trucks:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchTrucks();
+    }
+  }, [token]);
+
+  const filteredTrucks = trucks.filter((truck) => {
     const matchesSearch =
-      truck.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      truck.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      truck.assignedTechnician?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      truck.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || truck.status === statusFilter
+      truck.truck_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (truck.location && truck.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (truck.assigned_technician &&
+        `${truck.assigned_technician.first_name} ${truck.assigned_technician.last_name}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())) ||
+      truck.license_plate.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || truck.status === statusFilter;
     const matchesAssignment =
       assignmentFilter === "all" ||
-      (assignmentFilter === "assigned" && truck.assignedTechnician) ||
-      (assignmentFilter === "unassigned" && !truck.assignedTechnician)
-    return matchesSearch && matchesStatus && matchesAssignment
-  })
+      (assignmentFilter === "assigned" && truck.assigned_technician) ||
+      (assignmentFilter === "unassigned" && !truck.assigned_technician);
+    return matchesSearch && matchesStatus && matchesAssignment;
+  });
 
-  const totalTrucks = mockTrucks.length
-  const activeTrucks = mockTrucks.filter((truck) => truck.status === "Active").length
-  const availableTrucks = mockTrucks.filter((truck) => truck.status === "Available").length
-  const maintenanceTrucks = mockTrucks.filter((truck) => truck.status === "Maintenance").length
-  const totalItems = mockTrucks.reduce((sum, truck) => sum + truck.totalItems, 0)
-  const totalLowStock = mockTrucks.reduce((sum, truck) => sum + truck.lowStockItems, 0)
+  const totalTrucks = trucks.length;
+  const activeTrucks = trucks.filter((truck) => truck.status === "active").length;
+  const inactiveTrucks = trucks.filter((truck) => truck.status === "inactive").length;
+  const maintenanceTrucks = trucks.filter((truck) => truck.status === "maintenance").length;
+  const totalItems = trucks.reduce((sum, truck) => sum + truck.totalItems, 0);
+  const totalLowStock = trucks.reduce((sum, truck) => sum + truck.lowStockItems, 0);
 
-  const handleCreateTruck = (truckData: any) => {
-    console.log("Create truck:", truckData)
-    setShowCreateModal(false)
-  }
+  const handleCreateTruck = async (truckData: any) => {
+    try {
+      const response = await fetch("/api/admin/trucks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(truckData),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTrucks([
+          ...trucks,
+          {
+            ...result.data,
+            totalItems: 0,
+            lowStockItems: 0,
+            bins: 0,
+            lastUpdated: result.data.updated_at
+              ? new Date(result.data.updated_at).toLocaleString()
+              : "Never",
+            assigned_technician: result.data.technician_id
+              ? {
+                  id: result.data.technician_id,
+                  first_name: result.data.first_name,
+                  last_name: result.data.last_name,
+                  email: result.data.email,
+                }
+              : null,
+          },
+        ]);
+        setShowCreateModal(false);
+      } else {
+        console.error("Failed to create truck:", result.error);
+      }
+    } catch (error) {
+      console.error("Error creating truck:", error);
+    }
+  };
 
-  const handleAssignTruck = (truck: (typeof mockTrucks)[0]) => {
-    setSelectedTruck(truck)
-    setShowAssignModal(true)
-  }
+  const handleAssignTruck = async (truck: Truck) => {
+    setSelectedTruck(truck);
+    setShowAssignModal(true);
+  };
 
-  const handleEditTruck = (truck: (typeof mockTrucks)[0]) => {
-    setSelectedTruck(truck)
-    setShowEditModal(true)
-  }
+  const handleEditTruck = async (truck: Truck) => {
+    setSelectedTruck(truck);
+    setShowEditModal(true);
+  };
 
-  const handleDeleteTruck = (truck: (typeof mockTrucks)[0]) => {
-    console.log("Delete truck:", truck.name)
-  }
+  const handleDeleteTruck = async (truck: Truck) => {
+    try {
+      const response = await fetch(`/api/admin/trucks/${truck.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTrucks(trucks.filter((t) => t.id !== truck.id));
+      } else {
+        console.error("Failed to delete truck:", result.error);
+      }
+    } catch (error) {
+      console.error("Error deleting truck:", error);
+    }
+  };
 
   return (
     <Navigation title="Fleet Management" subtitle="Manage trucks, assignments, and fleet operations">
@@ -207,12 +213,12 @@ export default function AdminTrucksPage() {
 
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Available</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">Inactive</CardTitle>
               <Package className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{availableTrucks}</div>
-              <p className="text-xs opacity-75">Ready for assignment</p>
+              <div className="text-2xl font-bold">{inactiveTrucks}</div>
+              <p className="text-xs opacity-75">Available for assignment</p>
             </CardContent>
           </Card>
 
@@ -253,7 +259,7 @@ export default function AdminTrucksPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search by truck name, location, technician, or license plate..."
+                    placeholder="Search by truck number, location, technician, or license plate..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -266,10 +272,9 @@ export default function AdminTrucksPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Available">Available</SelectItem>
-                  <SelectItem value="Maintenance">Maintenance</SelectItem>
-                  <SelectItem value="Out of Service">Out of Service</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
@@ -287,112 +292,122 @@ export default function AdminTrucksPage() {
         </Card>
 
         {/* Trucks List */}
-        <div className="space-y-4">
-          {filteredTrucks.map((truck) => (
-            <Card key={truck.id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex-1 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold">
-                          <Truck className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-[#10294B]">{truck.name}</h3>
-                          <p className="text-sm text-gray-600">
-                            {truck.model} ({truck.year})
-                          </p>
-                          <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {truck.location}
-                            </span>
-                            <span>{truck.licensePlate}</span>
-                            <span>{truck.mileage.toLocaleString()} miles</span>
+        {isLoading ? (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="text-center py-12">
+              <p className="text-gray-500">Loading trucks...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredTrucks.map((truck) => (
+              <Card key={truck.id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold">
+                            <Truck className="h-6 w-6" />
                           </div>
-                          {truck.assignedTechnician && (
-                            <div className="flex items-center gap-1 text-sm text-blue-600 mt-1">
-                              <Users className="h-3 w-3" />
-                              Assigned to: {truck.assignedTechnician}
+                          <div>
+                            <h3 className="text-lg font-semibold text-[#10294B]">{truck.truck_number}</h3>
+                            <p className="text-sm text-gray-600">
+                              {truck.model} ({truck.year})
+                            </p>
+                            <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {truck.location || "Unspecified"}
+                              </span>
+                              <span>{truck.license_plate}</span>
+                              <span>{truck.mileage.toLocaleString()} miles</span>
                             </div>
+                            {truck.assigned_technician && (
+                              <div className="flex items-center gap-1 text-sm text-blue-600 mt-1">
+                                <Users className="h-3 w-3" />
+                                Assigned to: {truck.assigned_technician.first_name} {truck.assigned_technician.last_name}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={statusConfig[truck.status as keyof typeof statusConfig]?.color}>
+                            {statusConfig[truck.status as keyof typeof statusConfig]?.label}
+                          </Badge>
+                          {!truck.assigned_technician && (
+                            <Badge variant="outline" className="text-orange-600 border-orange-600">
+                              Unassigned
+                            </Badge>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={statusConfig[truck.status as keyof typeof statusConfig]?.color}>
-                          {statusConfig[truck.status as keyof typeof statusConfig]?.label}
-                        </Badge>
-                        {!truck.assignedTechnician && (
-                          <Badge variant="outline" className="text-orange-600 border-orange-600">
-                            Unassigned
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-gray-100">
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Total Items</div>
-                        <div className="font-semibold">{truck.totalItems}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Storage Bins</div>
-                        <div className="font-semibold">{truck.bins}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Low Stock</div>
-                        <div className={`font-semibold ${truck.lowStockItems > 0 ? "text-red-600" : "text-green-600"}`}>
-                          {truck.lowStockItems}
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-gray-100">
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Total Items</div>
+                          <div className="font-semibold">{truck.totalItems}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Storage Bins</div>
+                          <div className="font-semibold">{truck.bins}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Low Stock</div>
+                          <div
+                            className={`font-semibold ${truck.lowStockItems > 0 ? "text-red-600" : "text-green-600"}`}
+                          >
+                            {truck.lowStockItems}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Next Maintenance</div>
+                          <div className="font-semibold text-xs">{truck.next_maintenance || "Not scheduled"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Last Updated</div>
+                          <div className="font-semibold text-xs">{truck.lastUpdated}</div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Next Maintenance</div>
-                        <div className="font-semibold text-xs">{truck.nextMaintenance}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Last Updated</div>
-                        <div className="font-semibold text-xs">{truck.lastUpdated}</div>
-                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 lg:ml-6">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/trucks/${truck.id}`}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditTruck(truck)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Truck
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAssignTruck(truck)}>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            {truck.assigned_technician ? "Reassign" : "Assign"} Technician
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteTruck(truck)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Truck
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-                  <div className="flex flex-col gap-2 lg:ml-6">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/trucks/${truck.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditTruck(truck)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Truck
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAssignTruck(truck)}>
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          {truck.assignedTechnician ? "Reassign" : "Assign"} Technician
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteTruck(truck)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Truck
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredTrucks.length === 0 && (
+        {filteredTrucks.length === 0 && !isLoading && (
           <Card className="border-0 shadow-lg">
             <CardContent className="text-center py-12">
               <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -405,35 +420,35 @@ export default function AdminTrucksPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Modals */}
+        <CreateTruckModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onTruckCreated={handleCreateTruck}
+        />
+
+        {selectedTruck && (
+          <>
+            <AssignTruckModal
+              isOpen={showAssignModal}
+              onClose={() => {
+                setShowAssignModal(false);
+                setSelectedTruck(null);
+              }}
+              truck={selectedTruck}
+            />
+            <EditTruckModal
+              isOpen={showEditModal}
+              onClose={() => {
+                setShowEditModal(false);
+                setSelectedTruck(null);
+              }}
+              truck={selectedTruck}
+            />
+          </>
+        )}
       </div>
-
-      {/* Modals */}
-      <CreateTruckModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onTruckCreated={handleCreateTruck}
-      />
-
-      {selectedTruck && (
-        <>
-          <AssignTruckModal
-            isOpen={showAssignModal}
-            onClose={() => {
-              setShowAssignModal(false)
-              setSelectedTruck(null)
-            }}
-            truck={selectedTruck}
-          />
-          <EditTruckModal
-            isOpen={showEditModal}
-            onClose={() => {
-              setShowEditModal(false)
-              setSelectedTruck(null)
-            }}
-            truck={selectedTruck}
-          />
-        </>
-      )}
-    </Navigation>
-  )
+      </Navigation>
+    );
 }

@@ -23,6 +23,7 @@ interface AuthContextType {
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean;
+  token?: string;
 }
 
 interface RegisterData {
@@ -152,9 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Logout error:", error);
     }
   };
+    const token = localStorage.getItem("access_token");
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading ,token }}>
       {children}
     </AuthContext.Provider>
   );

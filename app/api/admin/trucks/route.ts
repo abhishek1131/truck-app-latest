@@ -1,133 +1,336 @@
-import { createClient } from "@/lib/supabase/server"
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server";
+import pool from "../../../../lib/db";
+import jwt from "jsonwebtoken";
+import { verify } from "jsonwebtoken";
 
-export async function GET(request: NextRequest) {
+interface TruckResponse {
+  success: boolean;
+  data?: {
+    trucks: {
+      id: string;
+      truck_number: string;
+      make: string;
+      model: string;
+      year: number;
+      license_plate: string;
+      vin: string;
+      status: "active" | "maintenance" | "inactive";
+      location: string | null;
+      mileage: number;
+      next_maintenance: string | null;
+      assigned_technician: {
+        id: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+      } | null;
+      totalItems: number;
+      lowStockItems: number;
+      bins: number;
+      lastUpdated: string;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+  error?: string;
+  code?: string;
+}
+
+export async function GET(req: Request) {
   try {
-    const supabase = await createClient()
-
-    // Verify admin access
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized: No token provided",
+          code: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
     }
 
-    const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
-
-    if (!userData || userData.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const token = authHeader.split(" ")[1];
+    let decoded: { id: string; role: string };
+    try {
+      decoded = verify(token, process.env.JWT_SECRET as string) as {
+        id: string;
+        role: string;
+      };
+      if (decoded.role !== "admin") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Forbidden: Admin access required",
+            code: "FORBIDDEN",
+          },
+          { status: 403 }
+        );
+      }
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized: Invalid token",
+          code: "INVALID_TOKEN",
+        },
+        { status: 401 }
+      );
     }
 
-    const { searchParams } = new URL(request.url)
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "10")
-    const search = searchParams.get("search") || ""
-    const status = searchParams.get("status") || ""
-    const assigned = searchParams.get("assigned") || ""
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "";
+    const assigned = searchParams.get("assigned") || "";
 
-    let query = supabase
-      .from("trucks")
-      .select(
-        `
-        *,
-        assigned_technician:users!trucks_assigned_technician_id_fkey(id, first_name, last_name, email),
-        bins:truck_bins!truck_bins_truck_id_fkey(count),
-        inventory:truck_inventory!truck_inventory_truck_id_fkey(count)
-      `,
-        { count: "exact" },
-      )
-      .order("created_at", { ascending: false })
+    const offset = (page - 1) * limit;
 
-    // Apply filters
+    let query = `
+      SELECT 
+        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.vin, t.status, t.location, t.mileage, t.next_maintenance,
+        u.id AS technician_id, u.first_name, u.last_name, u.email,
+        (SELECT COUNT(*) FROM truck_bins tb WHERE tb.truck_id = t.id) AS bins,
+        (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS totalItems,
+        (SELECT COUNT(*) FROM truck_inventory ti 
+         JOIN inventory_items ii ON ti.item_id = ii.id 
+         WHERE ti.truck_id = t.id AND ti.quantity <= ti.min_quantity) AS lowStockItems,
+        t.updated_at AS lastUpdated,
+        (SELECT COUNT(*) FROM trucks) AS total_count
+      FROM trucks t
+      LEFT JOIN users u ON t.assigned_to = u.id
+      WHERE 1=1
+    `;
+
+    const params: any[] = [];
+
     if (search) {
-      query = query.or(`truck_number.ilike.%${search}%,make.ilike.%${search}%,model.ilike.%${search}%`)
+      query += ` AND (t.truck_number LIKE ? OR t.make LIKE ? OR t.model LIKE ? OR t.location LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)`;
+      const searchParam = `%${search}%`;
+      params.push(
+        searchParam,
+        searchParam,
+        searchParam,
+        searchParam,
+        searchParam,
+        searchParam
+      );
     }
 
     if (status) {
-      query = query.eq("status", status)
+      query += ` AND t.status = ?`;
+      params.push(status);
     }
 
     if (assigned === "true") {
-      query = query.not("assigned_technician_id", "is", null)
+      query += ` AND t.assigned_to IS NOT NULL`;
     } else if (assigned === "false") {
-      query = query.is("assigned_technician_id", null)
+      query += ` AND t.assigned_to IS NULL`;
     }
 
-    // Apply pagination
-    const from = (page - 1) * limit
-    const to = from + limit - 1
-    query = query.range(from, to)
+    query += ` ORDER BY t.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
 
-    const { data: trucks, error, count } = await query
+    const [results] = await pool.query<any[]>(query, params);
 
-    if (error) {
-      console.error("Trucks fetch error:", error)
-      return NextResponse.json({ error: "Failed to fetch trucks" }, { status: 500 })
-    }
+    const total = results.length > 0 ? results[0].total_count : 0;
 
-    return NextResponse.json({
-      trucks: trucks || [],
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit),
+    const trucks = results.map((row) => ({
+      id: row.id,
+      truck_number: row.truck_number,
+      make: row.make,
+      model: row.model,
+      year: row.year,
+      license_plate: row.license_plate,
+      vin: row.vin,
+      status: row.status,
+      location: row.location,
+      mileage: row.mileage,
+      next_maintenance: row.next_maintenance,
+      assigned_technician: row.technician_id
+        ? {
+            id: row.technician_id,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            email: row.email,
+          }
+        : null,
+      totalItems: Number(row.totalItems) || 0,
+      lowStockItems: Number(row.lowStockItems) || 0,
+      bins: Number(row.bins) || 0,
+      lastUpdated: row.lastUpdated
+        ? new Date(row.lastUpdated).toLocaleString()
+        : "Never",
+    }));
+
+    const response: TruckResponse = {
+      success: true,
+      data: {
+        trucks,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
       },
-    })
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("Trucks API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Trucks API error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error", code: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const supabase = await createClient()
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized: No token provided",
+          code: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
+    }
 
-    // Verify admin access
+    const token = authHeader.split(" ")[1];
+    let decoded: { id: string; role: string };
+    try {
+      decoded = verify(token, process.env.JWT_SECRET as string) as {
+        id: string;
+        role: string;
+      };
+      if (decoded.role !== "admin") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Forbidden: Admin access required",
+            code: "FORBIDDEN",
+          },
+          { status: 403 }
+        );
+      }
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized: Invalid token",
+          code: "INVALID_TOKEN",
+        },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      truck_number,
+      make,
+      model,
+      year,
+      license_plate,
+      vin,
+      location,
+      assigned_to,
+      mileage,
+      next_maintenance,
+    } = body;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!truck_number || !make || !model || !year || !license_plate || !vin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Missing required fields: truck_number, make, model, year, license_plate, vin",
+          code: "BAD_REQUEST",
+        },
+        { status: 400 }
+      );
     }
 
-    const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
-
-    if (!userData || userData.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (vin.length !== 17) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "VIN must be 17 characters",
+          code: "BAD_REQUEST",
+        },
+        { status: 400 }
+      );
     }
 
-    const body = await request.json()
-    const { truck_number, make, model, year, license_plate, vin, location, assigned_technician_id } = body
+    const [existingTruck] = await pool.query(
+      `
+      SELECT id FROM trucks WHERE truck_number = ? OR license_plate = ? OR vin = ?
+      `,
+      [truck_number, license_plate, vin]
+    );
 
-    const { data: newTruck, error } = await supabase
-      .from("trucks")
-      .insert({
+    if (existingTruck.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Truck number, license plate, or VIN already exists",
+          code: "DUPLICATE_ENTRY",
+        },
+        { status: 400 }
+      );
+    }
+
+    const [result] = await pool.query(
+      `
+      INSERT INTO trucks (id, truck_number, make, model, year, license_plate, vin, status, location, mileage, assigned_to, next_maintenance, created_at, updated_at)
+      VALUES (UUID(), ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, NOW(), NOW())
+      `,
+      [
         truck_number,
         make,
         model,
         year,
         license_plate,
         vin,
-        location,
-        assigned_technician_id: assigned_technician_id || null,
-        status: "active",
-      })
-      .select()
-      .single()
+        location || null,
+        mileage || 0,
+        assigned_to || null,
+        next_maintenance || null,
+      ]
+    );
 
-    if (error) {
-      console.error("Truck creation error:", error)
-      return NextResponse.json({ error: "Failed to create truck" }, { status: 500 })
-    }
+    const [newTruck] = await pool.query(
+      `
+      SELECT 
+        t.*,
+        u.id AS technician_id, u.first_name, u.last_name, u.email
+      FROM trucks t
+      LEFT JOIN users u ON t.assigned_to = u.id
+      WHERE t.id = (SELECT LAST_INSERT_ID())
+      `
+    );
 
-    return NextResponse.json(newTruck)
-  } catch (error) {
-    console.error("Create truck error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({
+      success: true,
+      data: newTruck[0],
+    });
+  } catch (error: any) {
+    console.error("Create truck error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.sqlMessage || "Failed to create truck",
+        code: error.code || "SERVER_ERROR",
+      },
+      { status: 500 }
+    );
   }
 }
