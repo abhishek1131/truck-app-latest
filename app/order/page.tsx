@@ -1,13 +1,19 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/auth-provider"
-import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/components/auth-provider";
+import { Navigation } from "@/components/layout/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   ShoppingCart,
   Plus,
@@ -21,221 +27,208 @@ import {
   Search,
   Grid3X3,
   Truck,
-} from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface InventoryItem {
-  id: string
-  name: string
-  category: string
-  unit: string
-  partNumber: string
-  brand: string
-  standardLevel: number
-  lowStockThreshold: number
-  notes: string
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  partNumber: string;
+  brand: string;
+  standardLevel: number;
+  lowStockThreshold: number;
+  notes: string;
+  unitPrice: number;
 }
 
 interface TruckBinItem {
-  inventoryItemId: string
-  inventoryItem: InventoryItem
-  currentQuantity: number
-  binId: string
-  binName: string
+  inventoryItemId: string;
+  inventoryItem: InventoryItem;
+  currentQuantity: number;
+  binId: string;
+  binName: string;
 }
 
 interface OrderItem {
-  id: string
-  inventoryItemId: string
-  inventoryItem: InventoryItem
-  requestedQuantity: number
-  truckId?: string
-  truckName?: string
-  binId?: string
-  binName?: string
-  currentStock?: number
-  reason: string
+  id: string;
+  inventoryItemId: string;
+  inventoryItem: InventoryItem;
+  requestedQuantity: number;
+  truckId?: string;
+  truckName?: string;
+  binId?: string;
+  binName?: string;
+  currentStock?: number;
+  reason: string;
+  unitPrice: number;
 }
 
 interface PreviousOrder {
-  id: string
-  date: string
-  truckId: string
-  truckName: string
-  items: OrderItem[]
-  totalItems: number
-  status: string
+  id: string;
+  date: string;
+  truckId: string;
+  truckName: string;
+  items: OrderItem[];
+  totalItems: number;
+  status: string;
+}
+
+interface SupplyHouse {
+  id: string;
+  name: string;
+  location: string;
 }
 
 export default function OrderPage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-  const [selectedTruck, setSelectedTruck] = useState("")
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showItemSelection, setShowItemSelection] = useState(false)
-
-  // Mock data for trucks
-  const trucks = [
-    { id: "truck-1", name: "Truck #001", location: "Downtown Route" },
-    { id: "truck-2", name: "Truck #002", location: "Uptown Route" },
-    { id: "truck-3", name: "Truck #003", location: "Suburban Route" },
-  ]
-
-  // Mock inventory items
-  const inventoryItems: InventoryItem[] = [
-    {
-      id: "ITEM-001",
-      name: "HVAC Filter Set",
-      category: "HVAC",
-      unit: "pieces",
-      partNumber: "HF-1620",
-      brand: "FilterPro",
-      standardLevel: 20,
-      lowStockThreshold: 5,
-      notes: "Standard 16x20 filters",
-    },
-    {
-      id: "ITEM-002",
-      name: "Copper Pipe Fittings",
-      category: "Plumbing",
-      unit: "pieces",
-      partNumber: "CPF-ASSORT",
-      brand: "CopperMax",
-      standardLevel: 30,
-      lowStockThreshold: 8,
-      notes: 'Various sizes 1/2" to 2"',
-    },
-    {
-      id: "ITEM-003",
-      name: "Electrical Conduit",
-      category: "Electrical",
-      unit: "feet",
-      partNumber: "EC-12EMT",
-      brand: "ElectroTube",
-      standardLevel: 100,
-      lowStockThreshold: 20,
-      notes: '1/2" EMT conduit',
-    },
-    {
-      id: "ITEM-004",
-      name: "Wire Nuts Assorted",
-      category: "Electrical",
-      unit: "pieces",
-      partNumber: "WN-ASSORT",
-      brand: "WireConnect",
-      standardLevel: 50,
-      lowStockThreshold: 10,
-      notes: "Mixed sizes and colors",
-    },
-  ]
-
-  // Mock truck bin data
-  const getTruckBinItems = (truckId: string): TruckBinItem[] => {
-    const mockData: { [key: string]: TruckBinItem[] } = {
-      "truck-1": [
-        {
-          inventoryItemId: "ITEM-001",
-          inventoryItem: inventoryItems[0],
-          currentQuantity: 3,
-          binId: "bin-1",
-          binName: "Front Left Compartment",
-        },
-        {
-          inventoryItemId: "ITEM-002",
-          inventoryItem: inventoryItems[1],
-          currentQuantity: 5,
-          binId: "bin-2",
-          binName: "Rear Storage Bay",
-        },
-      ],
-      "truck-2": [
-        {
-          inventoryItemId: "ITEM-003",
-          inventoryItem: inventoryItems[2],
-          currentQuantity: 15,
-          binId: "bin-1",
-          binName: "Side Panel Storage",
-        },
-        {
-          inventoryItemId: "ITEM-004",
-          inventoryItem: inventoryItems[3],
-          currentQuantity: 8,
-          binId: "bin-3",
-          binName: "Front Right Compartment",
-        },
-      ],
-      "truck-3": [
-        {
-          inventoryItemId: "ITEM-001",
-          inventoryItem: inventoryItems[0],
-          currentQuantity: 12,
-          binId: "bin-1",
-          binName: "Main Storage",
-        },
-      ],
-    }
-    return mockData[truckId] || []
-  }
-
-  // Mock previous orders
-  const [previousOrders] = useState<PreviousOrder[]>([
-    {
-      id: "order-1",
-      date: "2024-01-15T10:30:00Z",
-      truckId: "truck-1",
-      truckName: "Truck #001",
-      items: [
-        {
-          id: "1",
-          inventoryItemId: "ITEM-001",
-          inventoryItem: inventoryItems[0],
-          requestedQuantity: 10,
-          truckId: "truck-1",
-          truckName: "Truck #001",
-          binId: "bin-1",
-          binName: "Front Left Compartment",
-          currentStock: 3,
-          reason: "Low stock - below threshold",
-        },
-      ],
-      totalItems: 10,
-      status: "Delivered",
-    },
-  ])
+  const { user, loading, token } = useAuth();
+  const router = useRouter();
+  const [selectedTruck, setSelectedTruck] = useState("");
+  const [selectedSupplyHouse, setSelectedSupplyHouse] = useState("");
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showItemSelection, setShowItemSelection] = useState(false);
+  const [trucks, setTrucks] = useState([]);
+  const [supplyHouses, setSupplyHouses] = useState<SupplyHouse[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [truckBinItems, setTruckBinItems] = useState<TruckBinItem[]>([]);
+  const [previousOrders, setPreviousOrders] = useState<PreviousOrder[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [user, loading, router])
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user || !token) return;
+
+      // Fetch trucks
+      try {
+        const trucksResponse = await fetch("/api/orders/trucks", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const trucksData = await trucksResponse.json();
+        if (trucksResponse.ok) {
+          setTrucks(trucksData.trucks);
+        } else {
+          console.error("Failed to fetch trucks:", trucksData.error);
+        }
+      } catch (error) {
+        console.error("Error fetching trucks:", error);
+      }
+
+      // Fetch supply houses
+      try {
+        const supplyHousesResponse = await fetch("/api/orders/supply-houses", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const supplyHousesData = await supplyHousesResponse.json();
+        if (supplyHousesResponse.ok) {
+          setSupplyHouses(supplyHousesData.supplyHouses);
+        } else {
+          console.error(
+            "Failed to fetch supply houses:",
+            supplyHousesData.error
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching supply houses:", error);
+      }
+
+      // Fetch previous orders
+      try {
+        const ordersResponse = await fetch("/api/orders/previous", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const ordersData = await ordersResponse.json();
+        if (ordersResponse.ok) {
+          setPreviousOrders(ordersData.previousOrders);
+        } else {
+          console.error("Failed to fetch previous orders:", ordersData.error);
+        }
+      } catch (error) {
+        console.error("Error fetching previous orders:", error);
+      }
+    };
+
+    fetchData();
+  }, [user, token, loading, router]);
+
+  useEffect(() => {
+    const fetchInventory = async () => {
+      if (!selectedTruck || !token) return;
+
+      try {
+        const inventoryResponse = await fetch(
+          `/api/orders/inventory?truck_id=${selectedTruck}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        const inventoryData = await inventoryResponse.json();
+        if (inventoryResponse.ok) {
+          setInventoryItems(inventoryData.inventoryItems);
+          setTruckBinItems(
+            inventoryData.truckBinItems.map((item: any) => ({
+              ...item,
+              inventoryItem: inventoryData.inventoryItems.find(
+                (inv: InventoryItem) => inv.id === item.inventoryItemId
+              ),
+            }))
+          );
+        } else {
+          console.error("Failed to fetch inventory:", inventoryData.error);
+        }
+      } catch (error) {
+        console.error("Error fetching inventory:", error);
+      }
+    };
+
+    fetchInventory();
+  }, [selectedTruck, token]);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
-  const selectedTruckData = trucks.find((t) => t.id === selectedTruck)
-  const truckBinItems = selectedTruck ? getTruckBinItems(selectedTruck) : []
+  const selectedTruckData = trucks.find((t: any) => t.id === selectedTruck);
+  const categories = [
+    "all",
+    ...Array.from(
+      new Set(inventoryItems.map((item: InventoryItem) => item.category))
+    ),
+  ];
 
-  const categories = ["all", ...Array.from(new Set(inventoryItems.map((item) => item.category)))]
+  const filteredInventoryItems = inventoryItems.filter(
+    (item: InventoryItem) => {
+      const matchesSearch =
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        selectedCategory === "all" || item.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    }
+  );
 
-  const filteredInventoryItems = inventoryItems.filter((item) => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
-
-  const addItemToOrder = (inventoryItem: InventoryItem, truckBinItem?: TruckBinItem) => {
+  const addItemToOrder = (
+    inventoryItem: InventoryItem,
+    truckBinItem?: TruckBinItem
+  ) => {
     const newOrderItem: OrderItem = {
       id: Date.now().toString(),
       inventoryItemId: inventoryItem.id,
@@ -247,27 +240,35 @@ export default function OrderPage() {
       binName: truckBinItem?.binName,
       currentStock: truckBinItem?.currentQuantity,
       reason:
-        truckBinItem && truckBinItem.currentQuantity <= inventoryItem.lowStockThreshold
+        truckBinItem &&
+        truckBinItem.currentQuantity <= inventoryItem.lowStockThreshold
           ? "Low stock - below threshold"
           : "Additional stock needed",
-    }
-    setOrderItems([...orderItems, newOrderItem])
-    setShowItemSelection(false)
-  }
+      unitPrice: inventoryItem.unitPrice || 0,
+    };
+    setOrderItems([...orderItems, newOrderItem]);
+    setShowItemSelection(false);
+  };
 
   const removeItem = (id: string) => {
-    setOrderItems(orderItems.filter((item) => item.id !== id))
-  }
+    setOrderItems(orderItems.filter((item) => item.id !== id));
+  };
 
   const updateItemQuantity = (id: string, quantity: number) => {
     if (quantity > 0) {
-      setOrderItems(orderItems.map((item) => (item.id === id ? { ...item, requestedQuantity: quantity } : item)))
+      setOrderItems(
+        orderItems.map((item) =>
+          item.id === id ? { ...item, requestedQuantity: quantity } : item
+        )
+      );
     }
-  }
+  };
 
   const updateItemReason = (id: string, reason: string) => {
-    setOrderItems(orderItems.map((item) => (item.id === id ? { ...item, reason } : item)))
-  }
+    setOrderItems(
+      orderItems.map((item) => (item.id === id ? { ...item, reason } : item))
+    );
+  };
 
   const generatePDF = (orderData: any) => {
     const pdfContent = `
@@ -277,34 +278,43 @@ ORDER SUMMARY
 Order ID: ${orderData.id}
 Date: ${new Date(orderData.timestamp).toLocaleString()}
 Truck: ${orderData.truckName}
+Supply House: ${
+      supplyHouses.find(
+        (sh: SupplyHouse) => sh.id === orderData.supply_house_id
+      )?.name || "Unknown"
+    }
 Technician: ${user?.name || "Unknown"}
 
 ITEMS ORDERED:
 ${orderData.items
   .map(
     (item: OrderItem, index: number) =>
-      `${index + 1}. ${item.inventoryItem.name} (${item.inventoryItem.partNumber})
+      `${index + 1}. ${item.inventoryItem.name} (${
+        item.inventoryItem.partNumber
+      })
    Quantity: ${item.requestedQuantity} ${item.inventoryItem.unit}
+   Unit Price: $${item.unitPrice.toFixed(2)}
    Current Stock: ${item.currentStock || "N/A"}
    Bin: ${item.binName || "General"}
-   Reason: ${item.reason}`,
+   Reason: ${item.reason}`
   )
   .join("\n\n")}
 
 Total Items: ${orderData.totalItems}
 
 Generated by TruxtoK System
-    `.trim()
+    `.trim();
 
-    const blob = new Blob([pdfContent], { type: "text/plain" })
-    return blob
-  }
+    const blob = new Blob([pdfContent], { type: "text/plain" });
+    return blob;
+  };
 
   const generateCSV = (orders: PreviousOrder[]) => {
     const headers = [
       "Order ID",
       "Date",
       "Truck",
+      "Supply House",
       "Item Name",
       "Part Number",
       "Quantity",
@@ -312,12 +322,14 @@ Generated by TruxtoK System
       "Bin",
       "Reason",
       "Status",
-    ]
+    ];
     const rows = orders.flatMap((order) =>
       order.items.map((item) => [
         order.id,
         new Date(order.date).toLocaleDateString(),
         order.truckName,
+        supplyHouses.find((sh: SupplyHouse) => sh.id === order.supplyHouseId)
+          ?.name || "Unknown",
         item.inventoryItem.name,
         item.inventoryItem.partNumber,
         item.requestedQuantity.toString(),
@@ -325,65 +337,102 @@ Generated by TruxtoK System
         item.binName || "General",
         item.reason,
         order.status,
-      ]),
-    )
+      ])
+    );
 
-    const csvContent = [headers, ...rows].map((row) => row.map((field) => `"${field}"`).join(",")).join("\n")
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    return blob
-  }
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((field) => `"${field}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    return blob;
+  };
 
   const downloadCSV = () => {
-    const csvBlob = generateCSV(previousOrders)
-    const url = URL.createObjectURL(csvBlob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `orders-archive-${new Date().toISOString().split("T")[0]}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
+    const csvBlob = generateCSV(previousOrders);
+    const url = URL.createObjectURL(csvBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `orders-archive-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleSubmit = async () => {
-    if (!selectedTruck || orderItems.length === 0) {
-      alert("Please select a truck and add at least one item.")
-      return
+    if (!selectedTruck || !selectedSupplyHouse || orderItems.length === 0) {
+      alert("Please select a truck, supply house, and add at least one item.");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       const orderData = {
         id: `ORD-${Date.now()}`,
         timestamp: new Date().toISOString(),
-        truckId: selectedTruck,
+        truck_id: selectedTruck,
         truckName: selectedTruckData?.name || "Unknown Truck",
-        items: orderItems,
-        totalItems: orderItems.reduce((sum, item) => sum + item.requestedQuantity, 0),
+        supply_house_id: selectedSupplyHouse,
+        urgency: "normal",
+        notes: "",
+        items: orderItems.map((item) => ({
+          inventory_item_id: item.inventoryItemId,
+          bin_id: item.binId,
+          quantity: item.requestedQuantity,
+          unit_price: item.unitPrice,
+          reason: item.reason,
+        })),
+        totalItems: orderItems.reduce(
+          (sum, item) => sum + item.requestedQuantity,
+          0
+        ),
         technician: user?.name || "Unknown",
-      }
+      };
 
-      const pdfBlob = generatePDF(orderData)
-      const pdfUrl = URL.createObjectURL(pdfBlob)
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
 
-      const emailSubject = encodeURIComponent(`Order Request - ${orderData.truckName} - ${orderData.id}`)
-      const emailBody = encodeURIComponent(`
+      const data = await response.json();
+
+      if (response.ok) {
+        const pdfBlob = generatePDF(orderData);
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+
+        const emailSubject = encodeURIComponent(
+          `Order Request - ${orderData.truckName} - ${orderData.id}`
+        );
+        const emailBody = encodeURIComponent(`
 Hi,
 
 Please find attached the order request details:
 
 Order ID: ${orderData.id}
 Truck: ${orderData.truckName}
+Supply House: ${
+          supplyHouses.find(
+            (sh: SupplyHouse) => sh.id === orderData.supply_house_id
+          )?.name || "Unknown"
+        }
 Date: ${new Date(orderData.timestamp).toLocaleString()}
 Total Items: ${orderData.totalItems}
 
 Items:
 ${orderData.items
   .map(
-    (item, index) =>
-      `${index + 1}. ${item.inventoryItem.name} (${item.inventoryItem.partNumber}) - ${item.requestedQuantity} ${item.inventoryItem.unit}
-     Bin: ${item.binName || "General"} | Current Stock: ${item.currentStock || "N/A"} | Reason: ${item.reason}`,
+    (item: any, index: number) =>
+      `${index + 1}. ${item.inventoryItem.name} (${
+        item.inventoryItem.partNumber
+      }) - ${item.quantity} ${item.inventoryItem.unit}
+     Bin: ${item.binName || "General"} | Current Stock: ${
+        item.currentStock || "N/A"
+      } | Reason: ${item.reason}`
   )
   .join("\n")}
 
@@ -391,36 +440,42 @@ Please process this order at your earliest convenience.
 
 Best regards,
 ${orderData.technician}
-      `)
+        `);
 
-      const mailtoLink = `mailto:orders@company.com?subject=${emailSubject}&body=${emailBody}`
-      window.open(mailtoLink)
+        const mailtoLink = `mailto:orders@company.com?subject=${emailSubject}&body=${emailBody}`;
+        window.open(mailtoLink);
 
-      const a = document.createElement("a")
-      a.href = pdfUrl
-      a.download = `order-${orderData.id}.txt`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(pdfUrl)
+        const a = document.createElement("a");
+        a.href = pdfUrl;
+        a.download = `order-${orderData.id}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(pdfUrl);
 
-      setOrderItems([])
-      setSelectedTruck("")
-      alert("Order submitted successfully! PDF generated and email opened.")
+        setOrderItems([]);
+        setSelectedTruck("");
+        setSelectedSupplyHouse("");
+        alert("Order submitted successfully! PDF generated and email opened.");
+      } else {
+        throw new Error(data.error);
+      }
     } catch (error) {
-      console.error("Error submitting order:", error)
-      alert("Error submitting order. Please try again.")
+      console.error("Error submitting order:", error);
+      alert("Error submitting order. Please try again.");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
-  const totalItems = orderItems.reduce((sum, item) => sum + item.requestedQuantity, 0)
+  const totalItems = orderItems.reduce(
+    (sum, item) => sum + item.requestedQuantity,
+    0
+  );
 
   return (
     <Navigation title="Order" subtitle="Place new orders for inventory">
       <div className="p-4 md:p-6 space-y-6">
-        {/* Order Form */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -437,7 +492,7 @@ ${orderData.technician}
                   <SelectValue placeholder="Choose a truck..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {trucks.map((truck) => (
+                  {trucks.map((truck: any) => (
                     <SelectItem key={truck.id} value={truck.id}>
                       {truck.name} - {truck.location}
                     </SelectItem>
@@ -446,7 +501,27 @@ ${orderData.technician}
               </Select>
             </div>
 
-            {/* Current Truck Stock (if truck selected) */}
+            {/* Supply House Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="supply-house-select">Select Supply House *</Label>
+              <Select
+                value={selectedSupplyHouse}
+                onValueChange={setSelectedSupplyHouse}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a supply house..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {supplyHouses.map((house: SupplyHouse) => (
+                    <SelectItem key={house.id} value={house.id}>
+                      {house.name} - {house.location}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Current Truck Stock */}
             {selectedTruck && truckBinItems.length > 0 && (
               <div className="border rounded-lg p-4 bg-blue-50">
                 <h3 className="font-medium mb-3 flex items-center gap-2">
@@ -455,7 +530,9 @@ ${orderData.technician}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {truckBinItems.map((binItem) => {
-                    const isLowStock = binItem.currentQuantity <= binItem.inventoryItem.lowStockThreshold
+                    const isLowStock =
+                      binItem.currentQuantity <=
+                      binItem.inventoryItem.lowStockThreshold;
                     return (
                       <div
                         key={`${binItem.binId}-${binItem.inventoryItemId}`}
@@ -463,7 +540,9 @@ ${orderData.technician}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">{binItem.inventoryItem.name}</span>
+                            <span className="font-medium text-sm">
+                              {binItem.inventoryItem.name}
+                            </span>
                             {isLowStock && (
                               <Badge variant="destructive" className="text-xs">
                                 Low Stock
@@ -476,19 +555,25 @@ ${orderData.technician}
                           </div>
                         </div>
                         <div className="text-right mr-3">
-                          <div className="font-semibold text-sm">{binItem.currentQuantity}</div>
-                          <div className="text-xs text-gray-500">{binItem.inventoryItem.unit}</div>
+                          <div className="font-semibold text-sm">
+                            {binItem.currentQuantity}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {binItem.inventoryItem.unit}
+                          </div>
                         </div>
                         <Button
                           size="sm"
                           variant={isLowStock ? "destructive" : "outline"}
-                          onClick={() => addItemToOrder(binItem.inventoryItem, binItem)}
+                          onClick={() =>
+                            addItemToOrder(binItem.inventoryItem, binItem)
+                          }
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           Order
                         </Button>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -527,7 +612,10 @@ ${orderData.technician}
                         className="pl-10"
                       />
                     </div>
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={setSelectedCategory}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="All Categories" />
                       </SelectTrigger>
@@ -543,10 +631,14 @@ ${orderData.technician}
 
                   {/* Inventory Items */}
                   <div className="max-h-64 overflow-y-auto space-y-2">
-                    {filteredInventoryItems.map((item) => {
-                      const truckBinItem = truckBinItems.find((bi) => bi.inventoryItemId === item.id)
-                      const isInTruck = !!truckBinItem
-                      const isLowStock = truckBinItem && truckBinItem.currentQuantity <= item.lowStockThreshold
+                    {filteredInventoryItems.map((item: InventoryItem) => {
+                      const truckBinItem = truckBinItems.find(
+                        (bi) => bi.inventoryItemId === item.id
+                      );
+                      const isInTruck = !!truckBinItem;
+                      const isLowStock =
+                        truckBinItem &&
+                        truckBinItem.currentQuantity <= item.lowStockThreshold;
 
                       return (
                         <div
@@ -560,7 +652,10 @@ ${orderData.technician}
                                 {item.category}
                               </Badge>
                               {isLowStock && (
-                                <Badge variant="destructive" className="text-xs">
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs"
+                                >
                                   Low Stock
                                 </Badge>
                               )}
@@ -569,7 +664,8 @@ ${orderData.technician}
                               {item.partNumber} • {item.brand}
                               {isInTruck && (
                                 <span className="ml-2 text-blue-600">
-                                  • In {truckBinItem.binName}: {truckBinItem.currentQuantity} {item.unit}
+                                  • In {truckBinItem.binName}:{" "}
+                                  {truckBinItem.currentQuantity} {item.unit}
                                 </span>
                               )}
                             </div>
@@ -583,7 +679,7 @@ ${orderData.technician}
                             Add
                           </Button>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </div>
@@ -594,7 +690,9 @@ ${orderData.technician}
             {orderItems.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium">Order Items ({totalItems} total)</h3>
+                  <h3 className="font-medium">
+                    Order Items ({totalItems} total)
+                  </h3>
                   <Badge variant="secondary">{orderItems.length} items</Badge>
                 </div>
                 <div className="space-y-3">
@@ -602,22 +700,29 @@ ${orderData.technician}
                     <div key={item.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <div className="font-medium">{item.inventoryItem.name}</div>
+                          <div className="font-medium">
+                            {item.inventoryItem.name}
+                          </div>
                           <div className="text-sm text-gray-500">
-                            {item.inventoryItem.partNumber} • {item.inventoryItem.brand}
+                            {item.inventoryItem.partNumber} •{" "}
+                            {item.inventoryItem.brand}
                           </div>
                           {item.binName && (
                             <div className="text-sm text-blue-600 flex items-center gap-1 mt-1">
                               <Grid3X3 className="h-3 w-3" />
-                              {item.binName} • Current: {item.currentStock} {item.inventoryItem.unit}
+                              {item.binName} • Current: {item.currentStock}{" "}
+                              {item.inventoryItem.unit}
                             </div>
                           )}
                         </div>
-                        <Button size="sm" variant="destructive" onClick={() => removeItem(item.id)}>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => removeItem(item.id)}
+                        >
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
-
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label className="text-xs">Quantity</Label>
@@ -625,7 +730,12 @@ ${orderData.technician}
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => updateItemQuantity(item.id, item.requestedQuantity - 1)}
+                              onClick={() =>
+                                updateItemQuantity(
+                                  item.id,
+                                  item.requestedQuantity - 1
+                                )
+                              }
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
@@ -635,18 +745,24 @@ ${orderData.technician}
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => updateItemQuantity(item.id, item.requestedQuantity + 1)}
+                              onClick={() =>
+                                updateItemQuantity(
+                                  item.id,
+                                  item.requestedQuantity + 1
+                                )
+                              }
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
-
                         <div>
                           <Label className="text-xs">Reason</Label>
                           <Input
                             value={item.reason}
-                            onChange={(e) => updateItemReason(item.id, e.target.value)}
+                            onChange={(e) =>
+                              updateItemReason(item.id, e.target.value)
+                            }
                             placeholder="Reason for ordering..."
                             className="mt-1"
                           />
@@ -662,7 +778,12 @@ ${orderData.technician}
             <div className="flex flex-col md:flex-row gap-4">
               <Button
                 onClick={handleSubmit}
-                disabled={!selectedTruck || orderItems.length === 0 || isSubmitting}
+                disabled={
+                  !selectedTruck ||
+                  !selectedSupplyHouse ||
+                  orderItems.length === 0 ||
+                  isSubmitting
+                }
                 className="flex-1 bg-[#E3253D] hover:bg-[#E3253D]/90"
               >
                 {isSubmitting ? (
@@ -705,16 +826,26 @@ ${orderData.technician}
                       <div>
                         <div className="font-medium">{order.id}</div>
                         <div className="text-sm text-gray-500">
-                          {new Date(order.date).toLocaleDateString()} • {order.truckName}
+                          {new Date(order.date).toLocaleDateString()} •{" "}
+                          {order.truckName}
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">{order.totalItems} items</Badge>
+                        <Badge variant="secondary">
+                          {order.totalItems} items
+                        </Badge>
                         <Badge
-                          variant={order.status === "Delivered" ? "default" : "secondary"}
-                          className={order.status === "Delivered" ? "bg-green-500" : ""}
+                          variant={
+                            order.status === "completed"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={
+                            order.status === "completed" ? "bg-green-500" : ""
+                          }
                         >
-                          {order.status}
+                          {order.status.charAt(0).toUpperCase() +
+                            order.status.slice(1)}
                         </Badge>
                       </div>
                     </div>
@@ -722,7 +853,8 @@ ${orderData.technician}
                       <strong>Items:</strong>{" "}
                       {order.items
                         .map(
-                          (item) => `${item.inventoryItem.name} (${item.requestedQuantity} ${item.inventoryItem.unit})`,
+                          (item) =>
+                            `${item.inventoryItem.name} (${item.requestedQuantity} ${item.inventoryItem.unit})`
                         )
                         .join(", ")}
                     </div>
@@ -730,11 +862,13 @@ ${orderData.technician}
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">No previous orders found.</div>
+              <div className="text-center py-8 text-gray-500">
+                No previous orders found.
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
     </Navigation>
-  )
+  );
 }

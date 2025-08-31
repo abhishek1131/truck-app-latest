@@ -1,20 +1,33 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/auth-provider"
-import { Button } from "@/components/ui/button"
-import { Bell, Search, Settings } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import Link from "next/link"
+import { useAuth } from "@/components/auth-provider";
+import { Button } from "@/components/ui/button";
+import { Bell, Search, Settings } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
 interface HeaderProps {
-  title: string
-  subtitle?: string
+  title: string;
+  subtitle?: string;
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
-  if (!user) return null
+  if (!user) return null;
+
+  // Construct name from first_name and last_name, with fallback
+  const displayName =
+    user.first_name || user.last_name
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+      : "Unknown User";
+  const initials =
+    displayName
+      .split(" ")
+      .filter((n) => n)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase() || "T"; // Fallback to "T" if no initials
 
   return (
     <div className="h-16 bg-white border-b border-gray-200/80 sticky top-0 z-30 shadow-sm">
@@ -28,8 +41,14 @@ export function Header({ title, subtitle }: HeaderProps) {
           </div>
 
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-[#10294B] tracking-tight">{title}</h1>
-            {subtitle && <p className="text-gray-600 text-sm font-medium hidden md:block">{subtitle}</p>}
+            <h1 className="text-xl md:text-2xl font-bold text-[#10294B] tracking-tight">
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="text-gray-600 text-sm font-medium hidden md:block">
+                {subtitle}
+              </p>
+            )}
           </div>
         </div>
 
@@ -51,7 +70,11 @@ export function Header({ title, subtitle }: HeaderProps) {
           </Link>
 
           {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative bg-transparent p-2 h-8 w-8 md:h-auto md:w-auto md:px-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative bg-transparent p-2 h-8 w-8 md:h-auto md:w-auto md:px-3"
+          >
             <Bell className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">Notifications</span>
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#E3253D] rounded-full flex items-center justify-center">
@@ -62,18 +85,17 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* User Avatar */}
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#E3253D] to-red-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg">
-              {user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
+              {initials}
             </div>
             <div className="hidden lg:block">
-              <p className="text-sm font-semibold text-[#10294B]">{user.name}</p>
+              <p className="text-sm font-semibold text-[#10294B]">
+                {displayName}
+              </p>
               <p className="text-xs text-gray-600 capitalize">{user.role}</p>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

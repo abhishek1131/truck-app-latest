@@ -27,8 +27,8 @@ export function Navigation({ children, title, subtitle }: NavigationProps) {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const userData = localStorage.getItem("user_data")
-    const sessionToken = localStorage.getItem("session_token")
+    const userData = localStorage.getItem("user")
+    const sessionToken = localStorage.getItem("access_token")
 
     if (userData && sessionToken) {
       try {
@@ -47,15 +47,15 @@ export function Navigation({ children, title, subtitle }: NavigationProps) {
           })
       } catch (error) {
         console.error("Error parsing user data:", error)
-        localStorage.removeItem("user_data")
-        localStorage.removeItem("session_token")
+        localStorage.removeItem("user")
+        localStorage.removeItem("access_token")
       }
     }
   }, [])
 
-  if (!user) {
-    return <>{children}</>
-  }
+  // if (!user) {
+  //   return <>{children}</>
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">
