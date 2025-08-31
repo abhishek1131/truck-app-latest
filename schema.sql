@@ -291,3 +291,44 @@ CREATE TABLE activities (
 
 ALTER TABLE orders
 ADD FOREIGN KEY (truck_id) REFERENCES trucks(id);
+
+
+ALTER TABLE orders
+ADD urgency ENUM
+('low', 'normal', 'high', 'urgent') DEFAULT 'normal',
+ADD commission DECIMAL
+(10, 2) DEFAULT 0.00,
+ADD credit DECIMAL
+(10, 2) DEFAULT 0.00;
+
+ALTER TABLE order_items
+ADD part_number VARCHAR(50)
+,
+ADD bin_code VARCHAR
+(20),
+ADD category VARCHAR
+(50),
+ADD description TEXT;
+
+
+ALTER TABLE orders
+ADD user_id CHAR(36) NOT NULL
+,
+ADD FOREIGN KEY
+(user_id) REFERENCES users
+(id);
+
+ALTER TABLE orders
+ADD user_id CHAR(36);
+-- Update existing rows with a default user_id or valid user IDs
+UPDATE orders SET user_id = (SELECT id
+FROM users
+WHERE role = 'technician' LIMIT 1
+);
+-- Then add the NOT NULL constraint and foreign key
+ALTER TABLE orders
+MODIFY user_id CHAR
+(36) NOT NULL,
+ADD FOREIGN KEY
+(user_id) REFERENCES users
+(id);

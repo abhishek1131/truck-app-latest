@@ -1,24 +1,38 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/auth-provider"
-import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Building, DollarSign, Shield, Save, Upload, Download } from "lucide-react"
-import { useState } from "react"
+import { useAuth } from "@/components/auth-provider";
+import { Navigation } from "@/components/layout/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Building,
+  DollarSign,
+  Shield,
+  Save,
+  Upload,
+  Download,
+} from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function AdminSettingsPage() {
-  const { user } = useAuth()
-  const { toast } = useToast()
-  const [isSaving, setIsSaving] = useState(false)
-
+  const { user, token } = useAuth();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
   const [platformSettings, setPlatformSettings] = useState({
     platformName: "TruXtoK",
     platformDescription: "Stock Smarter. Profit Harder.",
@@ -26,8 +40,7 @@ export default function AdminSettingsPage() {
     adminEmail: "admin@truxtok.com",
     maintenanceMode: false,
     allowRegistrations: true,
-  })
-
+  });
   const [commissionSettings, setCommissionSettings] = useState({
     defaultCommissionRate: 3.0,
     technicianCreditRate: 25.0,
@@ -35,18 +48,7 @@ export default function AdminSettingsPage() {
     maximumOrderValue: 10000.0,
     autoApproveOrders: true,
     requireOrderApproval: false,
-  })
-
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
-    orderNotifications: true,
-    creditNotifications: true,
-    systemAlerts: true,
-    weeklyReports: true,
-    monthlyReports: true,
-  })
-
+  });
   const [securitySettings, setSecuritySettings] = useState({
     requireTwoFactor: false,
     sessionTimeout: 24,
@@ -54,82 +56,320 @@ export default function AdminSettingsPage() {
     requireSpecialChars: true,
     maxLoginAttempts: 5,
     lockoutDuration: 30,
-  })
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!token || user?.role !== "admin") {
+        setError("Admin access required");
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/admin/settings", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await response.json();
+        if (result.success && result.data) {
+          setPlatformSettings(result.data.platform);
+          setCommissionSettings(result.data.commission);
+          setSecuritySettings(result.data.security);
+        } else {
+          setError(result.error || "Failed to fetch settings");
+        }
+      } catch (error) {
+        setError("Error fetching settings");
+        console.error("Fetch settings error:", error);
+      }
+    };
+
+    fetchSettings();
+  }, [token, user]);
 
   const handleSavePlatform = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
+    setError("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      toast({
-        title: "Platform settings updated",
-        description: "Your platform settings have been successfully saved.",
-      })
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(platformSettings.supportEmail)) {
+        setError("Invalid support email format");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(platformSettings.adminEmail)) {
+        setError("Invalid admin email format");
+        return;
+      }
+
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          category: "platform",
+          settings: platformSettings,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast({
+          title: "Platform settings updated",
+          description: "Your platform settings have been successfully saved.",
+        });
+      } else {
+        setError(result.error || "Failed to update platform settings");
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update platform settings. Please try again.",
-        variant: "destructive",
-      })
+      setError("Failed to update platform settings");
+      console.error("Save platform settings error:", error);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleSaveCommission = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
+    setError("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      toast({
-        title: "Commission settings updated",
-        description: "Your commission settings have been successfully saved.",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update commission settings. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSaving(false)
-    }
-  }
+      if (
+        commissionSettings.defaultCommissionRate < 0 ||
+        commissionSettings.defaultCommissionRate > 100 ||
+        commissionSettings.technicianCreditRate < 0 ||
+        commissionSettings.technicianCreditRate > 100 ||
+        commissionSettings.minimumOrderValue < 0 ||
+        commissionSettings.maximumOrderValue <
+          commissionSettings.minimumOrderValue
+      ) {
+        setError("Invalid commission settings");
+        return;
+      }
 
-  const handleSaveNotifications = async () => {
-    setIsSaving(true)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      toast({
-        title: "Notification settings updated",
-        description: "Your notification settings have been successfully saved.",
-      })
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          category: "commission",
+          settings: commissionSettings,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast({
+          title: "Commission settings updated",
+          description: "Your commission settings have been successfully saved.",
+        });
+      } else {
+        setError(result.error || "Failed to update commission settings");
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update notification settings. Please try again.",
-        variant: "destructive",
-      })
+      setError("Failed to update commission settings");
+      console.error("Save commission settings error:", error);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleSaveSecurity = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
+    setError("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      toast({
-        title: "Security settings updated",
-        description: "Your security settings have been successfully saved.",
-      })
+      if (
+        securitySettings.sessionTimeout < 1 ||
+        securitySettings.passwordMinLength < 6 ||
+        securitySettings.maxLoginAttempts < 1 ||
+        securitySettings.lockoutDuration < 1
+      ) {
+        setError("Invalid security settings");
+        return;
+      }
+
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          category: "security",
+          settings: securitySettings,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast({
+          title: "Security settings updated",
+          description: "Your security settings have been successfully saved.",
+        });
+      } else {
+        setError(result.error || "Failed to update security settings");
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update security settings. Please try again.",
-        variant: "destructive",
-      })
+      setError("Failed to update security settings");
+      console.error("Save security settings error:", error);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
+  };
+
+  const handleChangePassword = async () => {
+    setIsSaving(true);
+    setError("");
+    try {
+      if (
+        !passwordForm.currentPassword ||
+        !passwordForm.newPassword ||
+        !passwordForm.confirmPassword
+      ) {
+        setError("All password fields are required");
+        return;
+      }
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        setError("New passwords do not match");
+        return;
+      }
+      if (
+        passwordForm.newPassword.length < securitySettings.passwordMinLength
+      ) {
+        setError(
+          `New password must be at least ${securitySettings.passwordMinLength} characters`
+        );
+        return;
+      }
+      if (
+        securitySettings.requireSpecialChars &&
+        !/[!@#$%^&*]/.test(passwordForm.newPassword)
+      ) {
+        setError("New password must contain at least one special character");
+        return;
+      }
+
+      const response = await fetch("/api/admin/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(passwordForm),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast({
+          title: "Password changed",
+          description: "Your password has been successfully updated.",
+        });
+        setPasswordForm({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      } else {
+        setError(result.error || "Failed to change password");
+      }
+    } catch (error) {
+      setError("Failed to change password");
+      console.error("Change password error:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExportConfig = async () => {
+    try {
+      const response = await fetch("/api/admin/settings", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        const config = JSON.stringify(result.data, null, 2);
+        const blob = new Blob([config], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "truxtok-config.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({
+          title: "Configuration exported",
+          description: "Settings have been exported to truxtok-config.json",
+        });
+      } else {
+        setError(result.error || "Failed to export configuration");
+      }
+    } catch (error) {
+      setError("Failed to export configuration");
+      console.error("Export config error:", error);
+    }
+  };
+
+  const handleImportConfig = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const config = JSON.parse(text);
+      if (!config.platform || !config.commission || !config.security) {
+        setError("Invalid configuration file");
+        return;
+      }
+
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify([
+          { category: "platform", settings: config.platform },
+          { category: "commission", settings: config.commission },
+          { category: "security", settings: config.security },
+        ]),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setPlatformSettings(config.platform);
+        setCommissionSettings(config.commission);
+        setSecuritySettings(config.security);
+        toast({
+          title: "Configuration imported",
+          description: "Settings have been successfully imported.",
+        });
+      } else {
+        setError(result.error || "Failed to import configuration");
+      }
+    } catch (error) {
+      setError("Failed to import configuration");
+      console.error("Import config error:", error);
+    }
+  };
+
+  if (user?.role !== "admin") {
+    return (
+      <Navigation>
+        <Card className="border-0 shadow-lg">
+          <CardContent className="text-center py-12">
+            <p className="text-red-500">
+              Admin access required to view settings
+            </p>
+          </CardContent>
+        </Card>
+      </Navigation>
+    );
   }
 
   return (
@@ -137,21 +377,41 @@ export default function AdminSettingsPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-[#10294B] mb-2">Platform Settings</h1>
-            <p className="text-gray-600">Configure and manage your TruXtoK platform</p>
+            <h1 className="text-3xl font-bold text-[#10294B] mb-2">
+              Platform Settings
+            </h1>
+            <p className="text-gray-600">
+              Configure and manage your TruXtoK platform
+            </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 bg-transparent"
+              onClick={handleExportConfig}
+            >
               <Download className="h-4 w-4" />
               Export Config
             </Button>
-            <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+            <label className="flex items-center gap-2 bg-transparent border rounded-md px-3 py-2 cursor-pointer">
               <Upload className="h-4 w-4" />
               Import Config
-            </Button>
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={handleImportConfig}
+              />
+            </label>
           </div>
         </div>
       </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="platform" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8">
@@ -176,7 +436,9 @@ export default function AdminSettingsPage() {
                 <Building className="h-5 w-5 text-[#E3253D]" />
                 Platform Configuration
               </CardTitle>
-              <CardDescription>Basic platform settings and information</CardDescription>
+              <CardDescription>
+                Basic platform settings and information
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
@@ -185,7 +447,12 @@ export default function AdminSettingsPage() {
                   <Input
                     id="platformName"
                     value={platformSettings.platformName}
-                    onChange={(e) => setPlatformSettings({ ...platformSettings, platformName: e.target.value })}
+                    onChange={(e) =>
+                      setPlatformSettings({
+                        ...platformSettings,
+                        platformName: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -194,17 +461,29 @@ export default function AdminSettingsPage() {
                     id="supportEmail"
                     type="email"
                     value={platformSettings.supportEmail}
-                    onChange={(e) => setPlatformSettings({ ...platformSettings, supportEmail: e.target.value })}
+                    onChange={(e) =>
+                      setPlatformSettings({
+                        ...platformSettings,
+                        supportEmail: e.target.value,
+                      })
+                    }
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="platformDescription">Platform Description</Label>
+                <Label htmlFor="platformDescription">
+                  Platform Description
+                </Label>
                 <Textarea
                   id="platformDescription"
                   value={platformSettings.platformDescription}
-                  onChange={(e) => setPlatformSettings({ ...platformSettings, platformDescription: e.target.value })}
+                  onChange={(e) =>
+                    setPlatformSettings({
+                      ...platformSettings,
+                      platformDescription: e.target.value,
+                    })
+                  }
                   rows={3}
                 />
               </div>
@@ -215,45 +494,68 @@ export default function AdminSettingsPage() {
                   id="adminEmail"
                   type="email"
                   value={platformSettings.adminEmail}
-                  onChange={(e) => setPlatformSettings({ ...platformSettings, adminEmail: e.target.value })}
+                  onChange={(e) =>
+                    setPlatformSettings({
+                      ...platformSettings,
+                      adminEmail: e.target.value,
+                    })
+                  }
                 />
               </div>
 
               <Separator />
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-[#10294B]">Platform Controls</h3>
+                <h3 className="text-lg font-medium text-[#10294B]">
+                  Platform Controls
+                </h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
-                      <p className="text-sm text-gray-600">Temporarily disable platform access</p>
+                      <p className="text-sm text-gray-600">
+                        Temporarily disable platform access
+                      </p>
                     </div>
                     <Switch
                       id="maintenanceMode"
                       checked={platformSettings.maintenanceMode}
                       onCheckedChange={(checked) =>
-                        setPlatformSettings({ ...platformSettings, maintenanceMode: checked })
+                        setPlatformSettings({
+                          ...platformSettings,
+                          maintenanceMode: checked,
+                        })
                       }
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="allowRegistrations">Allow New Registrations</Label>
-                      <p className="text-sm text-gray-600">Enable new technician registrations</p>
+                      <Label htmlFor="allowRegistrations">
+                        Allow New Registrations
+                      </Label>
+                      <p className="text-sm text-gray-600">
+                        Enable new technician registrations
+                      </p>
                     </div>
                     <Switch
                       id="allowRegistrations"
                       checked={platformSettings.allowRegistrations}
                       onCheckedChange={(checked) =>
-                        setPlatformSettings({ ...platformSettings, allowRegistrations: checked })
+                        setPlatformSettings({
+                          ...platformSettings,
+                          allowRegistrations: checked,
+                        })
                       }
                     />
                   </div>
                 </div>
               </div>
 
-              <Button onClick={handleSavePlatform} disabled={isSaving} className="bg-[#E3253D] hover:bg-[#E3253D]/90">
+              <Button
+                onClick={handleSavePlatform}
+                disabled={isSaving}
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+              >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Save Platform Settings"}
               </Button>
@@ -268,12 +570,16 @@ export default function AdminSettingsPage() {
                 <DollarSign className="h-5 w-5 text-[#E3253D]" />
                 Commission & Credit Settings
               </CardTitle>
-              <CardDescription>Configure commission rates and credit calculations</CardDescription>
+              <CardDescription>
+                Configure commission rates and credit calculations
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="defaultCommissionRate">Default Commission Rate (%)</Label>
+                  <Label htmlFor="defaultCommissionRate">
+                    Default Commission Rate (%)
+                  </Label>
                   <Input
                     id="defaultCommissionRate"
                     type="number"
@@ -284,13 +590,17 @@ export default function AdminSettingsPage() {
                     onChange={(e) =>
                       setCommissionSettings({
                         ...commissionSettings,
-                        defaultCommissionRate: Number.parseFloat(e.target.value),
+                        defaultCommissionRate: Number.parseFloat(
+                          e.target.value
+                        ),
                       })
                     }
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="technicianCreditRate">Technician Credit Rate (%)</Label>
+                  <Label htmlFor="technicianCreditRate">
+                    Technician Credit Rate (%)
+                  </Label>
                   <Input
                     id="technicianCreditRate"
                     type="number"
@@ -310,7 +620,9 @@ export default function AdminSettingsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="minimumOrderValue">Minimum Order Value ($)</Label>
+                  <Label htmlFor="minimumOrderValue">
+                    Minimum Order Value ($)
+                  </Label>
                   <Input
                     id="minimumOrderValue"
                     type="number"
@@ -326,7 +638,9 @@ export default function AdminSettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="maximumOrderValue">Maximum Order Value ($)</Label>
+                  <Label htmlFor="maximumOrderValue">
+                    Maximum Order Value ($)
+                  </Label>
                   <Input
                     id="maximumOrderValue"
                     type="number"
@@ -346,38 +660,58 @@ export default function AdminSettingsPage() {
               <Separator />
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-[#10294B]">Order Processing</h3>
+                <h3 className="text-lg font-medium text-[#10294B]">
+                  Order Processing
+                </h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="autoApproveOrders">Auto-approve Orders</Label>
-                      <p className="text-sm text-gray-600">Automatically approve orders under limits</p>
+                      <Label htmlFor="autoApproveOrders">
+                        Auto-approve Orders
+                      </Label>
+                      <p className="text-sm text-gray-600">
+                        Automatically approve orders under limits
+                      </p>
                     </div>
                     <Switch
                       id="autoApproveOrders"
                       checked={commissionSettings.autoApproveOrders}
                       onCheckedChange={(checked) =>
-                        setCommissionSettings({ ...commissionSettings, autoApproveOrders: checked })
+                        setCommissionSettings({
+                          ...commissionSettings,
+                          autoApproveOrders: checked,
+                        })
                       }
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="requireOrderApproval">Require Manual Approval</Label>
-                      <p className="text-sm text-gray-600">All orders require admin approval</p>
+                      <Label htmlFor="requireOrderApproval">
+                        Require Manual Approval
+                      </Label>
+                      <p className="text-sm text-gray-600">
+                        All orders require admin approval
+                      </p>
                     </div>
                     <Switch
                       id="requireOrderApproval"
                       checked={commissionSettings.requireOrderApproval}
                       onCheckedChange={(checked) =>
-                        setCommissionSettings({ ...commissionSettings, requireOrderApproval: checked })
+                        setCommissionSettings({
+                          ...commissionSettings,
+                          requireOrderApproval: checked,
+                        })
                       }
                     />
                   </div>
                 </div>
               </div>
 
-              <Button onClick={handleSaveCommission} disabled={isSaving} className="bg-[#E3253D] hover:bg-[#E3253D]/90">
+              <Button
+                onClick={handleSaveCommission}
+                disabled={isSaving}
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+              >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Save Commission Settings"}
               </Button>
@@ -392,28 +726,197 @@ export default function AdminSettingsPage() {
                 <Shield className="h-5 w-5 text-[#E3253D]" />
                 Security Settings
               </CardTitle>
-              <CardDescription>Configure platform security and authentication</CardDescription>
+              <CardDescription>
+                Configure platform security and authentication
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sessionTimeout">
+                    Session Timeout (hours)
+                  </Label>
+                  <Input
+                    id="sessionTimeout"
+                    type="number"
+                    min="1"
+                    value={securitySettings.sessionTimeout}
+                    onChange={(e) =>
+                      setSecuritySettings({
+                        ...securitySettings,
+                        sessionTimeout: Number.parseInt(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="passwordMinLength">
+                    Password Minimum Length
+                  </Label>
+                  <Input
+                    id="passwordMinLength"
+                    type="number"
+                    min="6"
+                    value={securitySettings.passwordMinLength}
+                    onChange={(e) =>
+                      setSecuritySettings({
+                        ...securitySettings,
+                        passwordMinLength: Number.parseInt(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
+                  <Input
+                    id="maxLoginAttempts"
+                    type="number"
+                    min="1"
+                    value={securitySettings.maxLoginAttempts}
+                    onChange={(e) =>
+                      setSecuritySettings({
+                        ...securitySettings,
+                        maxLoginAttempts: Number.parseInt(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lockoutDuration">
+                    Lockout Duration (minutes)
+                  </Label>
+                  <Input
+                    id="lockoutDuration"
+                    type="number"
+                    min="1"
+                    value={securitySettings.lockoutDuration}
+                    onChange={(e) =>
+                      setSecuritySettings({
+                        ...securitySettings,
+                        lockoutDuration: Number.parseInt(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="requireTwoFactor">
+                      Require Two-Factor Authentication
+                    </Label>
+                    <p className="text-sm text-gray-600">
+                      Enforce 2FA for all users
+                    </p>
+                  </div>
+                  <Switch
+                    id="requireTwoFactor"
+                    checked={securitySettings.requireTwoFactor}
+                    onCheckedChange={(checked) =>
+                      setSecuritySettings({
+                        ...securitySettings,
+                        requireTwoFactor: checked,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="requireSpecialChars">
+                      Require Special Characters in Passwords
+                    </Label>
+                    <p className="text-sm text-gray-600">
+                      Passwords must include special characters
+                    </p>
+                  </div>
+                  <Switch
+                    id="requireSpecialChars"
+                    checked={securitySettings.requireSpecialChars}
+                    onCheckedChange={(checked) =>
+                      setSecuritySettings({
+                        ...securitySettings,
+                        requireSpecialChars: checked,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={handleSaveSecurity}
+                disabled={isSaving}
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? "Saving..." : "Save Security Settings"}
+              </Button>
+
+              <Separator />
+
               <div>
-                <h3 className="text-lg font-medium text-[#10294B] mb-4">Change Password</h3>
+                <h3 className="text-lg font-medium text-[#10294B] mb-4">
+                  Change Password
+                </h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input id="currentPassword" type="password" placeholder="Enter your current password" />
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      placeholder="Enter your current password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) =>
+                        setPasswordForm({
+                          ...passwordForm,
+                          currentPassword: e.target.value,
+                        })
+                      }
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="newPassword">New Password</Label>
-                    <Input id="newPassword" type="password" placeholder="Enter your new password" />
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      placeholder="Enter your new password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) =>
+                        setPasswordForm({
+                          ...passwordForm,
+                          newPassword: e.target.value,
+                        })
+                      }
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input id="confirmPassword" type="password" placeholder="Confirm your new password" />
+                    <Label htmlFor="confirmPassword">
+                      Confirm New Password
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your new password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordForm({
+                          ...passwordForm,
+                          confirmPassword: e.target.value,
+                        })
+                      }
+                    />
                   </div>
                 </div>
               </div>
 
-              <Button onClick={handleSaveSecurity} disabled={isSaving} className="bg-[#E3253D] hover:bg-[#E3253D]/90">
+              <Button
+                onClick={handleChangePassword}
+                disabled={isSaving}
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+              >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Change Password"}
               </Button>
@@ -422,5 +925,5 @@ export default function AdminSettingsPage() {
         </TabsContent>
       </Tabs>
     </Navigation>
-  )
+  );
 }
