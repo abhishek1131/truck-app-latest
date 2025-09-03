@@ -81,7 +81,7 @@ export async function GET(
       );
     } else if (userData.role !== "technician") {
       console.log(`Forbidden: User ${userId} is not a technician or admin`);
-      // return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Verify truck exists and is assigned to effectiveUserId
@@ -202,10 +202,6 @@ export async function GET(
   }
 }
 
-// POST and DELETE handlers remain unchanged
-// Note: If admin access is needed for POST/DELETE, similar logic can be added to check user role
-// and use the technician's ID from trucks.assigned_to based on binId and truckId.
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; binId: string }> }
@@ -319,7 +315,7 @@ export async function POST(
     const body = await request.json();
     const { inventory_item_id, quantity } = body;
 
-    if (!inventory_item_id || !quantity || quantity <= 0) {
+    if (!inventory_item_id || !quantity || quantity < 0) {
       console.log("Invalid request body:", { inventory_item_id, quantity });
       return NextResponse.json(
         { error: "Invalid inventory item or quantity" },
@@ -354,7 +350,7 @@ export async function POST(
 
     if ((existingInventory as any[]).length > 0) {
       await connection.query(
-        "UPDATE truck_inventory SET quantity = quantity + ?, last_restocked = NOW() WHERE truck_id = ? AND bin_id = ? AND item_id = ?",
+        "UPDATE truck_inventory SET quantity = ?, last_restocked = NOW() WHERE truck_id = ? AND bin_id = ? AND item_id = ?",
         [quantity, id, binId, inventory_item_id]
       );
       console.log(
@@ -404,7 +400,24 @@ export async function DELETE(
   let connection;
   try {
     const { id, binId } = await params;
-    console.log(`Deleting item from bin: truckId=${id}, binId=${binId}`);
+
+    // Get itemId from query parameters instead of path parameters
+    const url = new URL(request.url);
+    const itemId = url.searchParams.get("itemId");
+
+    console.log(`URL: ${request.url}`);
+    console.log(`Query params:`, Object.fromEntries(url.searchParams));
+    console.log(
+      `Deleting item from bin: truckId=${id}, binId=${binId}, itemId=${itemId}`
+    );
+
+    if (!itemId) {
+      console.log("ItemId query parameter is missing");
+      return NextResponse.json(
+        { error: "itemId query parameter is required" },
+        { status: 400 }
+      );
+    }
 
     const authHeader = request.headers.get("authorization");
     const token =
@@ -507,47 +520,64 @@ export async function DELETE(
       return NextResponse.json({ error: "Bin not found" }, { status: 404 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const itemId = searchParams.get("itemId");
-
-    if (!itemId) {
-      console.log("No itemId provided in query parameters");
-      return NextResponse.json(
-        { error: "Missing itemId in query parameters" },
-        { status: 400 }
-      );
-    }
-
     connection = await pool.getConnection();
     await connection.beginTransaction();
+
+    // Debug: Check what's actually in the database
+    console.log(`Searching for item with ID: ${itemId}`);
 
     const [inventoryRows] = await connection.query(
       "SELECT item_id FROM truck_inventory WHERE truck_id = ? AND bin_id = ? AND item_id = ?",
       [id, binId, itemId]
     );
 
+    console.log(`Found inventory items:`, inventoryRows);
+
     if ((inventoryRows as any[]).length === 0) {
       console.log(
         `Inventory item not found: itemId=${itemId}, binId=${binId}, truckId=${id}`
       );
+
+      // Additional debug: Check if item exists with different truck_id or bin_id
+      const [allItemsInBin] = await connection.query(
+        "SELECT item_id, truck_id, bin_id FROM truck_inventory WHERE truck_id = ? AND bin_id = ?",
+        [id, binId]
+      );
+      console.log(`All items in bin ${binId}:`, allItemsInBin);
+
       await connection.rollback();
       return NextResponse.json(
-        { error: "Inventory item not found in bin" },
+        {
+          error: "Inventory item not found in bin",
+          debug: {
+            searchedItemId: itemId,
+            truckId: id,
+            binId: binId,
+            allItemsInBin: allItemsInBin,
+          },
+        },
         { status: 404 }
       );
     }
 
-    await connection.query(
+    // Delete the item
+    const [deleteResult] = await connection.query(
       "DELETE FROM truck_inventory WHERE truck_id = ? AND bin_id = ? AND item_id = ?",
       [id, binId, itemId]
     );
+
+    console.log(`Delete result:`, deleteResult);
 
     await connection.commit();
     console.log(
       `Successfully deleted item: itemId=${itemId} from binId=${binId}`
     );
 
-    return NextResponse.json({ message: "Item removed from bin successfully" });
+    return NextResponse.json({
+      message: "Item removed from bin successfully",
+      deletedItemId: itemId,
+      affectedRows: (deleteResult as any).affectedRows,
+    });
   } catch (error: any) {
     if (connection) {
       await connection.rollback();
@@ -555,6 +585,8 @@ export async function DELETE(
     console.error("Delete item from bin error:", {
       message: error.message,
       stack: error.stack,
+      sqlMessage: error.sqlMessage,
+      sql: error.sql,
     });
     return NextResponse.json(
       { error: "Internal server error" },

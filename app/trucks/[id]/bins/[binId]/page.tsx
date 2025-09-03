@@ -55,8 +55,22 @@ export default function BinDetailPage() {
         );
         const data = await response.json();
         if (response.ok) {
-          setBin(data);
-          setBinItems(data.inventory);
+          // Map snake_case to camelCase
+          const mappedItems = data.inventory.map((item: any) => ({
+            id: item.id,
+            inventoryItemId: item.inventory_item_id,
+            name: item.name,
+            category: item.category,
+            currentStock: item.current_stock,
+            standardLevel: item.standard_level,
+            unit: item.unit,
+            lastRestocked: item.last_restocked,
+            isLowStock: item.is_low_stock,
+          }));
+          setBin({ ...data, inventory: mappedItems });
+          setBinItems(mappedItems);
+          console.log("Response:", data);
+          console.log("Mapped Items:", mappedItems);
         } else {
           console.error("Failed to fetch bin:", data.error);
           router.push(`/trucks/${truckId}`);
@@ -87,6 +101,7 @@ export default function BinDetailPage() {
         }
       );
       const data = await response.json();
+      console.log("POST Response:", data);
       if (response.ok) {
         const newBinItem = {
           id: inventoryItem.id,
@@ -95,12 +110,10 @@ export default function BinDetailPage() {
           category: inventoryItem.category,
           currentStock: quantity,
           standardLevel:
-            inventoryItem.standardLevel || Math.floor(quantity * 1.5),
+            inventoryItem.standard_level || Math.floor(quantity * 1.5),
           unit: inventoryItem.unit || "pieces",
-          lastUsed: new Date().toLocaleString(),
-          isLowStock:
-            quantity <
-            (inventoryItem.standardLevel || Math.floor(quantity * 1.5)),
+          lastRestocked: new Date().toISOString(),
+          isLowStock: quantity < (inventoryItem.standard_level || Math.floor(quantity * 1.5)),
         };
         setBinItems([
           ...binItems.filter((item) => item.id !== inventoryItem.id),
@@ -135,6 +148,8 @@ export default function BinDetailPage() {
           }),
         }
       );
+      const data = await response.json();
+      console.log("Edit POST Response:", data);
       if (response.ok) {
         setBinItems(
           binItems.map((item) =>
@@ -143,6 +158,7 @@ export default function BinDetailPage() {
                   ...item,
                   currentStock: editQuantity,
                   isLowStock: editQuantity < item.standardLevel,
+                  lastRestocked: new Date().toISOString(),
                 }
               : item
           )
@@ -150,7 +166,6 @@ export default function BinDetailPage() {
         setEditingItem(null);
         setEditQuantity(0);
       } else {
-        const data = await response.json();
         console.error("Failed to update item:", data.error);
       }
     } catch (error) {
@@ -166,16 +181,17 @@ export default function BinDetailPage() {
   const handleDeleteItem = async (itemId: string) => {
     try {
       const response = await fetch(
-        `/api/technician/trucks/${truckId}/bins/${binId}/${itemId}`,
+        `/api/technician/trucks/${truckId}/bins/${binId}?itemId=${itemId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      const data = await response.json();
+      console.log("DELETE Response:", data);
       if (response.ok) {
         setBinItems(binItems.filter((item) => item.id !== itemId));
       } else {
-        const data = await response.json();
         console.error("Failed to delete item:", data.error);
       }
     } catch (error) {
@@ -201,7 +217,7 @@ export default function BinDetailPage() {
   const totalItems = binItems.length;
   const categories = [...new Set(binItems.map((item: any) => item.category))];
   const lowStockCount = lowStockItems.length;
-  const lastUpdated = binItems.length > 0 ? binItems[0].lastUsed : "Never";
+  const lastUpdated = binItems.length > 0 ? binItems[0].lastRestocked : "Never";
 
   return (
     <Navigation
@@ -408,7 +424,7 @@ export default function BinDetailPage() {
                         )}
                       </div>
                       <p className="text-xs text-gray-400 mt-1">
-                        Last used {item.lastUsed}
+                        Last restocked {new Date(item.lastRestocked).toLocaleString()}
                       </p>
                     </div>
                   </div>
