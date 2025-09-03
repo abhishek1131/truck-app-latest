@@ -65,12 +65,6 @@ export async function GET(req: Request) {
         id: string;
         role: string;
       };
-      if (decoded.role !== "admin") {
-        return NextResponse.json(
-          { success: false, error: "Admin access required", code: "FORBIDDEN" },
-          { status: 403 }
-        );
-      }
     } catch (error) {
       return NextResponse.json(
         { success: false, error: "Invalid token", code: "UNAUTHORIZED" },

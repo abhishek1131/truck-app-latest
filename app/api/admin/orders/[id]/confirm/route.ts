@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { verify } from "jsonwebtoken";
@@ -74,10 +75,9 @@ export async function POST(
         t.id as truck_id,
         t.truck_number,
         o.status,
-        o.urgency,
-        o.total_cost,
-        o.total_commission,
-        o.total_credit,
+        o.priority,
+        o.total_amount,
+        o.commission_amount,
         o.created_at
       FROM orders o
       JOIN users u ON o.technician_id = u.id

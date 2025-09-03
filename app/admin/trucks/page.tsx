@@ -280,6 +280,12 @@ export default function AdminTrucksPage() {
     setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
   }, []);
 
+  const handleTruckUpdate = useCallback((updated: Partial<Truck>) => {
+    setTrucks((prev) =>
+      prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t))
+    );
+  }, []);
+
   return (
     <Navigation
       title="Fleet Management"
@@ -612,6 +618,7 @@ export default function AdminTrucksPage() {
               onClose={handleDialogClose}
               truck={selectedTruck}
               technicians={technicians}
+              onAssignSuccess={handleTruckUpdate}
             />
             <EditTruckDialog
               isOpen={showEditDialog}

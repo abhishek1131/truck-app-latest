@@ -30,10 +30,7 @@ export async function GET(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+   
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -210,10 +207,7 @@ export async function POST(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+   
     const body = await request.json();
     const { truck_id, items, notes, supply_house_id, urgency } = body;
 

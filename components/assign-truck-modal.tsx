@@ -63,7 +63,7 @@ export function AssignTruckDialog({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/trucks/${truck.id}`, {
+      const response = await fetch(`/api/admin/trucks/${truck.id}/assign`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -78,9 +78,9 @@ export function AssignTruckDialog({
         throw new Error(result.error || "Failed to assign truck");
       }
 
-      // Call the success callback with the updated truck data
+      // Call the success callback with the minimal updated data
       onAssignSuccess?.({
-        ...truck,
+        id: truck.id,
         assigned_technician: result.data.assigned_technician,
       });
 
@@ -98,7 +98,7 @@ export function AssignTruckDialog({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/trucks/${truck.id}`, {
+      const response = await fetch(`/api/admin/trucks/${truck.id}/assign`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -113,10 +113,10 @@ export function AssignTruckDialog({
         throw new Error(result.error || "Failed to unassign truck");
       }
 
-      // Call the success callback with the updated truck data
+      // Call the success callback with the minimal updated data
       onAssignSuccess?.({
-        ...truck,
-        assigned_technician: null,
+        id: truck.id,
+        assigned_technician: result.data.assigned_technician,
       });
 
       onClose();

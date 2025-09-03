@@ -182,34 +182,32 @@ export default function AdminUsersPage() {
     setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
   }, []);
 
-  const handleDeactivateUser = useCallback(
-    async (user: User, onClose: () => void) => {
-      try {
-        const newStatus = user.status === "active" ? "inactive" : "active";
-        const response = await fetch(`/api/admin/users/${user.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ ...user, status: newStatus }),
-        });
-        const result = await response.json();
-        if (result.success && result.data) {
-          setUsers(users.map((u) => (u.id === user.id ? result.data : u)));
-          onClose();
-          setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
-        } else {
-          alert(`Failed to update user status: ${result.error}`);
-        }
-      } catch (error) {
-        console.error("Error updating user status:", error);
-        alert("Error updating user status. Please try again.");
+const handleDeactivateUser = useCallback(
+  async (user: User, onClose: () => void) => {
+    try {
+      const action = user.status === "active" ? "deactivate" : "activate";
+      const response = await fetch(`/api/admin/users/${user.id}/${action}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        setUsers(users.map((u) => (u.id === user.id ? result.data : u)));
+        onClose();
+        setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+      } else {
+        alert(`Failed to ${action} user: ${result.error}`);
       }
-    },
-    [token, users]
-  );
-
+    } catch (error) {
+      console.error(`Error ${user.status === "active" ? "deactivating" : "activating"} user:`, error);
+      alert(`Error ${user.status === "active" ? "deactivating" : "activating"} user. Please try again.`);
+    }
+  },
+  [token, users]
+);
   const handleDeleteUser = useCallback(
     async (user: User, onClose: () => void) => {
       try {
