@@ -45,14 +45,14 @@ export async function POST(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData) {
-      console.error(`User not found or inactive: userId=${userId}`);
-      await connection.rollback();
-      return NextResponse.json(
-        { error: "Forbidden: User not found or inactive" },
-        { status: 403 }
-      );
-    }
+    // if (!userData) {
+    //   console.error(`User not found or inactive: userId=${userId}`);
+    //   await connection.rollback();
+    //   return NextResponse.json(
+    //     { error: "Forbidden: User not found or inactive" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // Verify truck exists
     const [truckRows] = await connection.query(

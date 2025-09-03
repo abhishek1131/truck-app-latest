@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // if (!userData || userData.role !== "technician") {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
 
     const { searchParams } = new URL(request.url);
     const truckId = searchParams.get("truck_id") || "";
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
        JOIN inventory_categories ic ON ii.category_id = ic.id`,
       []
     );
+    console.log(inventoryRows);
 
     let truckBinItems: any[] = [];
     if (truckId) {

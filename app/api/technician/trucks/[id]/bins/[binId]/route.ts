@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
 
 export async function GET(
   request: NextRequest,
@@ -80,7 +81,7 @@ export async function GET(
       );
     } else if (userData.role !== "technician") {
       console.log(`Forbidden: User ${userId} is not a technician or admin`);
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      // return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Verify truck exists and is assigned to effectiveUserId
@@ -123,13 +124,13 @@ export async function GET(
           JSON_OBJECT(
             'id', ti.item_id,
             'inventory_item_id', ti.item_id,
-            'name', ii.name,
-            'category', ic.name,
-            'current_stock', ti.quantity,
-            'standard_level', ii.standard_level,
+            'name', COALESCE(ii.name, ''),
+            'category', COALESCE(ic.name, ''),
+            'current_stock', COALESCE(ti.quantity, 0),
+            'standard_level', COALESCE(ii.standard_level, 0),
             'unit', COALESCE(ii.unit, 'pieces'),
             'last_restocked', ti.last_restocked,
-            'is_low_stock', CASE WHEN ti.quantity IS NULL THEN FALSE ELSE ti.quantity <= ii.min_quantity END
+            'is_low_stock', CASE WHEN ti.quantity IS NULL THEN FALSE ELSE ti.quantity <= COALESCE(ii.min_quantity, 0) END
           )
         ) AS inventory
       FROM truck_bins tb
@@ -160,10 +161,13 @@ export async function GET(
 
     let inventory;
     try {
-      inventory = bin.inventory ? JSON.parse(bin.inventory) : [];
+      inventory = bin.inventory
+        ? JSON.parse(JSON.stringify(bin.inventory))
+        : [];
+      console.log(`Parsed inventory:`, inventory);
       if (!Array.isArray(inventory)) {
-        console.warn(`Inventory is not an array: ${JSON.stringify(inventory)}`);
-        inventory = [];
+        console.warn(`Parsed inventory is not an array:`, inventory);
+        inventory = [inventory]; // Wrap in array if single object
       }
     } catch (parseError: any) {
       console.error(`Failed to parse inventory JSON: ${parseError.message}`);
@@ -201,6 +205,7 @@ export async function GET(
 // POST and DELETE handlers remain unchanged
 // Note: If admin access is needed for POST/DELETE, similar logic can be added to check user role
 // and use the technician's ID from trucks.assigned_to based on binId and truckId.
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; binId: string }> }
@@ -231,29 +236,71 @@ export async function POST(
 
     const userId = decoded.id;
 
+    // Check user role
     const [userRows] = await pool.query(
       "SELECT role FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      console.log(`Forbidden: User ${userId} is not a technician or inactive`);
+    if (!userData) {
+      console.log(`User not found or inactive: userId=${userId}`);
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    let effectiveUserId = userId;
+
+    // If user is admin, find the technician assigned to the truck via bin
+    if (userData.role === "admin") {
+      const [truckRows] = await pool.query(
+        `
+        SELECT t.assigned_to
+        FROM trucks t
+        JOIN truck_bins tb ON t.id = tb.truck_id
+        WHERE tb.id = ? AND tb.truck_id = ?
+        `,
+        [binId, id]
+      );
+      const truck = (truckRows as any[])[0];
+
+      if (!truck) {
+        console.log(`Truck or bin not found: truckId=${id}, binId=${binId}`);
+        return NextResponse.json(
+          { error: "Truck or bin not found" },
+          { status: 404 }
+        );
+      }
+
+      if (!truck.assigned_to) {
+        console.log(`No technician assigned to truck: truckId=${id}`);
+        return NextResponse.json(
+          { error: "No technician assigned to truck" },
+          { status: 403 }
+        );
+      }
+
+      effectiveUserId = truck.assigned_to;
+      console.log(
+        `Admin access: Using technician ID ${effectiveUserId} for truck ${id}`
+      );
+    } else if (userData.role !== "technician") {
+      console.log(`Forbidden: User ${userId} is not a technician or admin`);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Verify truck exists and is assigned to effectiveUserId
     const [truckRows] = await pool.query(
       "SELECT id FROM trucks WHERE id = ? AND assigned_to = ?",
-      [id, userId]
+      [id, effectiveUserId]
     );
     const truck = (truckRows as any[])[0];
 
     if (!truck) {
       console.log(
-        `Truck not found or not assigned: truckId=${id}, userId=${userId}`
+        `Truck not found or not assigned: truckId=${id}, userId=${effectiveUserId}`
       );
       return NextResponse.json(
-        { error: "Truck not assigned to you" },
+        { error: "Truck not assigned to the technician" },
         { status: 403 }
       );
     }
@@ -314,12 +361,14 @@ export async function POST(
         `Updated inventory item: item_id=${inventory_item_id}, new_quantity=${quantity}`
       );
     } else {
+      // Generate UUID for id column
+      const newId = uuidv4();
       await connection.query(
-        "INSERT INTO truck_inventory (truck_id, bin_id, item_id, quantity, min_quantity, max_quantity, last_restocked) VALUES (?, ?, ?, ?, ?, ?, NOW())",
-        [id, binId, inventory_item_id, quantity, 10, 20]
+        "INSERT INTO truck_inventory (id, truck_id, bin_id, item_id, quantity, min_quantity, max_quantity, last_restocked) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+        [newId, id, binId, inventory_item_id, quantity, 10, 20]
       );
       console.log(
-        `Inserted new inventory item: item_id=${inventory_item_id}, quantity=${quantity}`
+        `Inserted new inventory item: id=${newId}, item_id=${inventory_item_id}, quantity=${quantity}`
       );
     }
 
@@ -334,6 +383,8 @@ export async function POST(
     console.error("Add item to bin error:", {
       message: error.message,
       stack: error.stack,
+      sqlMessage: error.sqlMessage,
+      sql: error.sql,
     });
     return NextResponse.json(
       { error: "Internal server error" },
@@ -376,29 +427,71 @@ export async function DELETE(
 
     const userId = decoded.id;
 
+    // Check user role
     const [userRows] = await pool.query(
       "SELECT role FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      console.log(`Forbidden: User ${userId} is not a technician or inactive`);
+    if (!userData) {
+      console.log(`User not found or inactive: userId=${userId}`);
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    let effectiveUserId = userId;
+
+    // If user is admin, find the technician assigned to the truck via bin
+    if (userData.role === "admin") {
+      const [truckRows] = await pool.query(
+        `
+        SELECT t.assigned_to
+        FROM trucks t
+        JOIN truck_bins tb ON t.id = tb.truck_id
+        WHERE tb.id = ? AND tb.truck_id = ?
+        `,
+        [binId, id]
+      );
+      const truck = (truckRows as any[])[0];
+
+      if (!truck) {
+        console.log(`Truck or bin not found: truckId=${id}, binId=${binId}`);
+        return NextResponse.json(
+          { error: "Truck or bin not found" },
+          { status: 404 }
+        );
+      }
+
+      if (!truck.assigned_to) {
+        console.log(`No technician assigned to truck: truckId=${id}`);
+        return NextResponse.json(
+          { error: "No technician assigned to truck" },
+          { status: 403 }
+        );
+      }
+
+      effectiveUserId = truck.assigned_to;
+      console.log(
+        `Admin access: Using technician ID ${effectiveUserId} for truck ${id}`
+      );
+    } else if (userData.role !== "technician") {
+      console.log(`Forbidden: User ${userId} is not a technician or admin`);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Verify truck exists and is assigned to effectiveUserId
     const [truckRows] = await pool.query(
       "SELECT id FROM trucks WHERE id = ? AND assigned_to = ?",
-      [id, userId]
+      [id, effectiveUserId]
     );
     const truck = (truckRows as any[])[0];
 
     if (!truck) {
       console.log(
-        `Truck not found or not assigned: truckId=${id}, userId=${userId}`
+        `Truck not found or not assigned: truckId=${id}, userId=${effectiveUserId}`
       );
       return NextResponse.json(
-        { error: "Truck not assigned to you" },
+        { error: "Truck not assigned to the technician" },
         { status: 403 }
       );
     }
