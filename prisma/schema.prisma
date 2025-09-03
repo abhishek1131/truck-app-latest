@@ -1,0 +1,254 @@
+
+USE truck_local_dump;
+
+-- Create table inventory_categories
+CREATE TABLE `inventory_categories` (
+  `id` char(36) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `description` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table users
+CREATE TABLE `users` (
+  `id` char(36) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `first_name` varchar(100) DEFAULT NULL,
+  `last_name` varchar(100) DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `role` enum('admin','technician') NOT NULL DEFAULT 'technician',
+  `status` enum('active','inactive','suspended') NOT NULL DEFAULT 'active',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `password` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table trucks
+CREATE TABLE `trucks` (
+  `id` char(36) NOT NULL,
+  `truck_number` varchar(50) NOT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  `make` varchar(100) NOT NULL,
+  `model` varchar(100) NOT NULL,
+  `year` int NOT NULL,
+  `license_plate` varchar(50) DEFAULT NULL,
+  `vin` varchar(50) DEFAULT NULL,
+  `status` enum('active','maintenance','inactive') NOT NULL DEFAULT 'active',
+  `location` varchar(255) DEFAULT NULL,
+  `mileage` int DEFAULT '0',
+  `assigned_to` char(36) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `next_maintenance` date DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `truck_number` (`truck_number`),
+  KEY `idx_trucks_assigned_to` (`assigned_to`),
+  CONSTRAINT `trucks_ibfk_1` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table truck_bins
+CREATE TABLE `truck_bins` (
+  `id` char(36) NOT NULL,
+  `truck_id` char(36) NOT NULL,
+  `bin_code` varchar(50) NOT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  `description` text,
+  `max_capacity` int DEFAULT '100',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `truck_id` (`truck_id`,`bin_code`),
+  CONSTRAINT `truck_bins_ibfk_1` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table inventory_items
+CREATE TABLE `inventory_items` (
+  `id` char(36) NOT NULL,
+  `part_number` varchar(50) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `description` text,
+  `category_id` char(36) DEFAULT NULL,
+  `unit_price` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `cost_price` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `supplier` varchar(100) DEFAULT NULL,
+  `unit` varchar(50) DEFAULT 'pieces',
+  `min_quantity` int DEFAULT '0',
+  `max_quantity` int DEFAULT '0',
+  `standard_level` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `part_number` (`part_number`),
+  KEY `idx_inventory_items_category_id` (`category_id`),
+  CONSTRAINT `inventory_items_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `inventory_categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table truck_inventory
+CREATE TABLE `truck_inventory` (
+  `id` char(36) NOT NULL,
+  `truck_id` char(36) NOT NULL,
+  `bin_id` char(36) NOT NULL,
+  `item_id` char(36) NOT NULL,
+  `quantity` int NOT NULL DEFAULT '0',
+  `min_quantity` int DEFAULT '5',
+  `max_quantity` int DEFAULT '50',
+  `last_restocked` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `truck_id` (`truck_id`,`bin_id`,`item_id`),
+  KEY `bin_id` (`bin_id`),
+  KEY `idx_truck_inventory_truck_item` (`truck_id`,`item_id`),
+  KEY `idx_truck_inventory_quantity` (`quantity`,`min_quantity`),
+  KEY `idx_truck_inventory_item_id` (`item_id`),
+  CONSTRAINT `truck_inventory_ibfk_1` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `truck_inventory_ibfk_2` FOREIGN KEY (`bin_id`) REFERENCES `truck_bins` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `truck_inventory_ibfk_3` FOREIGN KEY (`item_id`) REFERENCES `inventory_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table orders
+CREATE TABLE `orders` (
+  `id` char(36) NOT NULL,
+  `order_number` varchar(50) NOT NULL,
+  `type` enum('restock','manual') DEFAULT 'restock',
+  `technician_id` char(36) NOT NULL,
+  `truck_id` char(36) NOT NULL,
+  `supply_house_id` varchar(36) DEFAULT NULL,
+  `status` enum('pending','confirmed','processing','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
+  `priority` enum('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
+  `total_amount` decimal(10,2) DEFAULT NULL,
+  `tax_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `commission_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `notes` text,
+  `requested_delivery_date` date DEFAULT NULL,
+  `confirmed_by` char(36) DEFAULT NULL,
+  `confirmed_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `urgency` enum('low','normal','high','urgent') DEFAULT 'normal',
+  `commission` decimal(10,2) DEFAULT '0.00',
+  `credit` decimal(10,2) DEFAULT '0.00',
+  `user_id` char(36) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `order_number` (`order_number`),
+  KEY `confirmed_by` (`confirmed_by`),
+  KEY `truck_id` (`truck_id`),
+  KEY `idx_orders_technician_id` (`technician_id`),
+  CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`technician_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `orders_ibfk_3` FOREIGN KEY (`confirmed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `orders_ibfk_4` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table order_items
+CREATE TABLE `order_items` (
+  `id` char(36) NOT NULL,
+  `order_id` char(36) NOT NULL,
+  `item_id` char(36) NOT NULL,
+  `bin_id` char(36) DEFAULT NULL,
+  `quantity` int NOT NULL,
+  `unit_price` decimal(10,2) NOT NULL,
+  `total_price` decimal(10,2) NOT NULL,
+  `reason` text,
+  `notes` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `part_number` varchar(50) DEFAULT NULL,
+  `bin_code` varchar(20) DEFAULT NULL,
+  `category` varchar(50) DEFAULT NULL,
+  `description` text,
+  PRIMARY KEY (`id`),
+  KEY `order_id` (`order_id`),
+  KEY `bin_id` (`bin_id`),
+  KEY `idx_order_items_item_id` (`item_id`),
+  CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`item_id`) REFERENCES `inventory_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_items_ibfk_3` FOREIGN KEY (`bin_id`) REFERENCES `truck_bins` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table settings
+CREATE TABLE `settings` (
+  `id` char(36) NOT NULL,
+  `category` enum('platform','commission','security') NOT NULL,
+  `key_name` varchar(50) NOT NULL,
+  `value` text NOT NULL,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_category_key` (`category`,`key_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table user_sessions
+CREATE TABLE `user_sessions` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `action` varchar(100) NOT NULL,
+  `details` json DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table supply_houses
+CREATE TABLE `supply_houses` (
+  `id` varchar(36) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `location` varchar(255) NOT NULL,
+  `status` enum('active','inactive') DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table truck_standard_inventory
+CREATE TABLE `truck_standard_inventory` (
+  `id` varchar(255) NOT NULL,
+  `truck_id` varchar(255) NOT NULL,
+  `bin_id` varchar(255) NOT NULL,
+  `item_name` varchar(255) NOT NULL,
+  `standard_quantity` int NOT NULL,
+  `unit` varchar(50) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `truck_id` (`truck_id`),
+  KEY `bin_id` (`bin_id`),
+  CONSTRAINT `truck_standard_inventory_ibfk_1` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`),
+  CONSTRAINT `truck_standard_inventory_ibfk_2` FOREIGN KEY (`bin_id`) REFERENCES `truck_bins` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table activities
+CREATE TABLE `activities` (
+  `id` char(36) NOT NULL,
+  `type` enum('order','technician','redemption','supply_house') NOT NULL,
+  `message` varchar(255) NOT NULL,
+  `status` enum('new','success','pending','info') NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table credits
+CREATE TABLE `credits` (
+  `id` char(36) NOT NULL,
+  `technician_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `order_id` char(36) DEFAULT NULL,
+  `type` enum('earned','spent','bonus','adjustment') NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `balance_after` decimal(10,2) NOT NULL,
+  `description` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('issued','pending_redemption','redeemed') NOT NULL DEFAULT 'issued',
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `order_id` (`order_id`),
+  KEY `technician_id` (`technician_id`),
+  CONSTRAINT `credits_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `credits_ibfk_2` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `credits_ibfk_3` FOREIGN KEY (`technician_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

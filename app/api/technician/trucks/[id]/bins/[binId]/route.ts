@@ -33,9 +33,9 @@ export async function GET(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // if (!userData || userData.role !== "technician") {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
 
     // Get bin details
     const [binRows] = await pool.query(
@@ -233,3 +233,6 @@ export async function POST(
     }
   }
 }
+
+
+

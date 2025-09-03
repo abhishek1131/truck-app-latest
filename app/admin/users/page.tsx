@@ -32,7 +32,7 @@ import {
   UserX,
   Eye,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,7 +95,8 @@ export default function AdminUsersPage() {
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dropdownKey, setDropdownKey] = useState(0);
+  const [dropdownKey, setDropdownKey] = useState(0); // To force re-render of DropdownMenu
+  const triggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -108,7 +109,7 @@ export default function AdminUsersPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/api/admin/users?page=1&limit=10", {
+        const response = await fetch("/api/admin/users", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -148,92 +149,105 @@ export default function AdminUsersPage() {
   const technicians = users.filter((user) => user.role === "technician").length;
   const admins = users.filter((user) => user.role === "admin").length;
 
-  const handleCreateUser = async (userData: any) => {
-    try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(userData),
-      });
-      const result = await response.json();
-      if (result.success && result.data) {
-        setUsers([...users, result.data]);
-        setShowCreateModal(false);
-        setDropdownKey((prev) => prev + 1); // Force dropdown re-render
-      } else {
-        alert(`Failed to create user: ${result.error}`);
+  const handleCreateUser = useCallback(
+    async (userData: any) => {
+      try {
+        const response = await fetch("/api/admin/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(userData),
+        });
+        const result = await response.json();
+        if (result.success && result.data) {
+          setUsers([...users, result.data]);
+          setShowCreateModal(false);
+          setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+        } else {
+          alert(`Failed to create user: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Error creating user:", error);
+        alert("Error creating user. Please try again.");
       }
-    } catch (error) {
-      console.error("Error creating user:", error);
-      alert("Error creating user. Please try again.");
-    }
-  };
+    },
+    [token, users]
+  );
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = useCallback((user: User) => {
     setSelectedUser(user);
     setShowEditModal(true);
-  };
+    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+  }, []);
 
-  const handleDeactivateUser = async (user: User) => {
-    try {
-      const newStatus = user.status === "active" ? "inactive" : "active";
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ...user, status: newStatus }),
-      });
-      const result = await response.json();
-      if (result.success && result.data) {
-        setUsers(users.map((u) => (u.id === user.id ? result.data : u)));
-        setDropdownKey((prev) => prev + 1); // Force dropdown re-render
-      } else {
-        alert(`Failed to update user status: ${result.error}`);
+  const handleDeactivateUser = useCallback(
+    async (user: User, onClose: () => void) => {
+      try {
+        const newStatus = user.status === "active" ? "inactive" : "active";
+        const response = await fetch(`/api/admin/users/${user.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...user, status: newStatus }),
+        });
+        const result = await response.json();
+        if (result.success && result.data) {
+          setUsers(users.map((u) => (u.id === user.id ? result.data : u)));
+          onClose();
+          setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+        } else {
+          alert(`Failed to update user status: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Error updating user status:", error);
+        alert("Error updating user status. Please try again.");
       }
-    } catch (error) {
-      console.error("Error updating user status:", error);
-      alert("Error updating user status. Please try again.");
-    }
-  };
+    },
+    [token, users]
+  );
 
-  const handleDeleteUser = async (user: User) => {
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const result = await response.json();
-      if (result.success) {
-        setUsers(users.filter((u) => u.id !== user.id));
-        setDropdownKey((prev) => prev + 1); // Force dropdown re-render
-      } else {
-        alert(`Failed to delete user: ${result.error}`);
+  const handleDeleteUser = useCallback(
+    async (user: User, onClose: () => void) => {
+      try {
+        const response = await fetch(`/api/admin/users/${user.id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+        if (result.success) {
+          setUsers(users.filter((u) => u.id !== user.id));
+          onClose();
+          setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+        } else {
+          alert(`Failed to delete user: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        alert("Error deleting user. Please try again.");
       }
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      alert("Error deleting user. Please try again.");
-    }
-  };
+    },
+    [token, users]
+  );
 
-  const handleViewUserDetails = (user: User) => {
+  const handleViewUserDetails = useCallback((user: User) => {
     setSelectedUser(user);
     setShowUserDetailsModal(true);
-  };
+    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+  }, []);
 
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     setShowCreateModal(false);
     setShowEditModal(false);
     setShowUserDetailsModal(false);
     setSelectedUser(null);
-    setDropdownKey((prev) => prev + 1); // Force dropdown re-render
-  };
+    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+  }, []);
 
   return (
     <Navigation
@@ -245,6 +259,7 @@ export default function AdminUsersPage() {
           <Button
             onClick={() => setShowCreateModal(true)}
             className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg"
+            disabled={isLoading}
           >
             <UserPlus className="h-4 w-4 mr-2" />
             Add New User
@@ -307,6 +322,12 @@ export default function AdminUsersPage() {
           </Card>
         </div>
 
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4 text-red-600">{error}</CardContent>
+          </Card>
+        )}
+
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -324,10 +345,15 @@ export default function AdminUsersPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+                disabled={isLoading}
+              >
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
@@ -339,7 +365,11 @@ export default function AdminUsersPage() {
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <Select
+                value={roleFilter}
+                onValueChange={setRoleFilter}
+                disabled={isLoading}
+              >
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
@@ -475,27 +505,59 @@ export default function AdminUsersPage() {
                     </div>
 
                     <div className="flex flex-col gap-2 lg:ml-6">
-                      <DropdownMenu key={`dropdown-${user.id}-${dropdownKey}`}>
+                      <DropdownMenu
+                        key={`dropdown-${user.id}-${dropdownKey}`}
+                        onOpenChange={(open) => {
+                          if (!open && triggerRefs.current.get(user.id)) {
+                            triggerRefs.current.get(user.id)!.focus();
+                          }
+                        }}
+                      >
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isLoading}
+                            ref={(el) => {
+                              if (el) {
+                                triggerRefs.current.set(user.id, el);
+                              } else {
+                                triggerRefs.current.delete(user.id);
+                              }
+                            }}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            onClick={() => handleViewUserDetails(user)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewUserDetails(user);
+                              document.activeElement?.blur();
+                            }}
                           >
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleEditUser(user)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditUser(user);
+                              document.activeElement?.blur();
+                            }}
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit User
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDeactivateUser(user)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeactivateUser(user, () => {
+                                document.activeElement?.blur();
+                                triggerRefs.current.get(user.id)?.focus();
+                              });
+                            }}
                           >
                             <UserX className="mr-2 h-4 w-4" />
                             {user.status === "active"
@@ -504,7 +566,13 @@ export default function AdminUsersPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600"
-                            onClick={() => handleDeleteUser(user)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteUser(user, () => {
+                                document.activeElement?.blur();
+                                triggerRefs.current.get(user.id)?.focus();
+                              });
+                            }}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete User
@@ -532,6 +600,7 @@ export default function AdminUsersPage() {
               <Button
                 onClick={() => setShowCreateModal(true)}
                 className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+                disabled={isLoading}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add New User

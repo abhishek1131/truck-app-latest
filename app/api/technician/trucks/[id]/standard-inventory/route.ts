@@ -4,9 +4,12 @@ import jwt from "jsonwebtoken";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to access dynamic route ID
+    const { id } = await params;
+
     // Verify JWT token
     const authHeader = request.headers.get("authorization");
     const token =
@@ -14,41 +17,45 @@ export async function GET(
       request.cookies.get("access_token")?.value;
 
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: No token provided" },
+        { status: 401 }
+      );
     }
 
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
     } catch (err) {
+      console.error("JWT verification error:", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const userId = decoded.id;
 
-    // Verify technician role
+    // Verify user status
     const [userRows] = await pool.query(
-      "SELECT role FROM users WHERE id = ? AND status = 'active'",
+      "SELECT status FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!userData) {
+      console.error(`User not found or inactive: userId=${userId}`);
+      return NextResponse.json(
+        { error: "Forbidden: User not found or inactive" },
+        { status: 403 }
+      );
     }
 
-    // Verify truck assignment
-    const [truckRows] = await pool.query(
-      "SELECT id FROM trucks WHERE id = ? AND assigned_to = ?",
-      [params.id, userId]
-    );
+    // Verify truck exists
+    const [truckRows] = await pool.query("SELECT id FROM trucks WHERE id = ?", [
+      id,
+    ]);
     const truck = (truckRows as any[])[0];
 
     if (!truck) {
-      return NextResponse.json(
-        { error: "Truck not assigned to you" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Truck not found" }, { status: 404 });
     }
 
     // Fetch standard inventory items
@@ -65,7 +72,7 @@ export async function GET(
       JOIN truck_bins tb ON tsi.bin_id = tb.id
       WHERE tsi.truck_id = ?
       `,
-      [params.id]
+      [id]
     );
 
     return NextResponse.json({ standardItems });
@@ -80,10 +87,13 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let connection;
   try {
+    // Await params to access dynamic route ID
+    const { id } = await params;
+
     // Verify JWT token
     const authHeader = request.headers.get("authorization");
     const token =
@@ -91,41 +101,45 @@ export async function POST(
       request.cookies.get("access_token")?.value;
 
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: No token provided" },
+        { status: 401 }
+      );
     }
 
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
     } catch (err) {
+      console.error("JWT verification error:", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const userId = decoded.id;
 
-    // Verify technician role
+    // Verify user status
     const [userRows] = await pool.query(
-      "SELECT role FROM users WHERE id = ? AND status = 'active'",
+      "SELECT status FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!userData) {
+      console.error(`User not found or inactive: userId=${userId}`);
+      return NextResponse.json(
+        { error: "Forbidden: User not found or inactive" },
+        { status: 403 }
+      );
     }
 
-    // Verify truck assignment
-    const [truckRows] = await pool.query(
-      "SELECT id FROM trucks WHERE id = ? AND assigned_to = ?",
-      [params.id, userId]
-    );
+    // Verify truck exists
+    const [truckRows] = await pool.query("SELECT id FROM trucks WHERE id = ?", [
+      id,
+    ]);
     const truck = (truckRows as any[])[0];
 
     if (!truck) {
-      return NextResponse.json(
-        { error: "Truck not assigned to you" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Truck not found" }, { status: 404 });
     }
 
     const { items } = await request.json();
@@ -144,17 +158,17 @@ export async function POST(
     // Clear existing standard items for the truck
     await connection.query(
       "DELETE FROM truck_standard_inventory WHERE truck_id = ?",
-      [params.id]
+      [id]
     );
 
     // Insert new standard items
     for (const item of items) {
-      const { id, name, binId, standardQuantity, unit } = item;
+      const { id: itemId, name, binId, standardQuantity, unit } = item;
 
       // Verify bin exists
       const [binRows] = await connection.query(
         "SELECT id FROM truck_bins WHERE id = ? AND truck_id = ?",
-        [binId, params.id]
+        [binId, id]
       );
       const bin = (binRows as any[])[0];
 
@@ -168,7 +182,7 @@ export async function POST(
 
       await connection.query(
         "INSERT INTO truck_standard_inventory (id, truck_id, bin_id, item_name, standard_quantity, unit) VALUES (?, ?, ?, ?, ?, ?)",
-        [id, params.id, binId, name, standardQuantity, unit]
+        [itemId, id, binId, name, standardQuantity, unit]
       );
     }
 
@@ -194,10 +208,13 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   let connection;
   try {
+    // Await params to access dynamic route parameters
+    const { id, itemId } = await params;
+
     // Verify JWT token
     const authHeader = request.headers.get("authorization");
     const token =
@@ -205,41 +222,45 @@ export async function DELETE(
       request.cookies.get("access_token")?.value;
 
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: No token provided" },
+        { status: 401 }
+      );
     }
 
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
     } catch (err) {
+      console.error("JWT verification error:", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const userId = decoded.id;
 
-    // Verify technician role
+    // Verify user status
     const [userRows] = await pool.query(
-      "SELECT role FROM users WHERE id = ? AND status = 'active'",
+      "SELECT status FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!userData) {
+      console.error(`User not found or inactive: userId=${userId}`);
+      return NextResponse.json(
+        { error: "Forbidden: User not found or inactive" },
+        { status: 403 }
+      );
     }
 
-    // Verify truck assignment
-    const [truckRows] = await pool.query(
-      "SELECT id FROM trucks WHERE id = ? AND assigned_to = ?",
-      [params.id, userId]
-    );
+    // Verify truck exists
+    const [truckRows] = await pool.query("SELECT id FROM trucks WHERE id = ?", [
+      id,
+    ]);
     const truck = (truckRows as any[])[0];
 
     if (!truck) {
-      return NextResponse.json(
-        { error: "Truck not assigned to you" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Truck not found" }, { status: 404 });
     }
 
     // Start transaction
@@ -249,7 +270,7 @@ export async function DELETE(
     // Delete standard item
     const [result] = await connection.query(
       "DELETE FROM truck_standard_inventory WHERE id = ? AND truck_id = ?",
-      [params.itemId, params.id]
+      [itemId, id]
     );
 
     if ((result as any).affectedRows === 0) {

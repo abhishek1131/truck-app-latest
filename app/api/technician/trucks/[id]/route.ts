@@ -4,9 +4,12 @@ import jwt from "jsonwebtoken";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to access dynamic route ID
+    const { id } = await params;
+
     // Verify JWT token
     const authHeader = request.headers.get("authorization");
     const token =
@@ -14,27 +17,35 @@ export async function GET(
       request.cookies.get("access_token")?.value;
 
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: No token provided" },
+        { status: 401 }
+      );
     }
 
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
     } catch (err) {
+      console.error("JWT verification error:", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const userId = decoded.id;
 
-    // Verify technician role
+    // Verify user status
     const [userRows] = await pool.query(
-      "SELECT role FROM users WHERE id = ? AND status = 'active'",
+      "SELECT status FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!userData) {
+      console.error(`User not found or inactive: userId=${userId}`);
+      return NextResponse.json(
+        { error: "Forbidden: User not found or inactive" },
+        { status: 403 }
+      );
     }
 
     // Get truck details
@@ -78,22 +89,35 @@ export async function GET(
         ) AS bins
       FROM trucks t
       LEFT JOIN truck_bins tb ON t.id = tb.truck_id
-      WHERE t.id = ? AND t.assigned_to = ?
+      WHERE t.id = ?
       GROUP BY t.id, t.truck_number, t.location, t.status, t.make, t.model, t.updated_at
       `,
-      [params.id, userId]
+      [id]
     );
 
     const truck = (truckRows as any[])[0];
 
     if (!truck) {
-      return NextResponse.json(
-        { error: "Truck not found or not assigned to you" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Truck not found" }, { status: 404 });
     }
 
-    const bins = JSON.parse(truck.bins || "[]").filter((bin: any) => bin.id);
+    // Safely parse bins
+    let bins: any[] = [];
+    try {
+      if (typeof truck.bins === "string") {
+        bins = JSON.parse(truck.bins || "[]").filter(
+          (bin: any) => bin && bin.id
+        );
+      } else if (Array.isArray(truck.bins)) {
+        bins = truck.bins.filter((bin: any) => bin && bin.id);
+      } else {
+        console.warn(`Invalid bins data for truck ${id}:`, truck.bins);
+        bins = [];
+      }
+    } catch (parseError) {
+      console.error(`Failed to parse bins for truck ${id}:`, parseError);
+      bins = [];
+    }
 
     const formattedTruck = {
       id: truck.id,
@@ -107,7 +131,7 @@ export async function GET(
           sum +
           (bin.inventory
             ? bin.inventory.reduce(
-                (s: number, item: any) => s + item.current_stock,
+                (s: number, item: any) => s + (item.current_stock || 0),
                 0
               )
             : 0)
@@ -130,7 +154,7 @@ export async function GET(
         location: bin.location,
         totalItems: bin.inventory
           ? bin.inventory.reduce(
-              (sum: number, item: any) => sum + item.current_stock,
+              (sum: number, item: any) => sum + (item.current_stock || 0),
               0
             )
           : 0,

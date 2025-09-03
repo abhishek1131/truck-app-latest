@@ -22,6 +22,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
+import { Alert, AlertDescription } from "./ui/alert";
 
 interface UserDetailsModalProps {
   isOpen: boolean;
@@ -143,11 +144,11 @@ export function UserDetailsModal({
           </DialogDescription>
         </DialogHeader>
 
-        {error && (
+        {/* {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        )}
+        )} */}
 
         <div className="space-y-6">
           <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">

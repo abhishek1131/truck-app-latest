@@ -84,7 +84,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(searchParams.get("limit") || "100");
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
     const assigned = searchParams.get("assigned") || "";

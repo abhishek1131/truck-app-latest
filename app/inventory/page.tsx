@@ -76,7 +76,7 @@ export default function InventoryPage() {
         body: JSON.stringify(newItem),
       });
       const data = await response.json();
-
+      console.log(data,333333333333333);
       if (response.ok) {
         setInventoryData((prev) => ({
           ...prev,

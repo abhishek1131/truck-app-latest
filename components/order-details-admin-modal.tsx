@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface OrderItem {
   id: string;
@@ -81,6 +81,23 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
   const { toast } = useToast();
   const [status, setStatus] = useState(order.status);
   const [isUpdating, setIsUpdating] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Debug logging for modal state changes
+  useEffect(() => {
+    console.log("[v0] Modal state changed:", isOpen);
+    if (isOpen) {
+      console.log("[v0] Modal opened for order:", order.id);
+    } else {
+      console.log("[v0] Modal closed for order:", order.id);
+      // Restore focus with delay after modal closure
+      setTimeout(() => {
+        if (triggerRef.current) {
+          triggerRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [isOpen, order.id]);
 
   const formatCurrency = (value: number | null | undefined): string => {
     return value ? `$${value.toFixed(2)}` : "$0.00";
@@ -98,7 +115,8 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
     };
   };
 
-  const handleUpdateStatus = async () => {
+  const handleUpdateStatus = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     if (status !== "pending") return;
     setIsUpdating(true);
     try {
@@ -131,7 +149,8 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
     }
   };
 
-  const handleDownloadInvoice = async () => {
+  const handleDownloadInvoice = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     try {
       const response = await fetch(`/api/admin/orders/${order.id}/invoice`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -165,6 +184,16 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
     }
   };
 
+  const handleContactTechnician = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    onClose();
+    setTimeout(() => {
+      document.dispatchEvent(
+        new CustomEvent("openContactTechnicianModal", { detail: order })
+      );
+    }, 0);
+  };
+
   const orderItems: OrderItem[] = order.items || [];
   const totalOrderValue = orderItems.reduce((sum, item) => sum + (item.total_price || 0), 0);
   const totalItems = orderItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -178,7 +207,15 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && triggerRef.current) {
+          setTimeout(() => triggerRef.current?.focus(), 100); // Restore focus on close
+        }
+        onClose();
+      }}
+    >
       <DialogContent
         className="flex flex-col overflow-hidden"
         style={{
@@ -189,7 +226,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
         }}
       >
         <DialogHeader className="flex-shrink-0 px-4 py-3">
-          <DialogTitle className="text-xl text-[#10294B]">Order #{order.order_number}</DialogTitle>
+          <DialogTitle className="text-xl text-[#10294B]">
+            Order #{order.order_number}
+          </DialogTitle>
           <DialogDescription className="text-sm">
             Full order breakdown with all items and bin locations
           </DialogDescription>
@@ -220,8 +259,12 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                       <CardHeader className="px-4 pb-1 pt-3">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg mb-1">Order #{order.order_number}</CardTitle>
-                            <p className="text-gray-600 mb-2 text-sm">Order ID: {order.id}</p>
+                            <CardTitle className="text-lg mb-1">
+                              Order #{order.order_number}
+                            </CardTitle>
+                            <p className="text-gray-600 mb-2 text-sm">
+                              Order ID: {order.id}
+                            </p>
                             <div className="flex items-center gap-3 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
@@ -239,13 +282,17 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                           </div>
                           <div className="flex flex-col gap-1.5">
                             <Badge
-                              className={`text-xs ${statusConfig[status as keyof typeof statusConfig]?.color}`}
+                              className={`text-xs ${
+                                statusConfig[status as keyof typeof statusConfig]?.color
+                              }`}
                             >
                               {/* <statusConfig[status as keyof typeof statusConfig].icon className="h-3 w-3 mr-1" /> */}
                               {status.charAt(0).toUpperCase() + status.slice(1)}
                             </Badge>
                             <Badge
-                              className={`text-xs ${urgencyConfig[order.urgency as keyof typeof urgencyConfig]?.color}`}
+                              className={`text-xs ${
+                                urgencyConfig[order.urgency as keyof typeof urgencyConfig]?.color
+                              }`}
                             >
                               {order.urgency.toUpperCase()}
                             </Badge>
@@ -256,23 +303,33 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div className="text-center">
                             <Package className="h-6 w-6 text-[#10294B] mx-auto mb-1" />
-                            <div className="text-lg font-bold text-[#10294B]">{totalItems}</div>
+                            <div className="text-lg font-bold text-[#10294B]">
+                              {totalItems}
+                            </div>
                             <p className="text-xs text-gray-600">Total Items</p>
                           </div>
                           <div className="text-center">
                             <Box className="h-6 w-6 text-purple-600 mx-auto mb-1" />
-                            <div className="text-lg font-bold text-purple-600">{orderItems.length}</div>
+                            <div className="text-lg font-bold text-purple-600">
+                              {orderItems.length}
+                            </div>
                             <p className="text-xs text-gray-600">Item Types</p>
                           </div>
                           <div className="text-center">
                             <DollarSign className="h-6 w-6 text-green-600 mx-auto mb-1" />
-                            <div className="text-lg font-bold text-green-600">{formatCurrency(totalOrderValue)}</div>
+                            <div className="text-lg font-bold text-green-600">
+                              {formatCurrency(totalOrderValue)}
+                            </div>
                             <p className="text-xs text-gray-600">Order Total</p>
                           </div>
                           <div className="text-center">
                             <Hash className="h-6 w-6 text-blue-600 mx-auto mb-1" />
                             <div className="text-lg font-bold text-blue-600">
-                              {new Set(orderItems.map((item) => parseBinCode(item.bin_code).aisle)).size}
+                              {
+                                new Set(
+                                  orderItems.map((item) => parseBinCode(item.bin_code).aisle)
+                                ).size
+                              }
                             </div>
                             <p className="text-xs text-gray-600">Bin Locations</p>
                           </div>
@@ -299,7 +356,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                                       {item.category || "Uncategorized"}
                                     </Badge>
                                   </div>
-                                  <p className="text-xs text-gray-600 mb-2">{item.description || "No description"}</p>
+                                  <p className="text-xs text-gray-600 mb-2">
+                                    {item.description || "No description"}
+                                  </p>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                                     <div>
                                       <span className="text-gray-500">Part #:</span>
@@ -308,7 +367,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                                     <div className="flex items-center gap-1">
                                       <Hash className="h-3 w-3 text-blue-600" />
                                       <span className="text-gray-500">Bin:</span>
-                                      <span className="font-mono font-semibold text-blue-600">{item.bin_code}</span>
+                                      <span className="font-mono font-semibold text-blue-600">
+                                        {item.bin_code}
+                                      </span>
                                     </div>
                                     <div>
                                       <span className="text-gray-500">Qty:</span>
@@ -316,7 +377,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                                     </div>
                                     <div>
                                       <span className="text-gray-500">Unit:</span>
-                                      <span className="font-semibold ml-1">{formatCurrency(item.unit_price)}</span>
+                                      <span className="font-semibold ml-1">
+                                        {formatCurrency(item.unit_price)}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
@@ -357,7 +420,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xl font-bold text-green-600">{formatCurrency(totalOrderValue)}</div>
+                            <div className="text-xl font-bold text-green-600">
+                              {formatCurrency(totalOrderValue)}
+                            </div>
                             <div className="text-xs text-gray-500">Including all items</div>
                           </div>
                         </div>
@@ -373,14 +438,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                           <Button
                             variant="outline"
                             className="h-16 flex flex-col gap-1 bg-transparent text-xs"
-                            onClick={() => {
-                              onClose();
-                              setTimeout(() => {
-                                document.dispatchEvent(
-                                  new CustomEvent("openContactTechnicianModal", { detail: order })
-                                );
-                              }, 0);
-                            }}
+                            onClick={handleContactTechnician}
                           >
                             <User className="h-4 w-4" />
                             <span>Contact Technician</span>
@@ -421,8 +479,12 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-sm">Order Placed</p>
-                              <p className="text-xs text-gray-600">{order.created_at} at 10:30 AM</p>
-                              <p className="text-xs text-gray-500">Order submitted by {order.technician}</p>
+                              <p className="text-xs text-gray-600">
+                                {order.created_at} at 10:30 AM
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Order submitted by {order.technician}
+                              </p>
                             </div>
                           </div>
 
@@ -431,7 +493,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                               <Package className="h-5 w-5 text-blue-600 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm">Order Confirmed</p>
-                                <p className="text-xs text-gray-600">{order.created_at} at 11:15 AM</p>
+                                <p className="text-xs text-gray-600">
+                                  {order.created_at} at 11:15 AM
+                                </p>
                                 <p className="text-xs text-gray-500">Order processing started</p>
                               </div>
                             </div>
@@ -442,7 +506,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                               <Truck className="h-5 w-5 text-purple-600 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm">Order Shipped</p>
-                                <p className="text-xs text-gray-600">{order.created_at} at 2:45 PM</p>
+                                <p className="text-xs text-gray-600">
+                                  {order.created_at} at 2:45 PM
+                                </p>
                                 <p className="text-xs text-gray-500">Tracking: TRK123456789</p>
                               </div>
                             </div>
@@ -453,8 +519,12 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                               <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm">Order Delivered</p>
-                                <p className="text-xs text-gray-600">{order.created_at} at 4:20 PM</p>
-                                <p className="text-xs text-gray-500">Delivered and confirmed by technician</p>
+                                <p className="text-xs text-gray-600">
+                                  {order.created_at} at 4:20 PM
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Delivered and confirmed by technician
+                                </p>
                               </div>
                             </div>
                           )}
@@ -464,8 +534,12 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm">Order Cancelled</p>
-                                <p className="text-xs text-gray-600">{order.created_at} at 3:00 PM</p>
-                                <p className="text-xs text-gray-500">Cancelled due to unavailability</p>
+                                <p className="text-xs text-gray-600">
+                                  {order.created_at} at 3:00 PM
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Cancelled due to unavailability
+                                </p>
                               </div>
                             </div>
                           )}
@@ -492,7 +566,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base">{technicianDetails.name}</h3>
-                            <p className="text-gray-600 text-sm">{technicianDetails.specialization} Specialist</p>
+                            <p className="text-gray-600 text-sm">
+                              {technicianDetails.specialization} Specialist
+                            </p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                               <div className="flex items-center gap-1.5 text-xs text-gray-500">
                                 <Mail className="h-3 w-3" />
@@ -514,14 +590,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                           </div>
                           <Button
                             className="bg-[#10294B] hover:bg-[#10294B]/90 text-xs h-8"
-                            onClick={() => {
-                              onClose();
-                              setTimeout(() => {
-                                document.dispatchEvent(
-                                  new CustomEvent("openContactTechnicianModal", { detail: order })
-                                );
-                              }, 0);
-                            }}
+                            onClick={handleContactTechnician}
                           >
                             Contact Technician
                           </Button>
@@ -552,7 +621,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Status</div>
-                            <Badge className="bg-green-100 text-green-800 text-xs">Active</Badge>
+                            <Badge className="bg-green-100 text-green-800 text-xs">
+                              Active
+                            </Badge>
                           </div>
                         </div>
                       </CardContent>
@@ -615,7 +686,9 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             </div>
                             <div className="flex justify-between">
                               <span>Status:</span>
-                              <Badge className="bg-green-100 text-green-800 text-xs">Credited</Badge>
+                              <Badge className="bg-green-100 text-green-800 text-xs">
+                                Credited
+                              </Badge>
                             </div>
                             <div className="flex justify-between">
                               <span>Date:</span>
@@ -634,7 +707,12 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
 
         <div className="flex justify-between pt-2 border-t flex-shrink-0 px-4 py-3">
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="text-xs h-8 bg-transparent" onClick={handleDownloadInvoice}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 bg-transparent"
+              onClick={handleDownloadInvoice}
+            >
               <FileText className="h-3 w-3 mr-1" />
               Download Invoice
             </Button>
@@ -642,19 +720,22 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
               variant="outline"
               size="sm"
               className="text-xs h-8 bg-transparent"
-              onClick={() => {
-                onClose();
-                setTimeout(() => {
-                  document.dispatchEvent(new CustomEvent("openContactTechnicianModal", { detail: order }));
-                }, 0);
-              }}
+              onClick={handleContactTechnician}
             >
               <User className="h-3 w-3 mr-1" />
               Contact Technician
             </Button>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="text-xs h-8 bg-transparent">
+            <Button
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                onClose();
+              }}
+              className="text-xs h-8 bg-transparent"
+              ref={triggerRef}
+            >
               Close
             </Button>
             {status === "pending" && (
