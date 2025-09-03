@@ -105,7 +105,7 @@ export async function GET(
     let bins: any[] = [];
     try {
       if (typeof truck.bins === "string") {
-        bins = JSON.parse(truck.bins || "[]").filter(
+        bins = (truck.bins || "[]").filter(
           (bin: any) => bin && bin.id
         );
       } else if (Array.isArray(truck.bins)) {

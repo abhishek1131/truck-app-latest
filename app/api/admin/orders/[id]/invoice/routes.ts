@@ -4,6 +4,30 @@ import { verify } from "jsonwebtoken";
 import PDFDocument from "pdfkit";
 import { Readable } from "stream";
 
+interface Order {
+  id: string;
+  technician: string;
+  truck_id: string;
+  truck_number: string;
+  status: string;
+  urgency: string;
+  total_cost: number;
+  total_commission: number;
+  total_credit: number;
+  created_at: string;
+  items: {
+    id: string;
+    part_name: string;
+    part_number: string;
+    bin_code: string;
+    quantity: number;
+    unit_cost: number;
+    total_cost: number;
+    category: string;
+    description: string;
+  }[];
+}
+
 interface InvoiceResponse {
   success: boolean;
   error?: string;
@@ -12,11 +36,17 @@ interface InvoiceResponse {
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to resolve the dynamic route parameter
+    const { id } = await params;
+    console.log(`Generating invoice for order ID: ${id}`);
+
+    // Verify JWT token
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("No or invalid authorization header");
       return NextResponse.json(
         {
           success: false,
@@ -35,18 +65,26 @@ export async function GET(
         role: string;
       };
       if (decoded.role !== "admin") {
+        console.log(`Forbidden: User role ${decoded.role} is not admin`);
         return NextResponse.json(
           { success: false, error: "Admin access required", code: "FORBIDDEN" },
           { status: 403 }
         );
       }
+      console.log(`Authenticated admin user: ${decoded.id}`);
     } catch (error) {
+      console.error("Token verification failed:", error);
       return NextResponse.json(
-        { success: false, error: "Invalid token", code: "UNAUTHORIZED" },
+        {
+          success: false,
+          error: "Invalid token",
+          code: "UNAUTHORIZED",
+        },
         { status: 401 }
       );
     }
 
+    // Fetch order details
     const [orderRows] = await pool.query(
       `
       SELECT 
@@ -76,10 +114,11 @@ export async function GET(
       LEFT JOIN truck_bins tb ON oi.bin_id = tb.id
       WHERE o.id = ?
       `,
-      [params.id]
+      [id]
     );
 
-    if (!orderRows[0]) {
+    if (!orderRows.length) {
+      console.log(`Order not found: ${id}`);
       return NextResponse.json(
         { success: false, error: "Order not found", code: "NOT_FOUND" },
         { status: 404 }
@@ -93,9 +132,9 @@ export async function GET(
       truck_number: orderRows[0].truck_number,
       status: orderRows[0].status,
       urgency: orderRows[0].urgency,
-      total_cost: parseFloat(orderRows[0].total_cost),
-      total_commission: parseFloat(orderRows[0].total_commission),
-      total_credit: parseFloat(orderRows[0].total_credit),
+      total_cost: parseFloat(orderRows[0].total_cost || 0),
+      total_commission: parseFloat(orderRows[0].total_commission || 0),
+      total_credit: parseFloat(orderRows[0].total_credit || 0),
       created_at: new Date(orderRows[0].created_at).toISOString().split("T")[0],
       items: [],
     };
@@ -106,16 +145,18 @@ export async function GET(
           id: row.item_id,
           part_name: row.part_name,
           part_number: row.part_number,
-          bin_code: row.bin_code || "",
+          bin_code: row.bin_code || "N/A",
           quantity: row.quantity,
-          unit_cost: parseFloat(row.unit_cost),
-          total_cost: parseFloat(row.total_cost),
-          category: row.category,
-          description: row.description,
+          unit_cost: parseFloat(row.unit_cost || 0),
+          total_cost: parseFloat(row.total_cost || 0),
+          category: row.category || "N/A",
+          description: row.description || "N/A",
         });
       }
     });
+    console.log(`Fetched order: #${order.id} with ${order.items.length} items`);
 
+    // Generate PDF
     const doc = new PDFDocument({ margin: 50 });
     const buffers: Buffer[] = [];
     const stream = new Readable({
@@ -127,8 +168,10 @@ export async function GET(
       const pdfData = Buffer.concat(buffers);
       stream.push(pdfData);
       stream.push(null);
+      console.log(`PDF generated for order #${order.id}`);
     });
 
+    // PDF content
     doc.fontSize(20).text("TruXtoK Invoice", { align: "center" });
     doc.moveDown();
     doc.fontSize(12).text(`Order #${order.id}`, { align: "left" });
@@ -169,7 +212,6 @@ export async function GET(
     doc.lineWidth(0.5).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.5);
     doc.text(`Total: $${order.total_cost.toFixed(2)}`, 480, doc.y);
-    doc.moveDown();
     doc.text(`Commission: $${order.total_commission.toFixed(2)}`, 480, doc.y);
     doc.text(`Credit: $${order.total_credit.toFixed(2)}`, 480, doc.y);
     doc.text(
@@ -181,15 +223,21 @@ export async function GET(
     );
 
     doc.end();
+    console.log(`Streaming PDF response for order #${order.id}`);
 
     return new NextResponse(stream, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename=invoice-${params.id}.pdf`,
+        "Content-Disposition": `attachment; filename=invoice-${id}.pdf`,
       },
     });
   } catch (error: any) {
-    console.error("Invoice generation error:", error);
+    console.error("Invoice generation error:", {
+      message: error.message,
+      code: error.code,
+      sqlMessage: error.sqlMessage,
+      stack: error.stack,
+    });
     return NextResponse.json(
       {
         success: false,

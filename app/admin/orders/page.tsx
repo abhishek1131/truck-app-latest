@@ -50,9 +50,9 @@ interface Order {
   truck_number: string;
   status: string;
   urgency: string;
-  total_amount: number | null;
-  commission: number | null;
-  credit: number | null;
+  total_cost: number | null;
+  total_commission: number | null;
+  total_credit: number | null;
   created_at: string;
   items: {
     id: string;
@@ -60,8 +60,8 @@ interface Order {
     part_number: string;
     bin_code: string;
     quantity: number;
-    unit_price: number;
-    total_price: number;
+    unit_cost: number;
+    total_cost: number;
     category: string;
     description: string;
   }[];
@@ -267,28 +267,57 @@ export default function AdminOrdersPage() {
     setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
   }, []);
 
-  const handleDownloadInvoice = useCallback(
-    (order: Order) => {
-      toast({
-        title: "Download Invoice",
-        description: `Downloading invoice for order #${order.order_number}`,
-      });
-      document.activeElement?.blur();
-      setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
-    },
-    [toast]
-  );
+ const handleDownloadInvoice = useCallback(
+   async (order: Order) => {
+     try {
+       const response = await fetch(`/api/admin/orders/${order.id}/invoice`, {
+         headers: {
+           Authorization: `Bearer ${token}`,
+         },
+       });
+
+       if (!response.ok) {
+         const errorData = await response.json();
+         throw new Error(errorData.error || "Failed to download invoice");
+       }
+
+       const blob = await response.blob();
+       const url = window.URL.createObjectURL(blob);
+       const link = document.createElement("a");
+       link.href = url;
+       link.download = `invoice-${order.order_number}.pdf`;
+       document.body.appendChild(link);
+       link.click();
+       document.body.removeChild(link);
+       window.URL.revokeObjectURL(url);
+
+       toast({
+         title: "Success",
+         description: `Invoice for order #${order.order_number} downloaded`,
+       });
+     } catch (error: any) {
+       toast({
+         title: "Error",
+         description: error.message || "Failed to download invoice",
+         variant: "destructive",
+       });
+     }
+     document.activeElement?.blur();
+     setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+   },
+   [toast, token]
+ );
 
   const totalValue = orders.reduce(
-    (sum, order) => sum + (order.total_amount || 0),
+    (sum, order) => sum + (order.total_cost || 0),
     0
   );
   const totalCommissions = orders.reduce(
-    (sum, order) => sum + (order.commission || 0),
+    (sum, order) => sum + (order.total_commission || 0),
     0
   );
   const totalCredits = orders.reduce(
-    (sum, order) => sum + (order.credit || 0),
+    (sum, order) => sum + (order.total_credit || 0),
     0
   );
   const totalOrders = orders.length;
@@ -499,7 +528,7 @@ export default function AdminOrdersPage() {
                             Total Cost
                           </div>
                           <div className="font-semibold">
-                            {formatCurrency(order.total_amount)}
+                            {formatCurrency(order.total_cost)}
                           </div>
                         </div>
                         <div>
@@ -507,7 +536,7 @@ export default function AdminOrdersPage() {
                             Commission
                           </div>
                           <div className="font-semibold text-blue-600">
-                            {formatCurrency(order.commission)}
+                            {formatCurrency(order.total_commission)}
                           </div>
                         </div>
                         <div>
@@ -515,7 +544,7 @@ export default function AdminOrdersPage() {
                             Credit Issued
                           </div>
                           <div className="font-semibold text-green-600">
-                            {formatCurrency(order.credit)}
+                            {formatCurrency(order.total_credit)}
                           </div>
                         </div>
                         <div>
@@ -524,7 +553,8 @@ export default function AdminOrdersPage() {
                           </div>
                           <div className="font-semibold text-purple-600">
                             {formatCurrency(
-                              (order.commission || 0) - (order.credit || 0)
+                              (order.total_commission || 0) -
+                                (order.total_credit || 0)
                             )}
                           </div>
                         </div>

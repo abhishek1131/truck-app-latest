@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     // Format trucks data
     const formattedTrucks = (trucks as any[]).map((truck) => {
-      const bins = JSON.parse(truck.bins || "[]").filter((bin: any) => bin.id);
+      const bins = (truck.bins || "[]").filter((bin: any) => bin.id);
       return {
         id: truck.id,
         name: truck.name,

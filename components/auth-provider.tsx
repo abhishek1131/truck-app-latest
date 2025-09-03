@@ -153,8 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.removeItem("user");
       localStorage.removeItem("access_token");
+      localStorage.clear();
       setUser(null);
       setToken(null);
+      // windiow.location.href = "/login"
     } catch (error) {
       console.error("Logout error:", error);
     }
