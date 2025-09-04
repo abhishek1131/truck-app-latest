@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Download,
   MessageSquare,
+  Truck,
 } from "lucide-react";
 
 interface OrderDetailsModalProps {
@@ -154,8 +155,8 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <ul className="list-disc pl-5">
                   {order.orderItems.map((item) => (
                     <li key={item.id} className="text-lg font-semibold">
-                      {item.inventoryItem.name} ({item.quantity}{" "}
-                      {item.inventoryItem.unit})
+                      {item.inventoryItem?.name} ({item?.quantity}{" "}
+                      {item.inventoryItem?.unit})
                     </li>
                   ))}
                 </ul>

@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         ) AS order_items
       FROM orders o
       LEFT JOIN supply_houses sh ON o.supply_house_id = sh.id
-      JOIN trucks t ON o.truck_id = t.id
+      LEFT JOIN trucks t ON o.truck_id = t.id
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN inventory_items ii ON oi.item_id = ii.id
       LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     `;
     const queryParams: any[] = [userId];
 
-    if (status) {
+    if (status != 'all') {
       query += " AND o.status = ?";
       queryParams.push(status);
     }
@@ -111,8 +111,9 @@ export async function GET(request: NextRequest) {
       WHERE o.technician_id = ?
     `;
     const countParams: any[] = [userId];
-
-    if (status) {
+    
+    if (status != 'all') {
+      console.log("true")
       countQuery += " AND o.status = ?";
       countParams.push(status);
     }
@@ -138,7 +139,7 @@ export async function GET(request: NextRequest) {
         0
       ),
       status: order.status,
-      date: order.date.split("T")[0],
+      date: order.date.toISOString().split("T")[0],
       commission: order.order_items.reduce(
         (sum: number, item: any) => sum + item.total_price * 0.03,
         0
@@ -151,7 +152,7 @@ export async function GET(request: NextRequest) {
       urgency: order.urgency || "normal",
       description:
         order.order_items[0]?.inventory_item?.description || order.notes || "",
-      orderItems: JSON.parse(order.order_items).filter((item: any) => item.id),
+      orderItems: (order.order_items).filter((item: any) => item.id),
       truck: {
         id: order.truck_id,
         truckNumber: order.truck_number,
@@ -209,6 +210,7 @@ export async function POST(request: NextRequest) {
 
    
     const body = await request.json();
+    console.log("body",body);
     const { truck_id, items, notes, supply_house_id, urgency } = body;
 
     // Validate truck if provided
@@ -318,9 +320,15 @@ export async function POST(request: NextRequest) {
 
     // Create order items
     await connection.query(
-      `INSERT INTO order_items (order_id, item_id, bin_id, quantity, unit_price, total_price, reason)
+      `INSERT INTO order_items (id, order_id, item_id, bin_id, quantity, unit_price, total_price, reason)
        VALUES ?`,
-      [orderItems.map((item) => [orderId, ...item])]
+       [
+        orderItems.map((item) => [
+          crypto.randomUUID(),
+          orderId,
+          ...item,
+        ]),
+      ]
     );
 
     // Update truck inventory if truck_id is provided
@@ -389,7 +397,7 @@ export async function POST(request: NextRequest) {
     await connection.commit();
 
     const newOrder = (newOrderRows as any[])[0];
-    newOrder.order_items = JSON.parse(newOrder.order_items).filter(
+    newOrder.order_items = (newOrder.order_items).filter(
       (item: any) => item.id
     );
 

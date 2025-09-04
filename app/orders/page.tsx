@@ -119,9 +119,9 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <Header />
+      <Header title={""} />
       <div className="flex">
-        <Navigation />
+        <Navigation children={undefined} title={""} />
         <main className="flex-1 p-6">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
@@ -356,8 +356,40 @@ export default function OrdersPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+
               );
             })}
+            {/* Pagination Controls */}
+            {pagination.pages > 1 && (
+              <div className="flex justify-center mt-6 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === 1}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
+                >
+                  Previous
+                </Button>
+
+                <div className="flex items-center px-4 text-sm">
+                  Page {pagination.page} of {pagination.pages}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === pagination.pages}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
 
           {filteredOrders.length === 0 && (

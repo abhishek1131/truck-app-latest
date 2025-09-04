@@ -116,7 +116,7 @@ CREATE TABLE `orders` (
   `order_number` varchar(50) NOT NULL,
   `type` enum('restock','manual') DEFAULT 'restock',
   `technician_id` char(36) NOT NULL,
-  `truck_id` char(36) NOT NULL,
+  `truck_id` char(36)  DEFAULT NULL,
   `supply_house_id` varchar(36) DEFAULT NULL,
   `status` enum('pending','confirmed','processing','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
   `priority` enum('low','medium','high','urgent') NOT NULL DEFAULT 'medium',

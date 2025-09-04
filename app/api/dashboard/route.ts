@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
          o.created_at,
          (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
        FROM orders o
-       JOIN trucks t ON o.truck_id = t.id
+       LEFT JOIN trucks t ON o.truck_id = t.id
        WHERE o.technician_id = ?
        ORDER BY o.created_at DESC
        LIMIT 5`,

@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       date: order.date,
       truckId: order.truck_id,
       truckName: order.truck_name,
-      items: JSON.parse(order.items)
+      items: (order.items)
         .filter((item: any) => item.id)
         .map((item: any) => ({
           id: item.id,
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
           currentStock: item.current_stock,
           reason: item.reason,
         })),
-      totalItems: JSON.parse(order.items).reduce(
+      totalItems: (order.items).reduce(
         (sum: number, item: any) => sum + (item.quantity || 0),
         0
       ),
