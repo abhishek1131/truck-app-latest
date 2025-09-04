@@ -317,7 +317,7 @@ export default function AdminOrdersPage() {
     0
   );
   const totalCredits = orders.reduce(
-    (sum, order) => sum + (order.credit || 0),
+    (sum, order) => sum + (order.total_credit || 0),
     0
   );
   const totalOrders = orders.length;
@@ -338,7 +338,7 @@ export default function AdminOrdersPage() {
               <ShoppingCart className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pagination.total}</div>
+              <div className="text-2xl font-bold">{totalOrders}</div>
               <p className="text-xs opacity-75">Grouped by technician</p>
             </CardContent>
           </Card>
@@ -544,7 +544,7 @@ export default function AdminOrdersPage() {
                             Credit Issued
                           </div>
                           <div className="font-semibold text-green-600">
-                            {formatCurrency(order.credit)}
+                            {formatCurrency(order.total_credit)}
                           </div>
                         </div>
                         <div>
