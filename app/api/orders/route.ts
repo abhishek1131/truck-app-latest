@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +31,6 @@ export async function GET(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-   
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -208,9 +208,8 @@ export async function POST(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-   
     const body = await request.json();
-    console.log("body",body);
+    console.log("body", body);
     const { truck_id, items, notes, supply_house_id, urgency } = body;
 
     // Validate truck if provided
@@ -267,7 +266,7 @@ export async function POST(request: NextRequest) {
             Math.random() * 1000
           )}`;
           await connection.query(
-            `INSERT INTO inventory_items 
+            `INSERT INTO inventory_items
              (id, part_number, name, description, category_id, unit_price, cost_price, supplier, min_quantity, max_quantity, standard_level, unit, created_at, updated_at)
              VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
             [
@@ -322,13 +321,7 @@ export async function POST(request: NextRequest) {
     await connection.query(
       `INSERT INTO order_items (id, order_id, item_id, bin_id, quantity, unit_price, total_price, reason)
        VALUES ?`,
-       [
-        orderItems.map((item) => [
-          crypto.randomUUID(),
-          orderId,
-          ...item,
-        ]),
-      ]
+      [orderItems.map((item) => [crypto.randomUUID(), orderId, ...item])]
     );
 
     // Update truck inventory if truck_id is provided
@@ -336,8 +329,8 @@ export async function POST(request: NextRequest) {
       for (const item of items) {
         if (item.bin_id && item.inventory_item_id) {
           await connection.query(
-            `UPDATE truck_inventory 
-             SET quantity = quantity - ?, 
+            `UPDATE truck_inventory
+             SET quantity = quantity - ?,
                  last_restocked = NOW()
              WHERE truck_id = ? AND bin_id = ? AND item_id = ?`,
             [item.quantity, truck_id, item.bin_id, item.inventory_item_id]
@@ -348,7 +341,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch the new order
     const [newOrderRows] = await connection.query(
-      `SELECT 
+      `SELECT
          o.id,
          o.created_at AS date,
          o.status,
@@ -397,9 +390,7 @@ export async function POST(request: NextRequest) {
     await connection.commit();
 
     const newOrder = (newOrderRows as any[])[0];
-    newOrder.order_items = (newOrder.order_items).filter(
-      (item: any) => item.id
-    );
+    newOrder.order_items = newOrder.order_items.filter((item: any) => item.id);
 
     return NextResponse.json({
       message: "Order created successfully",
@@ -420,3 +411,8 @@ export async function POST(request: NextRequest) {
     }
   }
 }
+ 
+ 
+ 
+ 
+ 

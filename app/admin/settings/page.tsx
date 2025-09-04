@@ -407,11 +407,11 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      {error && (
+      {/* {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-      )}
+      )} */}
 
       <Tabs defaultValue="platform" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8">

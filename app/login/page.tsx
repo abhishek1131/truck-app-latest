@@ -148,7 +148,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
+            {/* <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
               <p className="font-medium text-gray-600 mb-2">
                 Test Credentials:
               </p>
@@ -156,7 +156,7 @@ export default function LoginPage() {
                 Admin: admin@truxtok.com / admin123
               </p>
               <p className="text-gray-600">Tech: tech@truxtok.com / tech123</p>
-            </div>
+            </div> */}
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">

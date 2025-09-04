@@ -33,8 +33,15 @@ export async function GET(req: Request) {
     };
 
     (rows as any[]).forEach((row) => {
-      const value = (row.value);
-      settings[row.key_name as keyof PlatformSettings] = value;
+      const key = row.key_name as keyof PlatformSettings;
+      let value = row.value;
+
+      // Parse stringified booleans
+      if (key === "maintenanceMode" || key === "allowRegistrations") {
+        value = value === "true" || value === true; // Convert to boolean
+      }
+
+      settings[key] = value;
     });
 
     return NextResponse.json({ success: true, data: settings });

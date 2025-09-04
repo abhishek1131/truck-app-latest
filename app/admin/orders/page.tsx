@@ -42,17 +42,17 @@ import { Navigation } from "@/components/layout/navigation";
 
 interface Order {
   id: string;
-  order_number: string;
+  order_number: string; // Added to match UI usage
   technician: string;
   technician_email: string;
   technician_phone: string | null;
   truck_id: string;
   truck_number: string;
   status: string;
-  urgency: string;
-  total_amount: number | null;
-  commission: number | null;
-  credit: number | null;
+  priority: string; // Changed from urgency
+  total_amount: number | null; // Changed from total_cost
+  commission_amount: number | null; // Changed from total_commission
+  total_credit: number | null; // Aggregated from credits table
   created_at: string;
   items: {
     id: string;
@@ -60,8 +60,8 @@ interface Order {
     part_number: string;
     bin_code: string;
     quantity: number;
-    unit_cost: number;
-    total_price: number;
+    unit_price: number; // Changed from unit_cost
+    total_price: number; // Changed from total_cost
     category: string;
     description: string;
   }[];
@@ -267,53 +267,53 @@ export default function AdminOrdersPage() {
     setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
   }, []);
 
- const handleDownloadInvoice = useCallback(
-   async (order: Order) => {
-     try {
-       const response = await fetch(`/api/admin/orders/${order.id}/invoice`, {
-         headers: {
-           Authorization: `Bearer ${token}`,
-         },
-       });
+  const handleDownloadInvoice = useCallback(
+    async (order: Order) => {
+      try {
+        const response = await fetch(`/api/invoice/${order.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-       if (!response.ok) {
-         const errorData = await response.json();
-         throw new Error(errorData.error || "Failed to download invoice");
-       }
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to download invoice");
+        }
 
-       const blob = await response.blob();
-       const url = window.URL.createObjectURL(blob);
-       const link = document.createElement("a");
-       link.href = url;
-       link.download = `invoice-${order.order_number}.pdf`;
-       document.body.appendChild(link);
-       link.click();
-       document.body.removeChild(link);
-       window.URL.revokeObjectURL(url);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `invoice-${order.id}.pdf`; // Use order.id for filename
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
 
-       toast({
-         title: "Success",
-         description: `Invoice for order #${order.order_number} downloaded`,
-       });
-     } catch (error: any) {
-       toast({
-         title: "Error",
-         description: error.message || "Failed to download invoice",
-         variant: "destructive",
-       });
-     }
-     document.activeElement?.blur();
-     setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
-   },
-   [toast, token]
- );
+        toast({
+          title: "Success",
+          description: `Invoice for order #${order.order_number} downloaded`,
+        });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to download invoice",
+          variant: "destructive",
+        });
+      }
+      document.activeElement?.blur();
+      setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+    },
+    [toast, token]
+  );
 
   const totalValue = orders.reduce(
     (sum, order) => sum + (order.total_amount || 0),
     0
   );
   const totalCommissions = orders.reduce(
-    (sum, order) => sum + (order.commission || 0),
+    (sum, order) => sum + (order.commission_amount || 0),
     0
   );
   const totalCredits = orders.reduce(
@@ -501,11 +501,11 @@ export default function AdminOrdersPage() {
                           <Badge
                             className={
                               urgencyConfig[
-                                order.urgency as keyof typeof urgencyConfig
+                                order.priority as keyof typeof urgencyConfig
                               ]?.color
                             }
                           >
-                            {order.urgency}
+                            {order.priority}
                           </Badge>
                         </div>
                       </div>
@@ -536,7 +536,7 @@ export default function AdminOrdersPage() {
                             Commission
                           </div>
                           <div className="font-semibold text-blue-600">
-                            {formatCurrency(order.commission)}
+                            {formatCurrency(order.commission_amount)}
                           </div>
                         </div>
                         <div>
@@ -553,8 +553,8 @@ export default function AdminOrdersPage() {
                           </div>
                           <div className="font-semibold text-purple-600">
                             {formatCurrency(
-                              (order.commission || 0) -
-                                (order.credit || 0)
+                              (order.commission_amount || 0) -
+                                (order.total_credit || 0)
                             )}
                           </div>
                         </div>

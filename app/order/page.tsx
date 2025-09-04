@@ -46,7 +46,7 @@ interface InventoryItem {
 
 interface TruckBinItem {
   inventoryItemId: string;
-  inventoryItem: InventoryItem;
+  inventoryItem?: InventoryItem; // Make optional to handle undefined
   currentQuantity: number;
   binId: string;
   binName: string;
@@ -117,7 +117,9 @@ export default function OrderPage() {
         if (trucksResponse.ok) {
           setTrucks(trucksData.trucks);
         } else {
-          console.error("Failed to fetch trucks:", trucksData.error);
+          console.error("Failed to fetch trucks:", trucksData.error, {
+            status: trucksResponse.status,
+          });
         }
       } catch (error) {
         console.error("Error fetching trucks:", error);
@@ -134,7 +136,8 @@ export default function OrderPage() {
         } else {
           console.error(
             "Failed to fetch supply houses:",
-            supplyHousesData.error
+            supplyHousesData.error,
+            { status: supplyHousesResponse.status }
           );
         }
       } catch (error) {
@@ -150,7 +153,9 @@ export default function OrderPage() {
         if (ordersResponse.ok) {
           setPreviousOrders(ordersData.previousOrders);
         } else {
-          console.error("Failed to fetch previous orders:", ordersData.error);
+          console.error("Failed to fetch previous orders:", ordersData.error, {
+            status: ordersResponse.status,
+          });
         }
       } catch (error) {
         console.error("Error fetching previous orders:", error);
@@ -173,17 +178,28 @@ export default function OrderPage() {
         );
         const inventoryData = await inventoryResponse.json();
         if (inventoryResponse.ok) {
+          console.log("Inventory Response:", inventoryData);
           setInventoryItems(inventoryData.inventoryItems);
           setTruckBinItems(
-            inventoryData.truckBinItems.map((item: any) => ({
-              ...item,
-              inventoryItem: inventoryData.inventoryItems.find(
+            inventoryData.truckBinItems.map((item: any) => {
+              const inventoryItem = inventoryData.inventoryItems.find(
                 (inv: InventoryItem) => inv.id === item.inventoryItemId
-              ),
-            }))
+              );
+              console.log(
+                `Mapping truckBinItem: inventoryItemId=${
+                  item.inventoryItemId
+                }, found=${!!inventoryItem}`
+              );
+              return {
+                ...item,
+                inventoryItem, // May be undefined if no match
+              };
+            })
           );
         } else {
-          console.error("Failed to fetch inventory:", inventoryData.error);
+          console.error("Failed to fetch inventory:", inventoryData.error, {
+            status: inventoryResponse.status,
+          });
         }
       } catch (error) {
         console.error("Error fetching inventory:", error);
@@ -241,7 +257,9 @@ export default function OrderPage() {
       currentStock: truckBinItem?.currentQuantity,
       reason:
         truckBinItem &&
-        truckBinItem.currentQuantity <= inventoryItem.lowStockThreshold
+        truckBinItem.inventoryItem &&
+        truckBinItem.currentQuantity <=
+          truckBinItem.inventoryItem.lowStockThreshold
           ? "Low stock - below threshold"
           : "Additional stock needed",
       unitPrice: inventoryItem.unitPrice || 0,
@@ -530,6 +548,12 @@ ${orderData.technician}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {truckBinItems.map((binItem) => {
+                    if (!binItem.inventoryItem) {
+                      console.warn(
+                        `No inventoryItem found for truckBinItem: inventoryItemId=${binItem.inventoryItemId}`
+                      );
+                      return null; // Skip rendering if inventoryItem is undefined
+                    }
                     const isLowStock =
                       binItem.currentQuantity <=
                       binItem.inventoryItem.lowStockThreshold;
@@ -638,7 +662,9 @@ ${orderData.technician}
                       const isInTruck = !!truckBinItem;
                       const isLowStock =
                         truckBinItem &&
-                        truckBinItem.currentQuantity <= item.lowStockThreshold;
+                        truckBinItem.inventoryItem &&
+                        truckBinItem.currentQuantity <=
+                          truckBinItem.inventoryItem.lowStockThreshold;
 
                       return (
                         <div

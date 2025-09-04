@@ -1,90 +1,24 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Truck, Package, ClipboardList, RefreshCw, Award, ArrowRight, BarChart3 } from 'lucide-react';
-import Link from 'next/link';
-
-interface PlatformSettings {
-  platformName: string;
-  platformDescription: string;
-  supportEmail: string;
-  adminEmail: string;
-  maintenanceMode: boolean;
-  allowRegistrations: boolean;
-}
-
-interface SettingsResponse {
-  success: boolean;
-  data?: PlatformSettings;
-  error?: string;
-  code?: string;
-}
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Truck,
+  Package,
+  ClipboardList,
+  RefreshCw,
+  Award,
+  ArrowRight,
+  BarChart3,
+} from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
-  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({
-    platformName: 'TruXtoK',
-    platformDescription: 'Stock Smarter. Profit Harder.',
-    supportEmail: 'support@truxtok.com',
-    adminEmail: 'admin@truxtok.com',
-    maintenanceMode: false,
-    allowRegistrations: true,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchSettings() {
-      try {
-        const response = await fetch('/api/settings');
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data: SettingsResponse = await response.json();
-
-        if (data.success && data.data) {
-          setPlatformSettings(data.data);
-        } else {
-          throw new Error(data.error || 'Failed to fetch platform settings');
-        }
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching settings';
-        setError(errorMessage);
-        console.error('Fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchSettings();
-  }, []);
-
-  // Split platformName safely for logo styling
-  const nameParts = platformSettings.platformName.split('X');
-  const firstPart = nameParts[0] || platformSettings.platformName;
-  const secondPart = nameParts[1] || '';
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-        <p>Loading platform settings...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-        <p className="text-red-500">Error: {error}</p>
-      </div>
-    );
-  }
-
-  const showAuthButtons = !platformSettings.maintenanceMode && platformSettings.allowRegistrations;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
@@ -96,22 +30,16 @@ export default function HomePage() {
                 <Truck className="h-6 w-6 text-white" />
               </div>
               <div className="flex items-center">
-                <span className="text-2xl font-bold text-[#10294B]">{firstPart}</span>
-                {secondPart && <span className="text-2xl font-bold text-[#E3253D]">X</span>}
-                <span className="text-2xl font-bold text-[#10294B]">{secondPart}</span>
+                <span className="text-2xl font-bold text-[#10294B]">Tru</span>
+                <span className="text-2xl font-bold text-[#E3253D]">X</span>
+                <span className="text-2xl font-bold text-[#10294B]">toK</span>
                 <span className="text-sm ml-1">™</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {platformSettings.maintenanceMode ? (
-                <Badge variant="destructive">Maintenance Mode</Badge>
-              ) : (
-                showAuthButtons && (
-                  <Button asChild variant="outline">
-                    <Link href="/login">Sign In</Link>
-                  </Button>
-                )
-              )}
+              <Button asChild variant="outline">
+                <Link href="/login">Sign In</Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -128,35 +56,28 @@ export default function HomePage() {
                   🚀 Inventory Management Made Simple
                 </Badge>
                 <h1 className="text-5xl lg:text-7xl font-bold leading-tight">
-                  <span className="text-white">Smart</span>{' '}
-                  <span className="text-[#E3253D]">{platformSettings.platformName}</span>
+                  <span className="text-white">Smart</span>{" "}
+                  <span className="text-[#E3253D]">Truck</span>
                   <br />
                   <span className="text-white">Inventory</span>
                 </h1>
                 <p className="text-xl lg:text-2xl text-blue-100 max-w-2xl">
-                  {platformSettings.platformDescription}
+                  Streamline your truck inventory management with automated
+                  restocking suggestions and seamless order processing.
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                {platformSettings.maintenanceMode ? (
-                  <Badge variant="destructive" className="text-lg">
-                    System under maintenance
-                  </Badge>
-                ) : (
-                  showAuthButtons && (
-                    <Button
-                      asChild
-                      size="lg"
-                      className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-8 py-4 text-lg"
-                    >
-                      <Link href="/login">
-                        Get Started
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                      </Link>
-                    </Button>
-                  )
-                )}
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-8 py-4 text-lg"
+                >
+                  <Link href="/login">
+                    Get Started
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
               </div>
 
               <div className="flex items-center gap-8 pt-4">
@@ -193,13 +114,19 @@ export default function HomePage() {
                         <div className="text-white font-medium">156</div>
                       </div>
                       <div className="bg-white/20 rounded-lg p-4">
-                        <div className="text-sm text-blue-200 mb-1">Low Stock</div>
+                        <div className="text-sm text-blue-200 mb-1">
+                          Low Stock
+                        </div>
                         <div className="text-white font-medium">12</div>
                       </div>
                     </div>
                     <div className="bg-green-500/20 rounded-lg p-4 border border-green-400/30">
-                      <div className="text-sm text-green-200 mb-1">Restock Suggestions</div>
-                      <div className="text-green-300 font-bold text-lg">Ready</div>
+                      <div className="text-sm text-green-200 mb-1">
+                        Restock Suggestions
+                      </div>
+                      <div className="text-green-300 font-bold text-lg">
+                        Ready
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -217,11 +144,12 @@ export default function HomePage() {
           <div className="text-center mb-16">
             <Badge className="bg-[#10294B] text-white mb-4">Features</Badge>
             <h2 className="text-4xl lg:text-5xl font-bold text-[#10294B] mb-6">
-              Everything You Need to <span className="text-[#E3253D]">Manage</span>
+              Everything You Need to{" "}
+              <span className="text-[#E3253D]">Manage</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Built specifically for technicians and fleet managers, {platformSettings.platformName} streamlines
-              inventory management with intelligent automation.
+              Built specifically for technicians and fleet managers, TruXtoK
+              streamlines inventory management with intelligent automation.
             </p>
           </div>
 
@@ -229,27 +157,31 @@ export default function HomePage() {
             {[
               {
                 icon: Truck,
-                title: 'Truck Management',
-                description: 'Organize and track inventory across multiple trucks with bin-level precision.',
-                color: 'bg-[#006AA1]',
+                title: "Truck Management",
+                description:
+                  "Organize and track inventory across multiple trucks with bin-level precision.",
+                color: "bg-[#006AA1]",
               },
               {
                 icon: Package,
-                title: 'Smart Inventory',
-                description: 'Real-time inventory tracking with standard level comparisons and alerts.',
-                color: 'bg-[#E3253D]',
+                title: "Smart Inventory",
+                description:
+                  "Real-time inventory tracking with standard level comparisons and alerts.",
+                color: "bg-[#E3253D]",
               },
               {
                 icon: RefreshCw,
-                title: 'Auto Restock',
-                description: 'Intelligent restocking suggestions based on usage patterns and standard levels.',
-                color: 'bg-[#10294B]',
+                title: "Auto Restock",
+                description:
+                  "Intelligent restocking suggestions based on usage patterns and standard levels.",
+                color: "bg-[#10294B]",
               },
               {
                 icon: ClipboardList,
-                title: 'Easy Ordering',
-                description: 'Streamlined manual ordering with PDF generation and email integration.',
-                color: 'bg-[#006AA1]',
+                title: "Easy Ordering",
+                description:
+                  "Streamlined manual ordering with PDF generation and email integration.",
+                color: "bg-[#006AA1]",
               },
             ].map((feature, index) => (
               <Card
@@ -267,7 +199,9 @@ export default function HomePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-center">
-                  <CardDescription className="text-gray-600 leading-relaxed">{feature.description}</CardDescription>
+                  <CardDescription className="text-gray-600 leading-relaxed">
+                    {feature.description}
+                  </CardDescription>
                 </CardContent>
               </Card>
             ))}
@@ -280,16 +214,18 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 text-center">
             {[
-              { number: '500+', label: 'Active Trucks', icon: Truck },
-              { number: '10K+', label: 'Items Managed', icon: Package },
-              { number: '50+', label: 'Companies', icon: BarChart3 },
-              { number: '98%', label: 'Accuracy Rate', icon: Award },
+              { number: "500+", label: "Active Trucks", icon: Truck },
+              { number: "10K+", label: "Items Managed", icon: Package },
+              { number: "50+", label: "Companies", icon: BarChart3 },
+              { number: "98%", label: "Accuracy Rate", icon: Award },
             ].map((stat, index) => (
               <div key={index} className="space-y-4">
                 <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
                   <stat.icon className="h-8 w-8 text-[#E3253D]" />
                 </div>
-                <div className="text-4xl font-bold text-[#E3253D]">{stat.number}</div>
+                <div className="text-4xl font-bold text-[#E3253D]">
+                  {stat.number}
+                </div>
                 <div className="text-blue-200">{stat.label}</div>
               </div>
             ))}
@@ -302,33 +238,27 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
         <div className="relative container mx-auto px-4 text-center">
           <div className="max-w-4xl mx-auto space-y-8">
-            <Badge className="bg-[#E3253D] text-white px-6 py-3 text-lg">🎉 Ready to Get Started?</Badge>
+            <Badge className="bg-[#E3253D] text-white px-6 py-3 text-lg">
+              🎉 Ready to Get Started?
+            </Badge>
             <h2 className="text-4xl lg:text-6xl font-bold leading-tight">
               Transform Your <span className="text-[#E3253D]">Inventory</span>
             </h2>
             <p className="text-xl lg:text-2xl text-blue-100 max-w-2xl mx-auto">
-              Join hundreds of technicians already streamlining their inventory management with{' '}
-              {platformSettings.platformName}.
+              Join hundreds of technicians already streamlining their inventory
+              management with TruXtoK.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center pt-8">
-              {platformSettings.maintenanceMode ? (
-                <Badge variant="destructive" className="text-lg">
-                  System under maintenance
-                </Badge>
-              ) : (
-                showAuthButtons && (
-                  <Button
-                    asChild
-                    size="lg"
-                    className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-12 py-6 text-xl"
-                  >
-                    <Link href="/login">
-                      Start Managing
-                      <ArrowRight className="ml-3 h-6 w-6" />
-                    </Link>
-                  </Button>
-                )
-              )}
+              <Button
+                asChild
+                size="lg"
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-12 py-6 text-xl"
+              >
+                <Link href="/login">
+                  Start Managing
+                  <ArrowRight className="ml-3 h-6 w-6" />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -344,19 +274,13 @@ export default function HomePage() {
                   <Truck className="h-6 w-6 text-white" />
                 </div>
                 <div className="flex items-center">
-                  <span className="text-2xl font-bold">{firstPart}</span>
-                  {secondPart && <span className="text-2xl font-bold text-[#E3253D]">X</span>}
-                  <span className="text-2xl font-bold">{secondPart}</span>
+                  <span className="text-2xl font-bold">Tru</span>
+                  <span className="text-2xl font-bold text-[#E3253D]">X</span>
+                  <span className="text-2xl font-bold">toK</span>
                   <span className="text-sm ml-1">™</span>
                 </div>
               </div>
-              <p className="text-blue-200">{platformSettings.platformDescription}</p>
-              <p className="text-blue-200">
-                Support:{' '}
-                <a href={`mailto:${platformSettings.supportEmail}`} className="hover:text-white transition-colors">
-                  {platformSettings.supportEmail}
-                </a>
-              </p>
+              <p className="text-blue-200">Smart Truck Inventory Management</p>
             </div>
 
             <div>
@@ -405,7 +329,7 @@ export default function HomePage() {
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-blue-200">
                 <li>
-                  <Link href={`mailto:${platformSettings.supportEmail}`} className="hover:text-white transition-colors">
+                  <Link href="#" className="hover:text-white transition-colors">
                     Help Center
                   </Link>
                 </li>
@@ -424,7 +348,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-blue-800 pt-8 text-center text-blue-200">
-            <p>&copy; 2025 {platformSettings.platformName}. All rights reserved.</p>
+            <p>&copy; 2024 TruXtoK. All rights reserved.</p>
           </div>
         </div>
       </footer>

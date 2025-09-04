@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
           currentStock: item.current_stock,
           reason: item.reason,
         })),
-      totalItems: (order.items).reduce(
+      totalItems:(order.items).reduce(
         (sum: number, item: any) => sum + (item.quantity || 0),
         0
       ),

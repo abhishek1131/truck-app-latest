@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { verify } from "jsonwebtoken";
-import PDFDocument from "pdfkit";
-import { Readable } from "stream";
+import { jsPDF } from "jspdf";
 
 interface Order {
   id: string;
@@ -10,10 +9,10 @@ interface Order {
   truck_id: string;
   truck_number: string;
   status: string;
-  urgency: string;
-  total_cost: number;
-  total_commission: number;
-  total_credit: number;
+  priority: string; // Changed from urgency to match orders table
+  total_amount: number; // Changed from total_cost
+  commission_amount: number; // Changed from total_commission
+  total_credit: number; // Aggregated from credits table
   created_at: string;
   items: {
     id: string;
@@ -21,8 +20,8 @@ interface Order {
     part_number: string;
     bin_code: string;
     quantity: number;
-    unit_cost: number;
-    total_cost: number;
+    unit_price: number; // Changed from unit_cost to match order_items table
+    total_price: number; // Changed from total_cost to match order_items table
     category: string;
     description: string;
   }[];
@@ -92,27 +91,36 @@ export async function GET(
         CONCAT(u.first_name, ' ', u.last_name) as technician,
         t.truck_number,
         o.status,
-        o.urgency,
-        o.total_cost,
-        o.total_commission,
-        o.total_credit,
+        o.priority,
+        o.total_amount,
+        o.commission_amount,
         o.created_at,
         oi.id as item_id,
         ii.name as part_name,
         ii.part_number,
         tb.bin_code,
         oi.quantity,
-        oi.unit_cost,
-        oi.total_cost,
-        ii.category,
-        ii.description
+        oi.unit_price,
+        oi.total_price,
+        oi.category,
+        oi.description
       FROM orders o
       JOIN users u ON o.technician_id = u.id
       JOIN trucks t ON o.truck_id = t.id
       LEFT JOIN order_items oi ON o.id = oi.order_id
-      LEFT JOIN inventory_items ii ON oi.inventory_item_id = ii.id
+      LEFT JOIN inventory_items ii ON oi.item_id = ii.id
       LEFT JOIN truck_bins tb ON oi.bin_id = tb.id
       WHERE o.id = ?
+      `,
+      [id]
+    );
+
+    // Fetch total credit for the order from credits table
+    const [creditRows] = await pool.query(
+      `
+      SELECT COALESCE(SUM(amount), 0) as total_credit
+      FROM credits
+      WHERE order_id = ? AND type = 'earned' AND status = 'issued'
       `,
       [id]
     );
@@ -131,10 +139,10 @@ export async function GET(
       truck_id: orderRows[0].truck_id,
       truck_number: orderRows[0].truck_number,
       status: orderRows[0].status,
-      urgency: orderRows[0].urgency,
-      total_cost: parseFloat(orderRows[0].total_cost || 0),
-      total_commission: parseFloat(orderRows[0].total_commission || 0),
-      total_credit: parseFloat(orderRows[0].total_credit || 0),
+      priority: orderRows[0].priority,
+      total_amount: parseFloat(orderRows[0].total_amount || 0),
+      commission_amount: parseFloat(orderRows[0].commission_amount || 0),
+      total_credit: parseFloat((creditRows as any)[0].total_credit || 0),
       created_at: new Date(orderRows[0].created_at).toISOString().split("T")[0],
       items: [],
     };
@@ -147,8 +155,8 @@ export async function GET(
           part_number: row.part_number,
           bin_code: row.bin_code || "N/A",
           quantity: row.quantity,
-          unit_cost: parseFloat(row.unit_cost || 0),
-          total_cost: parseFloat(row.total_cost || 0),
+          unit_price: parseFloat(row.unit_price || 0),
+          total_price: parseFloat(row.total_price || 0),
           category: row.category || "N/A",
           description: row.description || "N/A",
         });
@@ -156,76 +164,89 @@ export async function GET(
     });
     console.log(`Fetched order: #${order.id} with ${order.items.length} items`);
 
-    // Generate PDF
-    const doc = new PDFDocument({ margin: 50 });
-    const buffers: Buffer[] = [];
-    const stream = new Readable({
-      read() {},
-    });
-
-    doc.on("data", (buffer) => buffers.push(buffer));
-    doc.on("end", () => {
-      const pdfData = Buffer.concat(buffers);
-      stream.push(pdfData);
-      stream.push(null);
-      console.log(`PDF generated for order #${order.id}`);
-    });
+    // Generate PDF with jsPDF
+    const doc = new jsPDF();
+    let yPosition = 20;
 
     // PDF content
-    doc.fontSize(20).text("TruXtoK Invoice", { align: "center" });
-    doc.moveDown();
-    doc.fontSize(12).text(`Order #${order.id}`, { align: "left" });
-    doc.text(`Date: ${order.created_at}`, { align: "left" });
-    doc.text(`Technician: ${order.technician}`, { align: "left" });
-    doc.text(`Truck: ${order.truck_number}`, { align: "left" });
-    doc.text(`Status: ${order.status.toUpperCase()}`, { align: "left" });
-    doc.text(`Urgency: ${order.urgency.toUpperCase()}`, { align: "left" });
-    doc.moveDown();
+    doc.setFontSize(20);
+    doc.text("TruXtoK Invoice", 105, yPosition, { align: "center" });
+    yPosition += 15;
 
-    doc.fontSize(14).text("Order Items", { underline: true });
-    doc.moveDown(0.5);
+    doc.setFontSize(12);
+    doc.text(`Order #${order.id}`, 20, yPosition);
+    yPosition += 10;
+    doc.text(`Date: ${order.created_at}`, 20, yPosition);
+    yPosition += 10;
+    doc.text(`Technician: ${order.technician}`, 20, yPosition);
+    yPosition += 10;
+    doc.text(`Truck: ${order.truck_number}`, 20, yPosition);
+    yPosition += 10;
+    doc.text(`Status: ${order.status.toUpperCase()}`, 20, yPosition);
+    yPosition += 10;
+    doc.text(`Priority: ${order.priority.toUpperCase()}`, 20, yPosition);
+    yPosition += 15;
 
-    doc.fontSize(10);
-    doc.text("Part Name", 50, doc.y, { continued: true });
-    doc.text("Part #", 200, doc.y, { continued: true });
-    doc.text("Bin", 300, doc.y, { continued: true });
-    doc.text("Qty", 350, doc.y, { continued: true });
-    doc.text("Unit Cost", 400, doc.y, { continued: true });
-    doc.text("Total Cost", 480, doc.y);
-    doc.moveDown(0.5);
-    doc.lineWidth(0.5).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown(0.5);
+    doc.setFontSize(14);
+    doc.text("Order Items", 20, yPosition, { underline: true });
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.text("Part Name", 20, yPosition);
+    doc.text("Part #", 70, yPosition);
+    doc.text("Bin", 110, yPosition);
+    doc.text("Qty", 140, yPosition);
+    doc.text("Unit Price", 160, yPosition);
+    doc.text("Total Price", 190, yPosition);
+    yPosition += 5;
+    doc.setLineWidth(0.5);
+    doc.line(20, yPosition, 190, yPosition);
+    yPosition += 10;
 
     order.items.forEach((item) => {
-      doc.text(item.part_name, 50, doc.y, { continued: true });
-      doc.text(item.part_number, 200, doc.y, { continued: true });
-      doc.text(item.bin_code, 300, doc.y, { continued: true });
-      doc.text(item.quantity.toString(), 350, doc.y, { continued: true });
-      doc.text(`$${item.unit_cost.toFixed(2)}`, 400, doc.y, {
-        continued: true,
-      });
-      doc.text(`$${item.total_cost.toFixed(2)}`, 480, doc.y);
-      doc.moveDown(0.5);
+      doc.text(item.part_name, 20, yPosition);
+      doc.text(item.part_number, 70, yPosition);
+      doc.text(item.bin_code, 110, yPosition);
+      doc.text(item.quantity.toString(), 140, yPosition);
+      doc.text(`$${item.unit_price.toFixed(2)}`, 160, yPosition);
+      doc.text(`$${item.total_price.toFixed(2)}`, 190, yPosition);
+      yPosition += 10;
     });
 
-    doc.moveDown();
-    doc.lineWidth(0.5).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown(0.5);
-    doc.text(`Total: $${order.total_cost.toFixed(2)}`, 480, doc.y);
-    doc.text(`Commission: $${order.total_commission.toFixed(2)}`, 480, doc.y);
-    doc.text(`Credit: $${order.total_credit.toFixed(2)}`, 480, doc.y);
+    yPosition += 5;
+    doc.line(20, yPosition, 190, yPosition);
+    yPosition += 10;
+    doc.text(`Total: $${order.total_amount.toFixed(2)}`, 190, yPosition, {
+      align: "right",
+    });
+    yPosition += 10;
     doc.text(
-      `Net Revenue: $${(order.total_commission - order.total_credit).toFixed(
+      `Commission: $${order.commission_amount.toFixed(2)}`,
+      190,
+      yPosition,
+      {
+        align: "right",
+      }
+    );
+    yPosition += 10;
+    doc.text(`Credit: $${order.total_credit.toFixed(2)}`, 190, yPosition, {
+      align: "right",
+    });
+    yPosition += 10;
+    doc.text(
+      `Net Revenue: $${(order.commission_amount - order.total_credit).toFixed(
         2
       )}`,
-      480,
-      doc.y
+      190,
+      yPosition,
+      { align: "right" }
     );
 
-    doc.end();
-    console.log(`Streaming PDF response for order #${order.id}`);
+    // Convert PDF to buffer
+    const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+    console.log(`PDF generated for order #${order.id}`);
 
-    return new NextResponse(stream, {
+    return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename=invoice-${id}.pdf`,
