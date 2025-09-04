@@ -105,7 +105,7 @@ export async function GET(req: Request) {
         oi.description
       FROM orders o
       JOIN users u ON o.technician_id = u.id
-      JOIN trucks t ON o.truck_id = t.id
+      LEFT JOIN trucks t ON o.truck_id = t.id
       LEFT JOIN order_items oi ON o.id = oi.order_id
     `;
 
@@ -153,7 +153,7 @@ export async function GET(req: Request) {
     const [countResult] = await pool.query(
       `SELECT COUNT(DISTINCT o.id) as total FROM orders o
        JOIN users u ON o.technician_id = u.id
-       JOIN trucks t ON o.truck_id = t.id
+       LEFT JOIN trucks t ON o.truck_id = t.id
        LEFT JOIN order_items oi ON o.id = oi.order_id
        ${conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : ""}`,
       values

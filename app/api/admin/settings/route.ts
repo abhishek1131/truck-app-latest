@@ -110,7 +110,7 @@ export async function GET(req: Request) {
     };
 
     (rows as any[]).forEach((row) => {
-      const value = JSON.parse(row.value);
+      const value = (row.value);
       if (row.category === "platform") {
         settings.platform[row.key_name as keyof PlatformSettings] = value;
       } else if (row.category === "commission") {

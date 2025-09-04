@@ -50,9 +50,9 @@ interface Order {
   truck_number: string;
   status: string;
   urgency: string;
-  total_cost: number | null;
-  total_commission: number | null;
-  total_credit: number | null;
+  total_amount: number | null;
+  commission: number | null;
+  credit: number | null;
   created_at: string;
   items: {
     id: string;
@@ -61,7 +61,7 @@ interface Order {
     bin_code: string;
     quantity: number;
     unit_cost: number;
-    total_cost: number;
+    total_price: number;
     category: string;
     description: string;
   }[];
@@ -309,15 +309,15 @@ export default function AdminOrdersPage() {
  );
 
   const totalValue = orders.reduce(
-    (sum, order) => sum + (order.total_cost || 0),
+    (sum, order) => sum + (order.total_amount || 0),
     0
   );
   const totalCommissions = orders.reduce(
-    (sum, order) => sum + (order.total_commission || 0),
+    (sum, order) => sum + (order.commission || 0),
     0
   );
   const totalCredits = orders.reduce(
-    (sum, order) => sum + (order.total_credit || 0),
+    (sum, order) => sum + (order.credit || 0),
     0
   );
   const totalOrders = orders.length;
@@ -338,7 +338,7 @@ export default function AdminOrdersPage() {
               <ShoppingCart className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalOrders}</div>
+              <div className="text-2xl font-bold">{pagination.total}</div>
               <p className="text-xs opacity-75">Grouped by technician</p>
             </CardContent>
           </Card>
@@ -528,7 +528,7 @@ export default function AdminOrdersPage() {
                             Total Cost
                           </div>
                           <div className="font-semibold">
-                            {formatCurrency(order.total_cost)}
+                            {formatCurrency(order.total_amount)}
                           </div>
                         </div>
                         <div>
@@ -536,7 +536,7 @@ export default function AdminOrdersPage() {
                             Commission
                           </div>
                           <div className="font-semibold text-blue-600">
-                            {formatCurrency(order.total_commission)}
+                            {formatCurrency(order.commission)}
                           </div>
                         </div>
                         <div>
@@ -544,7 +544,7 @@ export default function AdminOrdersPage() {
                             Credit Issued
                           </div>
                           <div className="font-semibold text-green-600">
-                            {formatCurrency(order.total_credit)}
+                            {formatCurrency(order.credit)}
                           </div>
                         </div>
                         <div>
@@ -553,8 +553,8 @@ export default function AdminOrdersPage() {
                           </div>
                           <div className="font-semibold text-purple-600">
                             {formatCurrency(
-                              (order.total_commission || 0) -
-                                (order.total_credit || 0)
+                              (order.commission || 0) -
+                                (order.credit || 0)
                             )}
                           </div>
                         </div>
