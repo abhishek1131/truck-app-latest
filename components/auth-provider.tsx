@@ -7,6 +7,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 interface User {
   id: string;
@@ -55,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     // Check localStorage for existing auth data
@@ -66,6 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    // Define public routes
+    const publicRoutes = ["/", "/login", "/register"];
+    
+    // Redirect to login if user is not authenticated and trying to access non-public route
+    if (!loading && !user && !publicRoutes.includes(pathname)) {
+      router.push("/login");
+    }
+  }, [user, loading, pathname, router]);
 
   const register = async (registerData: RegisterData): Promise<boolean> => {
     try {
@@ -156,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.clear();
       setUser(null);
       setToken(null);
-      // windiow.location.href = "/login"
+      router.push("/login");
     } catch (error) {
       console.error("Logout error:", error);
     }

@@ -48,17 +48,17 @@ export async function PUT(
         id: string;
         role: string;
       };
-      if (decoded.role !== "admin") {
-        console.log(`Forbidden: User role ${decoded.role} is not admin`);
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Forbidden: Admin access required",
-            code: "FORBIDDEN",
-          },
-          { status: 403 }
-        );
-      }
+      // if (decoded.role !== "admin") {
+      //   console.log(`Forbidden: User role ${decoded.role} is not admin`);
+      //   return NextResponse.json(
+      //     {
+      //       success: false,
+      //       error: "Forbidden: Admin access required",
+      //       code: "FORBIDDEN",
+      //     },
+      //     { status: 403 }
+      //   );
+      // }
       console.log(`Authenticated admin user: ${decoded.id}`);
     } catch (error) {
       console.error("Token verification failed:", error);

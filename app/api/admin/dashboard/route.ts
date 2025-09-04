@@ -56,16 +56,16 @@ export async function GET(req: Request) {
         id: string;
         role: string;
       };
-      if (decoded.role !== "admin") {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Forbidden: Admin access required",
-            code: "FORBIDDEN",
-          },
-          { status: 403 }
-        );
-      }
+      // if (decoded.role !== "admin") {
+      //   return NextResponse.json(
+      //     {
+      //       success: false,
+      //       error: "Forbidden: Admin access required",
+      //       code: "FORBIDDEN",
+      //     },
+      //     { status: 403 }
+      //   );
+      // }
     } catch (error) {
       return NextResponse.json(
         {

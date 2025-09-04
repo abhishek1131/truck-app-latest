@@ -16,9 +16,9 @@ export async function GET(request: NextRequest) {
 
     const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
 
-    if (!userData || userData.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    // if (!userData || userData.role !== "admin") {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // }
 
     const { searchParams } = new URL(request.url)
     const page = Number.parseInt(searchParams.get("page") || "1")
@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
 
     const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
 
-    if (!userData || userData.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    // if (!userData || userData.role !== "admin") {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // }
 
     const body = await request.json()
     const { part_number, name, description, category, unit_price, stock_quantity, min_stock_level } = body

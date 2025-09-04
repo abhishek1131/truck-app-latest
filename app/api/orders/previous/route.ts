@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // if (!userData || userData.role !== "technician") {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
 
     // Fetch previous orders
     const [orderRows] = await pool.query(

@@ -108,13 +108,13 @@ export function Header({ title, subtitle }: HeaderProps) {
         </div>
 
         <div className="flex items-center space-x-2 md:space-x-4">
-          <div className="hidden lg:flex relative">
+          {/* <div className="hidden lg:flex relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Search..."
               className="pl-10 w-64 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
             />
-          </div>
+          </div> */}
 
           <Link href="/settings" className="md:hidden">
             <Button variant="ghost" size="sm" className="p-2 h-8 w-8">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -26,30 +27,32 @@ import {
   MessageSquare,
   Truck,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrderDetailsModalProps {
   order: {
     id: string;
-    partName: string;
-    quantity: number;
-    cost: number;
-    status: string;
-    date: string;
-    commission: number;
-    credit: number;
-    supplyHouse: string;
-    urgency: string;
+    order_number: string;
+    part_name: string;
     description: string;
-    orderItems: {
+    supply_house: string;
+    status: string;
+    priority: string;
+    total_amount: number | null;
+    commission_amount: number | null;
+    total_credit: number | null;
+    created_at: string;
+    quantity: number;
+    items: {
       id: string;
-      inventoryItemId: string;
+      inventory_item_id: string;
       quantity: number;
-      unitPrice: number;
-      totalPrice: number;
+      unit_price: number;
+      total_price: number;
       reason: string;
-      inventoryItem: {
+      inventory_item: {
         id: string;
-        partNumber: string;
+        part_number: string;
         name: string;
         description: string;
         unit: string;
@@ -58,13 +61,13 @@ interface OrderDetailsModalProps {
       };
       bin: {
         id: string;
-        binCode: string;
+        bin_code: string;
         name: string;
       };
     }[];
     truck: {
       id: string;
-      truckNumber: string;
+      truck_number: string;
       make: string;
       model: string;
     };
@@ -88,8 +91,50 @@ const urgencyConfig = {
 
 export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { token } = useAuth();
+  const { toast } = useToast();
   const StatusIcon =
     statusConfig[order.status as keyof typeof statusConfig]?.icon || Clock;
+
+  const formatCurrency = (value: number | null | undefined): string => {
+    return value ? `$${value.toFixed(2)}` : "$0.00";
+  };
+
+  const handleDownloadInvoice = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/invoice/${order.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to download invoice");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoice-${order.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: `Invoice for order #${order.order_number} downloaded`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download invoice",
+        variant: "destructive",
+      });
+    }
+  }, [toast, token, order.id, order.order_number]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -106,7 +151,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-[#10294B]">
-            Order Details - {order.id}
+            Order Details - #{order.order_number}
           </DialogTitle>
           <DialogDescription>
             Complete information about your parts order
@@ -114,7 +159,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Status and Urgency */}
+          {/* Status and Priority */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Badge
@@ -127,17 +172,18 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
               </Badge>
               <Badge
                 className={
-                  urgencyConfig[order.urgency as keyof typeof urgencyConfig]
+                  urgencyConfig[order.priority as keyof typeof urgencyConfig]
                     ?.color
                 }
               >
-                {order.urgency.charAt(0).toUpperCase() + order.urgency.slice(1)}{" "}
+                {order.priority.charAt(0).toUpperCase() +
+                  order.priority.slice(1)}{" "}
                 Priority
               </Badge>
             </div>
             <div className="text-sm text-gray-500 flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {order.date}
+              {order.created_at}
             </div>
           </div>
 
@@ -153,10 +199,10 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                   Items:
                 </span>
                 <ul className="list-disc pl-5">
-                  {order.orderItems.map((item) => (
+                  {order.items.map((item) => (
                     <li key={item.id} className="text-lg font-semibold">
-                      {item.inventoryItem?.name} ({item?.quantity}{" "}
-                      {item.inventoryItem?.unit})
+                      {item.inventory_item?.name} ({item.quantity}{" "}
+                      {item.inventory_item?.unit})
                     </li>
                   ))}
                 </ul>
@@ -173,7 +219,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                     Total Cost:
                   </span>
                   <p className="font-semibold text-lg">
-                    ${order.cost.toFixed(2)}
+                    {formatCurrency(order.total_amount)}
                   </p>
                 </div>
               </div>
@@ -196,10 +242,10 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
             </h3>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold">{order.supplyHouse}</p>
+                <p className="font-semibold">{order.supply_house}</p>
                 <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                   <MapPin className="h-3 w-3" />
-                  {order.supplyHouse} Location
+                  {order.supply_house} Location
                 </p>
               </div>
               <Button variant="outline" size="sm">
@@ -220,7 +266,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <span className="text-sm font-medium text-gray-600">
                   Truck:
                 </span>
-                <p className="font-semibold">{order.truck.truckNumber}</p>
+                <p className="font-semibold">{order.truck.truck_number}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -249,14 +295,16 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Order Value:</span>
-                  <span className="font-medium">${order.cost.toFixed(2)}</span>
+                  <span className="font-medium">
+                    {formatCurrency(order.total_amount)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">
                     Commission (3%):
                   </span>
                   <span className="font-medium text-blue-600">
-                    ${order.commission.toFixed(2)}
+                    {formatCurrency(order.commission_amount)}
                   </span>
                 </div>
                 <Separator />
@@ -265,14 +313,14 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                     Your Credit (25%):
                   </span>
                   <span className="font-bold text-green-600">
-                    ${order.credit.toFixed(2)}
+                    {formatCurrency(order.total_credit)}
                   </span>
                 </div>
               </div>
               <div className="flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    +${order.credit.toFixed(2)}
+                    {formatCurrency(order.total_credit)}
                   </div>
                   <div className="text-sm text-gray-600">Credits Earned</div>
                 </div>
@@ -294,7 +342,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <div>
                   <p className="font-medium">Order Placed</p>
                   <p className="text-sm text-gray-600">
-                    {order.date} at 10:30 AM
+                    {order.created_at} at 10:30 AM
                   </p>
                 </div>
               </div>
@@ -306,7 +354,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                   <div>
                     <p className="font-medium">Order Confirmed</p>
                     <p className="text-sm text-gray-600">
-                      {order.date} at 11:15 AM
+                      {order.created_at} at 11:15 AM
                     </p>
                   </div>
                 </div>
@@ -319,7 +367,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                   <div>
                     <p className="font-medium">Order Shipped</p>
                     <p className="text-sm text-gray-600">
-                      {order.date} at 2:45 PM
+                      {order.created_at} at 2:45 PM
                     </p>
                   </div>
                 </div>
@@ -332,7 +380,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                   <div>
                     <p className="font-medium">Order Completed</p>
                     <p className="text-sm text-gray-600">
-                      {order.date} at 4:20 PM
+                      {order.created_at} at 4:20 PM
                     </p>
                   </div>
                 </div>
@@ -342,7 +390,10 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t">
-            <Button className="flex-1 bg-[#E3253D] hover:bg-[#E3253D]/90">
+            <Button
+              className="flex-1 bg-[#E3253D] hover:bg-[#E3253D]/90"
+              onClick={handleDownloadInvoice}
+            >
               <Download className="h-4 w-4 mr-2" />
               Download Invoice
             </Button>

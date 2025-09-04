@@ -92,28 +92,28 @@ export default function AdminTrucksPage() {
   const [technicianError, setTechnicianError] = useState<string | null>(null);
   const [dropdownKey, setDropdownKey] = useState(0); // To force re-render of DropdownMenu
 
-  useEffect(() => {
-    const fetchTrucks = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch("/api/admin/trucks?page=1&limit=10", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const result = await response.json();
-        if (result.success) {
-          setTrucks(result.data.trucks);
-        } else {
-          console.error("Failed to fetch trucks:", result.error);
-        }
-      } catch (error) {
-        console.error("Error fetching trucks:", error);
-      } finally {
-        setIsLoading(false);
+  const fetchTrucks = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/admin/trucks?page=1&limit=10", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTrucks(result.data.trucks);
+      } else {
+        console.error("Failed to fetch trucks:", result.error);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching trucks:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     const fetchTechnicians = async () => {
       try {
         const response = await fetch("/api/admin/users?page=1&limit=50", {
@@ -198,26 +198,7 @@ export default function AdminTrucksPage() {
       });
       const result = await response.json();
       if (result.success) {
-        setTrucks([
-          ...trucks,
-          {
-            ...result.data,
-            totalItems: 0,
-            lowStockItems: 0,
-            bins: 0,
-            lastUpdated: result.data.updated_at
-              ? new Date(result.data.updated_at).toLocaleString()
-              : "Never",
-            assigned_technician: result.data.technician_id
-              ? {
-                  id: result.data.technician_id,
-                  first_name: result.data.first_name,
-                  last_name: result.data.last_name,
-                  email: result.data.email,
-                }
-              : null,
-          },
-        ]);
+        await fetchTrucks(); // Refresh truck list
         setShowCreateDialog(false);
       } else {
         console.error("Failed to create truck:", result.error);
@@ -262,7 +243,7 @@ export default function AdminTrucksPage() {
       });
       const result = await response.json();
       if (result.success) {
-        setTrucks(trucks.filter((t) => t.id !== truck.id));
+        await fetchTrucks(); // Refresh truck list
       } else {
         console.error("Failed to delete truck:", result.error);
       }

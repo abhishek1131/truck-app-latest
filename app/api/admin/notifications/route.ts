@@ -7,11 +7,11 @@ interface NotificationResponse {
   data?: {
     notifications: {
       id: string;
-      user_id?: string; // Made optional since not all activities may have a user
-      user_name?: string; // Made optional
+      user_id?: string | null;
+      user_name?: string | null;
       action: string;
-      entity_type?: string | null; // Adjusted to be optional
-      entity_id?: string | null; // Adjusted to be optional
+      entity_type?: string | null;
+      entity_id?: string | null;
       details: string | null;
       created_at: string;
     }[];
@@ -50,36 +50,101 @@ export async function GET(req: Request) {
 
     const isAdmin = decoded.role === "admin";
 
-    // Modified query to work with the activities table structure
+    // Query to combine activities from multiple tables
     const query = `
       SELECT 
         a.id,
         o.technician_id AS user_id,
         CONCAT(u.first_name, ' ', u.last_name) AS user_name,
         a.type AS action,
-        NULL AS entity_type, -- No entity_type column in activities
-        a.id AS entity_id, -- Using activity id as entity_id
+        'order' AS entity_type,
+        a.id AS entity_id,
         a.message AS details,
         a.created_at
       FROM activities a
       LEFT JOIN orders o ON a.message LIKE CONCAT('%', o.order_number, '%')
       LEFT JOIN users u ON o.technician_id = u.id
-      ${isAdmin ? "" : "WHERE o.technician_id = ?"}
-      ORDER BY a.created_at DESC
+      WHERE a.type = 'order'
+      ${isAdmin ? "" : "AND o.technician_id = ?"}
+      
+      UNION
+
+      SELECT 
+        a.id,
+        NULL AS user_id,
+        'System' AS user_name,
+        a.type AS action,
+        a.type AS entity_type,
+        a.id AS entity_id,
+        a.message AS details,
+        a.created_at
+      FROM activities a
+      WHERE a.type IN ('technician', 'redemption', 'supply_house')
+      ${isAdmin ? "" : "AND a.message LIKE '%technician%'"}
+      
+      UNION
+
+      SELECT 
+        us.id,
+        us.user_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+        us.action,
+        'session' AS entity_type,
+        us.id AS entity_id,
+        COALESCE(JSON_UNQUOTE(JSON_EXTRACT(us.details, '$.status')), us.action) AS details,
+        us.created_at
+      FROM user_sessions us
+      LEFT JOIN users u ON us.user_id = u.id
+      ${isAdmin ? "" : "WHERE us.user_id = ?"}
+      
+      UNION
+
+      SELECT 
+        c.id,
+        c.technician_id AS user_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+        c.type AS action,
+        'credit' AS entity_type,
+        c.id AS entity_id,
+        c.description AS details,
+        c.created_at
+      FROM credits c
+      LEFT JOIN users u ON c.technician_id = u.id
+      ${isAdmin ? "" : "WHERE c.technician_id = ?"}
+      
+      UNION
+
+      SELECT 
+        ro.id,
+        ro.technician_id AS user_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+        ro.status AS action,
+        'restock_order' AS entity_type,
+        ro.id AS entity_id,
+        CONCAT('Restock order ', ro.id, ' - ', ro.status) AS details,
+        ro.created_at
+      FROM restock_orders ro
+      LEFT JOIN users u ON ro.technician_id = u.id
+      ${isAdmin ? "" : "WHERE ro.technician_id = ?"}
+      
+      ORDER BY created_at DESC
       LIMIT 50
     `;
-    const params = isAdmin ? [] : [decoded.id];
+
+    const params = isAdmin
+      ? []
+      : [decoded.id, decoded.id, decoded.id, decoded.id];
 
     const [rows] = await pool.query(query, params);
 
     const notifications = (rows as any[]).map((row) => ({
       id: row.id,
-      user_id: row.user_id || null, // Handle cases where user_id is null
-      user_name: row.user_name || "System", // Fallback if no user is associated
+      user_id: row.user_id || null,
+      user_name: row.user_name || "System",
       action: row.action,
-      entity_type: row.entity_type,
-      entity_id: row.entity_id,
-      details: row.details,
+      entity_type: row.entity_type || null,
+      entity_id: row.entity_id || null,
+      details: row.details || null,
       created_at: new Date(row.created_at).toISOString(),
     }));
 

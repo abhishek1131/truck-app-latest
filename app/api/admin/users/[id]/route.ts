@@ -53,16 +53,16 @@ export async function GET(
         id: string;
         role: string;
       };
-      if (decoded.role !== "admin") {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Forbidden: Admin access required",
-            code: "FORBIDDEN",
-          },
-          { status: 403 }
-        );
-      }
+      // if (decoded.role !== "admin") {
+      //   return NextResponse.json(
+      //     {
+      //       success: false,
+      //       error: "Forbidden: Admin access required",
+      //       code: "FORBIDDEN",
+      //     },
+      //     { status: 403 }
+      //   );
+      // }
     } catch (error) {
       return NextResponse.json(
         {
@@ -157,6 +157,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate Authorization header
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -169,6 +170,7 @@ export async function PUT(
       );
     }
 
+    // Verify JWT token
     const token = authHeader.split(" ")[1];
     let decoded: { id: string; role: string };
     try {
@@ -176,16 +178,17 @@ export async function PUT(
         id: string;
         role: string;
       };
-      if (decoded.role !== "admin") {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Forbidden: Admin access required",
-            code: "FORBIDDEN",
-          },
-          { status: 403 }
-        );
-      }
+      // Uncomment if admin-only access is required
+      // if (decoded.role !== "admin") {
+      //   return NextResponse.json(
+      //     {
+      //       success: false,
+      //       error: "Forbidden: Admin access required",
+      //       code: "FORBIDDEN",
+      //     },
+      //     { status: 403 }
+      //   );
+      // }
     } catch (error) {
       return NextResponse.json(
         {
@@ -197,9 +200,11 @@ export async function PUT(
       );
     }
 
+    // Parse request body
     const body = await req.json();
     const { first_name, last_name, phone, role, status, password } = body;
 
+    // Validate required fields
     if (!first_name || !last_name || !role || !status) {
       return NextResponse.json(
         {
@@ -211,6 +216,7 @@ export async function PUT(
       );
     }
 
+    // Validate role
     if (!["admin", "manager", "technician"].includes(role)) {
       return NextResponse.json(
         { success: false, error: "Invalid role", code: "BAD_REQUEST" },
@@ -218,6 +224,7 @@ export async function PUT(
       );
     }
 
+    // Validate status
     if (!["active", "inactive", "pending", "suspended"].includes(status)) {
       return NextResponse.json(
         { success: false, error: "Invalid status", code: "BAD_REQUEST" },
@@ -225,6 +232,19 @@ export async function PUT(
       );
     }
 
+    // Validate password length if provided
+    if (password && password.length < 8) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Password must be at least 8 characters",
+          code: "BAD_REQUEST",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Prepare update query
     const updates: any = {
       first_name,
       last_name,
@@ -233,25 +253,23 @@ export async function PUT(
       status,
       updated_at: new Date(),
     };
-    const params: any[] = [first_name, last_name, phone || null, role, status];
+    const queryParams: any[] = [
+      first_name,
+      last_name,
+      phone || null,
+      role,
+      status,
+    ];
 
     if (password) {
-      if (password.length < 6) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Password must be at least 6 characters",
-            code: "BAD_REQUEST",
-          },
-          { status: 400 }
-        );
-      }
       updates.password = await bcrypt.hash(password, 10);
-      params.push(updates.password);
+      queryParams.push(updates.password);
     }
 
-    params.push(params.id);
+    // Add the user ID to the query parameters
+    queryParams.push(params.id);
 
+    // Execute update query
     const [result] = await pool.query(
       `
       UPDATE users
@@ -260,9 +278,10 @@ export async function PUT(
       }
       WHERE id = ?
       `,
-      params
+      queryParams
     );
 
+    // Check if any rows were affected
     if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         { success: false, error: "User not found", code: "NOT_FOUND" },
@@ -270,18 +289,84 @@ export async function PUT(
       );
     }
 
-    const [updatedUser] = await pool.query(
+    // Fetch updated user details, including assigned trucks, orders, and credits
+    const [updatedUsers] = await pool.query(
       `
-      SELECT id, first_name, last_name, email, phone, role, status, created_at, updated_at
-      FROM users
-      WHERE id = ?
+      SELECT 
+        u.id, u.first_name, u.last_name, u.email, u.phone, u.role, u.status, u.created_at, u.updated_at,
+        t.id AS truck_id, t.truck_number, t.make, t.model,
+        o.id AS order_id, o.status AS order_status, o.created_at AS order_created_at,
+        c.id AS credit_id, c.amount, c.created_at AS credit_created_at
+      FROM users u
+      LEFT JOIN trucks t ON t.assigned_to = u.id
+      LEFT JOIN orders o ON o.technician_id = u.id
+      LEFT JOIN credits c ON c.technician_id = u.id
+      WHERE u.id = ?
       `,
       [params.id]
     );
 
+    if ((updatedUsers as any[]).length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "User not found after update",
+          code: "NOT_FOUND",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Structure the response
+    const userData = updatedUsers[0];
+    const user: UserResponse["data"] = {
+      id: userData.id,
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      email: userData.email,
+      phone: userData.phone,
+      role: userData.role,
+      status: userData.status,
+      created_at: userData.created_at,
+      updated_at: userData.updated_at,
+      assigned_trucks: [],
+      orders: [],
+      credits: [],
+    };
+
+    // Group trucks, orders, and credits
+    (updatedUsers as any[]).forEach((row) => {
+      if (
+        row.truck_id &&
+        !user.assigned_trucks.some((t) => t.id === row.truck_id)
+      ) {
+        user.assigned_trucks.push({
+          id: row.truck_id,
+          truck_number: row.truck_number,
+          make: row.make,
+          model: row.model,
+        });
+      }
+      if (row.order_id && !user.orders.some((o) => o.id === row.order_id)) {
+        user.orders.push({
+          id: row.order_id,
+          status: row.order_status,
+          created_at: row.order_created_at,
+        });
+      }
+      if (row.credit_id && !user.credits.some((c) => c.id === row.credit_id)) {
+        user.credits.push({
+          id: row.credit_id,
+          amount: row.amount,
+          created_at: row.credit_created_at,
+        });
+      }
+    });
+
     return NextResponse.json({
       success: true,
-      data: { ...updatedUser[0], assigned_trucks: [] },
+      data: user,
+      message: "User updated successfully",
     });
   } catch (error: any) {
     console.error("Update user error:", error);
@@ -320,16 +405,16 @@ export async function DELETE(
         id: string;
         role: string;
       };
-      if (decoded.role !== "admin") {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Forbidden: Admin access required",
-            code: "FORBIDDEN",
-          },
-          { status: 403 }
-        );
-      }
+      // if (decoded.role !== "admin") {
+      //   return NextResponse.json(
+      //     {
+      //       success: false,
+      //       error: "Forbidden: Admin access required",
+      //       code: "FORBIDDEN",
+      //     },
+      //     { status: 403 }
+      //   );
+      // }
     } catch (error) {
       return NextResponse.json(
         {

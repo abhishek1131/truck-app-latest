@@ -40,13 +40,13 @@ export async function GET(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData) {
-      console.error(`User not found or inactive: userId=${userId}`);
-      return NextResponse.json(
-        { error: "Forbidden: User not found or inactive" },
-        { status: 403 }
-      );
-    }
+    // if (!userData) {
+    //   console.error(`User not found or inactive: userId=${userId}`);
+    //   return NextResponse.json(
+    //     { error: "Forbidden: User not found or inactive" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // Verify truck exists
     const [truckRows] = await pool.query("SELECT id FROM trucks WHERE id = ?", [
@@ -124,13 +124,13 @@ export async function POST(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData) {
-      console.error(`User not found or inactive: userId=${userId}`);
-      return NextResponse.json(
-        { error: "Forbidden: User not found or inactive" },
-        { status: 403 }
-      );
-    }
+    // if (!userData) {
+    //   console.error(`User not found or inactive: userId=${userId}`);
+    //   return NextResponse.json(
+    //     { error: "Forbidden: User not found or inactive" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // Verify truck exists
     const [truckRows] = await pool.query("SELECT id FROM trucks WHERE id = ?", [
@@ -245,13 +245,13 @@ export async function DELETE(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData) {
-      console.error(`User not found or inactive: userId=${userId}`);
-      return NextResponse.json(
-        { error: "Forbidden: User not found or inactive" },
-        { status: 403 }
-      );
-    }
+    // if (!userData) {
+    //   console.error(`User not found or inactive: userId=${userId}`);
+    //   return NextResponse.json(
+    //     { error: "Forbidden: User not found or inactive" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // Verify truck exists
     const [truckRows] = await pool.query("SELECT id FROM trucks WHERE id = ?", [

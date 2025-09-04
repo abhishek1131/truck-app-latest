@@ -480,7 +480,7 @@ ${orderData.technician}
       }
     } catch (error) {
       console.error("Error submitting order:", error);
-      alert("Error submitting order. Please try again.");
+      // alert("Error submitting order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

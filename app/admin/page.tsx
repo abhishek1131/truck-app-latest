@@ -132,7 +132,7 @@ export default function AdminDashboardPage() {
         {error && (
           <div className="bg-red-100 text-red-800 p-4 rounded-lg">{error}</div>
         )}
-        <div className="flex items-center justify-between mb-6">
+        {/* <div className="flex items-center justify-between mb-6">
           <div className="flex gap-3">
             <Button
               variant="outline"
@@ -146,7 +146,7 @@ export default function AdminDashboardPage() {
               Settings
             </Button>
           </div>
-        </div>
+        </div> */}
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -421,7 +421,7 @@ export default function AdminDashboardPage() {
             </Card>
           </Link>
 
-          <Link href="/admin/technicians">
+          <Link href="/admin/users">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
               <CardHeader className="text-center">
                 <div className="w-12 h-12 bg-[#006AA1] rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -432,7 +432,7 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent className="text-center">
                 <Button className="w-full bg-[#006AA1] hover:bg-[#006AA1]/90">
-                  View Technicians
+                  View Users
                 </Button>
               </CardContent>
             </Card>

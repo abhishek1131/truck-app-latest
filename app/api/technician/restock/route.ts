@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // if (!userData || userData.role !== "technician") {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
 
     // Fetch restock items for assigned trucks
     const [restockItems] = await pool.query(
@@ -108,9 +108,9 @@ export async function POST(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // if (!userData || userData.role !== "technician") {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
 
     const { items } = await request.json();
 

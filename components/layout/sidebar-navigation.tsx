@@ -36,7 +36,7 @@ const adminNavigation = [
 
 export function SidebarNavigation() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const navigation =
@@ -138,9 +138,11 @@ export function SidebarNavigation() {
           )}
           <button
             onClick={logout}
+            disabled={loading}
             className={cn(
-              "flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 hover:text-[#10294B] transition-colors duration-200",
-              !isExpanded && "justify-center"
+              "flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-lg transition-colors duration-200",
+              !isExpanded && "justify-center",
+              loading && "opacity-50 cursor-not-allowed"
             )}
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
