@@ -39,8 +39,8 @@ interface OrderDetailsModalProps {
     status: string;
     priority: string;
     total_amount: number | null;
-    commission_amount: number | null;
-    total_credit: number | null;
+    commission: number | null;
+    credit: number | null;
     created_at: string;
     quantity: number;
     items: {
@@ -199,12 +199,13 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                   Items:
                 </span>
                 <ul className="list-disc pl-5">
-                  {order.items.map((item) => (
-                    <li key={item.id} className="text-lg font-semibold">
-                      {item.inventory_item?.name} ({item.quantity}{" "}
-                      {item.inventory_item?.unit})
-                    </li>
-                  ))}
+                  {Array.isArray(order.items) &&
+                    order.items.map((item) => (
+                      <li key={item.id} className="text-lg font-semibold">
+                        {item.inventory_item?.name} ({item.quantity}{" "}
+                        {item.inventory_item?.unit})
+                      </li>
+                    ))}
                 </ul>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -266,20 +267,20 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <span className="text-sm font-medium text-gray-600">
                   Truck:
                 </span>
-                <p className="font-semibold">{order.truck.truck_number}</p>
+                <p className="font-semibold">{order?.truck?.truck_number}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-sm font-medium text-gray-600">
                     Make:
                   </span>
-                  <p className="font-semibold">{order.truck.make}</p>
+                  <p className="font-semibold">{order?.truck?.make}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-600">
                     Model:
                   </span>
-                  <p className="font-semibold">{order.truck.model}</p>
+                  <p className="font-semibold">{order?.truck?.model}</p>
                 </div>
               </div>
             </div>
@@ -296,7 +297,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Order Value:</span>
                   <span className="font-medium">
-                    {formatCurrency(order.total_amount)}
+                    {formatCurrency(order?.total_amount)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -304,7 +305,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                     Commission (3%):
                   </span>
                   <span className="font-medium text-blue-600">
-                    {formatCurrency(order.commission_amount)}
+                    {formatCurrency(order?.commission)}
                   </span>
                 </div>
                 <Separator />
@@ -313,14 +314,14 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                     Your Credit (25%):
                   </span>
                   <span className="font-bold text-green-600">
-                    {formatCurrency(order.total_credit)}
+                    {formatCurrency(order?.credit)}
                   </span>
                 </div>
               </div>
               <div className="flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    {formatCurrency(order.total_credit)}
+                    {formatCurrency(order?.credit)}
                   </div>
                   <div className="text-sm text-gray-600">Credits Earned</div>
                 </div>
@@ -342,11 +343,11 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <div>
                   <p className="font-medium">Order Placed</p>
                   <p className="text-sm text-gray-600">
-                    {order.created_at} at 10:30 AM
+                    {order?.created_at} at 10:30 AM
                   </p>
                 </div>
               </div>
-              {order.status !== "pending" && (
+              {order?.status !== "pending" && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                     <Package className="h-4 w-4 text-blue-600" />
@@ -354,12 +355,12 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                   <div>
                     <p className="font-medium">Order Confirmed</p>
                     <p className="text-sm text-gray-600">
-                      {order.created_at} at 11:15 AM
+                      {order?.created_at} at 11:15 AM
                     </p>
                   </div>
                 </div>
               )}
-              {(order.status === "shipped" || order.status === "completed") && (
+              {(order?.status === "shipped" || order?.status === "completed") && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                     <Package className="h-4 w-4 text-purple-600" />

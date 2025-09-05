@@ -40,8 +40,8 @@ interface Order {
   status: string;
   priority: string;
   total_amount: number | null;
-  commission_amount: number | null;
-  total_credit: number | null;
+  commission: number | null;
+  credit: number | null;
   created_at: string;
   quantity: number;
 }
@@ -103,7 +103,7 @@ export default function OrdersPage() {
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
-        ...(statusFilter && statusFilter !== "all" && { status: statusFilter }),
+        status: statusFilter && statusFilter !== "" ? statusFilter : "all",
         ...(searchTerm && { search: searchTerm }),
       });
 
@@ -112,15 +112,31 @@ export default function OrdersPage() {
           Authorization: `Bearer ${token}`,
         },
       });
-      const result: OrdersResponse = await response.json();
-
-      if (result.success && result.data) {
-        setOrders(result.data.orders);
-        setPagination(result.data.pagination);
+      const data = await response.json();
+      if (response.ok) {
+        const orders = data?.orders || [];
+        setOrders(
+          orders.map((o: any) => ({
+            id: o.id,
+            order_number: o.order_number || "N/A",
+            part_name: o.partName,
+            description: o.description,
+            supply_house: o.supplyHouse,
+            status: o.status,
+            priority: o.urgency,
+            total_amount: o.cost,
+            commission_amount: o.commission,
+            total_credit: o.credit,
+            created_at: o.date,
+            quantity: o.quantity,
+            items: o.items || [],
+          }))
+        )
+        setPagination(data.pagination);
       } else {
         toast({
           title: "Error",
-          description: result.error || "Failed to fetch orders",
+          description: data.error || "Failed to fetch orders",
           variant: "destructive",
         });
       }
@@ -136,7 +152,11 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
-    fetchOrders();
+    const delayDebounce = setTimeout(() => {
+      fetchOrders();
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
   }, [user, token, pagination.page, statusFilter, searchTerm]);
 
   const handleDownloadInvoice = useCallback(
@@ -188,7 +208,7 @@ export default function OrdersPage() {
     0
   );
   const totalCredits = orders.reduce(
-    (sum, order) => sum + (order.total_credit || 0),
+    (sum, order) => sum + (order.credit || 0),
     0
   );
   const completedOrders = orders.filter(
@@ -198,8 +218,8 @@ export default function OrdersPage() {
   const filteredOrders = orders
     .filter((order) => {
       const matchesSearch =
-        order.part_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.order_number.toLowerCase().includes(searchTerm.toLowerCase());
+        order?.part_name && order?.part_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order?.order_number && order?.order_number.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch;
     })
     .sort((a, b) => {
@@ -436,7 +456,7 @@ export default function OrdersPage() {
                                 Commission
                               </div>
                               <div className="font-semibold text-blue-600">
-                                {formatCurrency(order.commission_amount)}
+                                {formatCurrency(order.commission)}
                               </div>
                             </div>
                             <div>
@@ -444,7 +464,7 @@ export default function OrdersPage() {
                                 Credit Earned
                               </div>
                               <div className="font-semibold text-green-600">
-                                {formatCurrency(order.total_credit)}
+                                {formatCurrency(order.credit)}
                               </div>
                             </div>
                           </div>
