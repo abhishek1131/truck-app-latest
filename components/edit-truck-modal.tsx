@@ -96,7 +96,7 @@ export function EditTruckDialog({
       onClose();
     } catch (error) {
       console.error("Error updating truck:", error);
-      alert(error.message || "Failed to update truck");
+      console.log(error.message || "Failed to update truck");
     }
   };
 

@@ -169,11 +169,11 @@ export default function AdminUsersPage() {
           onClose();
           setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
         } else {
-          alert(`Failed to update user status: ${result.error}`);
+          console.log(`Failed to update user status: ${result.error}`);
         }
       } catch (error) {
         console.error("Error updating user status:", error);
-        alert("Error updating user status. Please try again.");
+        console.log("Error updating user status. Please try again.");
       }
     },
     [token, fetchUsers]
@@ -182,23 +182,24 @@ export default function AdminUsersPage() {
   const handleDeleteUser = useCallback(
     async (user: User, onClose: () => void) => {
       try {
-        const response = await fetch(`/api/users/${user.id}`, {
+        const response = await fetch(`/api/admin/users/${user.id}`, {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         const result = await response.json();
+        await fetchUsers(); // Refetch users after deletion
         if (result.success) {
           setUsers(users.filter((u) => u.id !== user.id));
           onClose();
           setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
         } else {
-          alert(`Failed to delete user: ${result.error}`);
+          console.log(`Failed to delete user: ${result.error}`);
         }
       } catch (error) {
         console.error("Error deleting user:", error);
-        // alert("Error deleting user. Please try again.");
+        // console.log("Error deleting user. Please try again.");
       }
     },
     [token, users]
@@ -234,11 +235,11 @@ export default function AdminUsersPage() {
         if (result.success && result.data) {
           handleModalClose(); // ✅ Centralized modal closing
         } else {
-          alert(`Failed to create user: ${result.error}`);
+          console.log(`Failed to create user: ${result.error}`);
         }
       } catch (error) {
         console.error("Error creating user:", error);
-        alert("Error creating user. Please try again.");
+        console.log("Error creating user. Please try again.");
       } finally {
         setIsCreating(false);
       }

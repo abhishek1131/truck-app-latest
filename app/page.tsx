@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +21,120 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Updated PlatformSettings interface to include new fields
+interface PlatformSettings {
+  platformName: string;
+  platformDescription: string;
+  supportEmail: string;
+  adminEmail: string;
+  maintenanceMode: boolean;
+  allowRegistrations: boolean;
+  default_timezone: string;
+  max_login_attempts: string;
+  max_trucks_per_technician: string;
+  session_timeout: string;
+}
+
+interface SettingsResponse {
+  success: boolean;
+  data?: PlatformSettings;
+  error?: string;
+  code?: string;
+}
+
+// Utility function to clean over-quoted strings
+const cleanString = (value: string): string => {
+  // Remove surrounding quotes if present
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try {
+      // Attempt to parse as JSON to handle escaped quotes
+      return JSON.parse(value);
+    } catch {
+      // If parsing fails, remove outer quotes manually
+      return value.slice(1, -1).replace(/\\"/g, '"');
+    }
+  }
+  return value;
+};
+
 export default function HomePage() {
+  const [settings, setSettings] = useState<PlatformSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const response = await fetch("/api/settings");
+        const result: SettingsResponse = await response.json();
+        if (result.success && result.data) {
+          // Clean over-quoted strings
+          const cleanedSettings: PlatformSettings = {
+            platformName: cleanString(result.data.platformName),
+            platformDescription: cleanString(result.data.platformDescription),
+            supportEmail: cleanString(result.data.supportEmail),
+            adminEmail: cleanString(result.data.adminEmail),
+            maintenanceMode: result.data.maintenanceMode,
+            allowRegistrations: result.data.allowRegistrations,
+            default_timezone: cleanString(result.data.default_timezone),
+            max_login_attempts: cleanString(result.data.max_login_attempts),
+            max_trucks_per_technician: cleanString(
+              result.data.max_trucks_per_technician
+            ),
+            session_timeout: cleanString(result.data.session_timeout),
+          };
+          setSettings(cleanedSettings);
+        } else {
+          setError(result.error || "Failed to load settings");
+        }
+      } catch (err) {
+        setError("Failed to fetch platform settings");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSettings();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (error || !settings) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <p className="text-red-500">{error || "Failed to load settings"}</p>
+      </div>
+    );
+  }
+
+  if (settings.maintenanceMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <Card className="p-8 text-center">
+          <CardTitle className="text-3xl font-bold text-[#10294B] mb-4">
+            Maintenance Mode
+          </CardTitle>
+          <CardDescription>
+            {settings.platformName} is currently undergoing maintenance. Please
+            try again later or contact{" "}
+            <a
+              href={`mailto:${settings.supportEmail}`}
+              className="text-[#E3253D]"
+            >
+              {settings.supportEmail}
+            </a>{" "}
+            for assistance.
+          </CardDescription>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
@@ -30,16 +146,24 @@ export default function HomePage() {
                 <Truck className="h-6 w-6 text-white" />
               </div>
               <div className="flex items-center">
-                <span className="text-2xl font-bold text-[#10294B]">Tru</span>
-                <span className="text-2xl font-bold text-[#E3253D]">X</span>
-                <span className="text-2xl font-bold text-[#10294B]">toK</span>
+                <span className="text-2xl font-bold text-[#10294B]">
+                  {settings.platformName.slice(0, -3)}
+                </span>
+                <span className="text-2xl font-bold text-[#E3253D]">
+                  {settings.platformName.slice(-3, -1)}
+                </span>
+                <span className="text-2xl font-bold text-[#10294B]">
+                  {settings.platformName.slice(-1)}
+                </span>
                 <span className="text-sm ml-1">™</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button asChild variant="outline">
-                <Link href="/login">Sign In</Link>
-              </Button>
+              {settings.allowRegistrations && (
+                <Button asChild variant="outline">
+                  <Link href="/login">Sign In</Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -62,27 +186,30 @@ export default function HomePage() {
                   <span className="text-white">Inventory</span>
                 </h1>
                 <p className="text-xl lg:text-2xl text-blue-100 max-w-2xl">
-                  Streamline your truck inventory management with automated
-                  restocking suggestions and seamless order processing.
+                  {settings.platformDescription}
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  asChild
-                  size="lg"
-                  className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-8 py-4 text-lg"
-                >
-                  <Link href="/login">
-                    Get Started
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
+                {settings.allowRegistrations && (
+                  <Button
+                    asChild
+                    size="lg"
+                    className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-8 py-4 text-lg"
+                  >
+                    <Link href="/login">
+                      Get Started
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                )}
               </div>
 
               <div className="flex items-center gap-8 pt-4">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-[#E3253D]">500+</div>
+                  <div className="text-3xl font-bold text-[#E3253D]">
+                    {parseInt(settings.max_trucks_per_technician) * 250}+
+                  </div>
                   <div className="text-sm text-blue-200">Active Trucks</div>
                 </div>
                 <div className="text-center">
@@ -148,8 +275,10 @@ export default function HomePage() {
               <span className="text-[#E3253D]">Manage</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Built specifically for technicians and fleet managers, TruXtoK
-              streamlines inventory management with intelligent automation.
+              Built specifically for technicians and fleet managers,{" "}
+              {settings.platformName} streamlines inventory management with
+              intelligent automation. Supports up to{" "}
+              {settings.max_trucks_per_technician} trucks per technician.
             </p>
           </div>
 
@@ -158,8 +287,7 @@ export default function HomePage() {
               {
                 icon: Truck,
                 title: "Truck Management",
-                description:
-                  "Organize and track inventory across multiple trucks with bin-level precision.",
+                description: `Organize and track inventory across up to ${settings.max_trucks_per_technician} trucks per technician with bin-level precision.`,
                 color: "bg-[#006AA1]",
               },
               {
@@ -214,7 +342,13 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 text-center">
             {[
-              { number: "500+", label: "Active Trucks", icon: Truck },
+              {
+                number: `${
+                  parseInt(settings.max_trucks_per_technician) * 250
+                }+`,
+                label: "Active Trucks",
+                icon: Truck,
+              },
               { number: "10K+", label: "Items Managed", icon: Package },
               { number: "50+", label: "Companies", icon: BarChart3 },
               { number: "98%", label: "Accuracy Rate", icon: Award },
@@ -246,19 +380,21 @@ export default function HomePage() {
             </h2>
             <p className="text-xl lg:text-2xl text-blue-100 max-w-2xl mx-auto">
               Join hundreds of technicians already streamlining their inventory
-              management with TruXtoK.
+              management with {settings.platformName}.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center pt-8">
-              <Button
-                asChild
-                size="lg"
-                className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-12 py-6 text-xl"
-              >
-                <Link href="/login">
-                  Start Managing
-                  <ArrowRight className="ml-3 h-6 w-6" />
-                </Link>
-              </Button>
+              {settings.allowRegistrations && (
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white px-12 py-6 text-xl"
+                >
+                  <Link href="/login">
+                    Start Managing
+                    <ArrowRight className="ml-3 h-6 w-6" />
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -274,13 +410,23 @@ export default function HomePage() {
                   <Truck className="h-6 w-6 text-white" />
                 </div>
                 <div className="flex items-center">
-                  <span className="text-2xl font-bold">Tru</span>
-                  <span className="text-2xl font-bold text-[#E3253D]">X</span>
-                  <span className="text-2xl font-bold">toK</span>
+                  <span className="text-2xl font-bold">
+                    {settings.platformName.slice(0, -3)}
+                  </span>
+                  <span className="text-2xl font-bold text-[#E3253D]">
+                    {settings.platformName.slice(-3, -1)}
+                  </span>
+                  <span className="text-2xl font-bold">
+                    {settings.platformName.slice(-1)}
+                  </span>
                   <span className="text-sm ml-1">™</span>
                 </div>
               </div>
-              <p className="text-blue-200">Smart Truck Inventory Management</p>
+              <p className="text-blue-200">{settings.platformDescription}</p>
+              <p className="text-blue-200">
+                Timezone: {settings.default_timezone} | Session Timeout:{" "}
+                {parseInt(settings.session_timeout) / 60} minutes
+              </p>
             </div>
 
             <div>
@@ -318,7 +464,10 @@ export default function HomePage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-white transition-colors">
+                  <Link
+                    href={`mailto:${settings.adminEmail}`}
+                    className="hover:text-white transition-colors"
+                  >
                     Contact
                   </Link>
                 </li>
@@ -329,7 +478,10 @@ export default function HomePage() {
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-blue-200">
                 <li>
-                  <Link href="#" className="hover:text-white transition-colors">
+                  <Link
+                    href={`mailto:${settings.supportEmail}`}
+                    className="hover:text-white transition-colors"
+                  >
                     Help Center
                   </Link>
                 </li>
@@ -348,7 +500,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-blue-800 pt-8 text-center text-blue-200">
-            <p>&copy; 2024 TruXtoK. All rights reserved.</p>
+            <p>&copy; 2024 {settings.platformName}. All rights reserved.</p>
           </div>
         </div>
       </footer>

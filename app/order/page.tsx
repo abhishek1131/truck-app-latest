@@ -253,7 +253,8 @@ export default function OrderPage() {
       reason:
         truckBinItem?.currentQuantity &&
         truckBinItem.inventoryItem &&
-        truckBinItem.currentQuantity <= truckBinItem.inventoryItem.lowStockThreshold
+        truckBinItem.currentQuantity <=
+          truckBinItem.inventoryItem.lowStockThreshold
           ? "Low stock - below threshold"
           : "Additional stock needed",
       unitPrice: inventoryItem.unitPrice || 0,
@@ -292,8 +293,9 @@ export default function OrderPage() {
     doc.text(`Truck: ${orderData.truckName}`, 20, 46);
     doc.text(
       `Supply House: ${
-        supplyHouses.find((sh: SupplyHouse) => sh.id === orderData.supply_house_id)
-          ?.name || "Unknown"
+        supplyHouses.find(
+          (sh: SupplyHouse) => sh.id === orderData.supply_house_id
+        )?.name || "Unknown"
       }`,
       20,
       54
@@ -305,11 +307,17 @@ export default function OrderPage() {
     orderData.items.forEach((item: OrderItem, index: number) => {
       doc.setFontSize(10);
       doc.text(
-        `${index + 1}. ${item.inventoryItem.name} (${item.inventoryItem.partNumber})`,
+        `${index + 1}. ${item.inventoryItem.name} (${
+          item.inventoryItem.partNumber
+        })`,
         20,
         y
       );
-      doc.text(`Quantity: ${item.requestedQuantity} ${item.inventoryItem.unit}`, 30, y + 6);
+      doc.text(
+        `Quantity: ${item.requestedQuantity} ${item.inventoryItem.unit}`,
+        30,
+        y + 6
+      );
       doc.text(`Unit Price: $${item.unitPrice.toFixed(2)}`, 30, y + 12);
       doc.text(`Current Stock: ${item.currentStock ?? "N/A"}`, 30, y + 18);
       doc.text(`Bin: ${item.binName || "General"}`, 30, y + 24);
@@ -374,7 +382,9 @@ export default function OrderPage() {
 
   const handleSubmit = async () => {
     if (!selectedTruck || !selectedSupplyHouse || orderItems.length === 0) {
-      alert("Please select a truck, supply house, and add at least one item.");
+      console.log(
+        "Please select a truck, supply house, and add at least one item."
+      );
       return;
     }
 
@@ -399,7 +409,7 @@ export default function OrderPage() {
           (sum, item) => sum + item.requestedQuantity,
           0
         ),
-        technician: user?.first_name  || "Unknown",
+        technician: user?.first_name || "Unknown",
       };
 
       const response = await fetch("/api/orders", {
@@ -412,32 +422,29 @@ export default function OrderPage() {
       });
 
       const data = await response.json();
-const res =await fetch(`/api/invoice/${data.order.id}`, {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-});
+      const res = await fetch(`/api/invoice/${data.order.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoice-${data.order.order_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-
-const blob = await res.blob();
-const url = window.URL.createObjectURL(blob);
-const link = document.createElement("a");
-link.href = url;
-link.download = `invoice-${data.order.order_number}.pdf`;
-document.body.appendChild(link);
-link.click();
-document.body.removeChild(link);
-window.URL.revokeObjectURL(url);
-
-alert({
-  title: "Success",
-  description: `Invoice for order #${data.order.order_number} downloaded`,
-});
-   
+      console.log({
+        title: "Success",
+        description: `Invoice for order #${data.order.order_number} downloaded`,
+      });
     } catch (error) {
       console.error("Error submitting order:", error);
-      // alert("Error submitting order. Please try again.");
+      // console.log("Error submitting order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -511,51 +518,51 @@ alert({
                       );
                       return null; // Skip rendering if inventoryItem is undefined
                     }
-                      const isLowStock =
-                        binItem.currentQuantity <=
+                    const isLowStock =
+                      binItem.currentQuantity <=
                       binItem.inventoryItem.lowStockThreshold;
-                      return (
-                        <div
-                          key={`${binItem.binId}-${binItem.inventoryItemId}`}
-                          className="flex items-center justify-between p-3 bg-white rounded border"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">
+                    return (
+                      <div
+                        key={`${binItem.binId}-${binItem.inventoryItemId}`}
+                        className="flex items-center justify-between p-3 bg-white rounded border"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">
                               {binItem.inventoryItem.name}
-                              </span>
-                              {isLowStock && (
-                                <Badge variant="destructive" className="text-xs">
-                                  Low Stock
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <Grid3X3 className="h-3 w-3" />
-                              {binItem.binName}
-                            </div>
+                            </span>
+                            {isLowStock && (
+                              <Badge variant="destructive" className="text-xs">
+                                Low Stock
+                              </Badge>
+                            )}
                           </div>
-                          <div className="text-right mr-3">
-                            <div className="font-semibold text-sm">
-                              {binItem.currentQuantity}
-                            </div>
-                            <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 flex items-center gap-1">
+                            <Grid3X3 className="h-3 w-3" />
+                            {binItem.binName}
+                          </div>
+                        </div>
+                        <div className="text-right mr-3">
+                          <div className="font-semibold text-sm">
+                            {binItem.currentQuantity}
+                          </div>
+                          <div className="text-xs text-gray-500">
                             {binItem.inventoryItem.unit}
                           </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant={isLowStock ? "destructive" : "outline"}
-                            onClick={() =>
-                              addItemToOrder(binItem.inventoryItem!, binItem)
-                            }
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Order
-                          </Button>
                         </div>
-                      );
-                    })}
+                        <Button
+                          size="sm"
+                          variant={isLowStock ? "destructive" : "outline"}
+                          onClick={() =>
+                            addItemToOrder(binItem.inventoryItem!, binItem)
+                          }
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Order
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -680,7 +687,10 @@ alert({
                 </div>
                 <div className="space-y-3">
                   {orderItems.map((item) => (
-                    <div key={item.id} className="border rounded-lg p minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) gap-4">
+                    <div
+                      key={item.id}
+                      className="border rounded-lg p minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) gap-4"
+                    >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="font-medium">
@@ -693,7 +703,8 @@ alert({
                           {item.binName && (
                             <div className="text-sm text-blue-600 flex items-center gap-1 mt-1">
                               <Grid3X3 className="h-3 w-3" />
-                              {item.binName} • Current: {item.currentStock ?? "N/A"}{" "}
+                              {item.binName} • Current:{" "}
+                              {item.currentStock ?? "N/A"}{" "}
                               {item.inventoryItem.unit}
                             </div>
                           )}

@@ -123,7 +123,7 @@ export function CreateTruckDialog({
       onClose();
     } catch (error) {
       console.error("Error creating truck:", error);
-      alert(error.message || "Failed to create truck");
+      console.log(error.message || "Failed to create truck");
     }
   };
 
