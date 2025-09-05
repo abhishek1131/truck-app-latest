@@ -78,7 +78,6 @@ export default function InventoryPage() {
         body: JSON.stringify(newItem),
       });
       const data = await response.json();
-      console.log(data, 333333333333333);
       if (response.ok) {
         setInventoryData((prev) => ({
           ...prev,
@@ -86,7 +85,8 @@ export default function InventoryPage() {
             ...prev.inventoryItems,
             {
               ...data.item,
-              id: data.item.partNumber, // Use partNumber as ID for UI
+              internalId: data.item.id, // uuid
+              id: data.item.partNumber,
               totalQuantity: 0,
               trucks: [],
               lastOrdered: "Never",
@@ -140,7 +140,6 @@ export default function InventoryPage() {
       subtitle="Manage your inventory across all trucks"
     >
       <div className="p-4 md:p-6">
-
         <div className="space-y-6">
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

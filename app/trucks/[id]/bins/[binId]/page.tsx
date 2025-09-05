@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Navigation } from "@/components/layout/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SelectInventoryItemModal } from "@/components/select-inventory-item-modal";
+import { EditBinModal } from "@/components/edit-bin-modal";
 import { useAuth } from "@/components/auth-provider";
 
 export default function BinDetailPage() {
@@ -35,6 +36,7 @@ export default function BinDetailPage() {
   const [editQuantity, setEditQuantity] = useState<number>(0);
   const [bin, setBin] = useState<any>(null);
   const [binItems, setBinItems] = useState<any[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -42,50 +44,50 @@ export default function BinDetailPage() {
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    const fetchBin = async () => {
-      if (!user || !token) return;
+  const fetchBin = useCallback(async () => {
+    if (!user || !token) return;
 
-      try {
-        const response = await fetch(
-          `/api/technician/trucks/${truckId}/bins/${binId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        const data = await response.json();
-        if (response.ok) {
-          // Map snake_case to camelCase
-          const mappedItems = data.inventory.map((item: any) => ({
-            id: item.id,
-            inventoryItemId: item.inventory_item_id,
-            name: item.name,
-            category: item.category,
-            currentStock: item.current_stock,
-            standardLevel: item.standard_level,
-            unit: item.unit,
-            lastRestocked: item.last_restocked,
-            isLowStock: item.is_low_stock,
-          }));
-          setBin({ ...data, inventory: mappedItems });
-          setBinItems(mappedItems);
-          console.log("Response:", data);
-          console.log("Mapped Items:", mappedItems);
-        } else {
-          console.error("Failed to fetch bin:", data.error);
-          router.push(`/trucks/${truckId}`);
+    try {
+      const response = await fetch(
+        `/api/technician/trucks/${truckId}/bins/${binId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
         }
-      } catch (error) {
-        console.error("Error fetching bin:", error);
+      );
+      const data = await response.json();
+      if (response.ok) {
+        const mappedItems = data.inventory.map((item: any) => ({
+          id: item.id,
+          inventoryItemId: item.inventory_item_id,
+          name: item.name,
+          category: item.category,
+          currentStock: item.current_stock,
+          standardLevel: item.standard_level,
+          unit: item.unit,
+          lastRestocked: item.last_restocked,
+          isLowStock: item.is_low_stock,
+        }));
+        setBin({ ...data, inventory: mappedItems });
+        setBinItems(mappedItems);
+        console.log("Response:", data);
+        console.log("Mapped Items:", mappedItems);
+      } else {
+        console.error("Failed to fetch bin:", data.error);
         router.push(`/trucks/${truckId}`);
       }
-    };
-
-    fetchBin();
+    } catch (error) {
+      console.error("Error fetching bin:", error);
+      router.push(`/trucks/${truckId}`);
+    }
   }, [user, token, truckId, binId, router]);
+
+  useEffect(() => {
+    fetchBin();
+  }, [fetchBin]);
 
   const handleItemSelected = async (inventoryItem: any, quantity: number) => {
     try {
+      setErrorMessage("");
       const response = await fetch(
         `/api/technician/trucks/${truckId}/bins/${binId}`,
         {
@@ -103,26 +105,13 @@ export default function BinDetailPage() {
       const data = await response.json();
       console.log("POST Response:", data);
       if (response.ok) {
-        const newBinItem = {
-          id: inventoryItem.id,
-          inventoryItemId: inventoryItem.id,
-          name: inventoryItem.name,
-          category: inventoryItem.category,
-          currentStock: quantity,
-          standardLevel:
-            inventoryItem.standard_level || Math.floor(quantity * 1.5),
-          unit: inventoryItem.unit || "pieces",
-          lastRestocked: new Date().toISOString(),
-          isLowStock: quantity < (inventoryItem.standard_level || Math.floor(quantity * 1.5)),
-        };
-        setBinItems([
-          ...binItems.filter((item) => item.id !== inventoryItem.id),
-          newBinItem,
-        ]);
+        await fetchBin();
       } else {
+        setErrorMessage(data.error || "Failed to add item");
         console.error("Failed to add item:", data.error);
       }
     } catch (error) {
+      setErrorMessage("Something went wrong while adding item");
       console.error("Error adding item:", error);
     }
   };
@@ -134,6 +123,7 @@ export default function BinDetailPage() {
 
   const handleSaveEdit = async (itemId: string) => {
     try {
+      setErrorMessage("");
       const response = await fetch(
         `/api/technician/trucks/${truckId}/bins/${binId}`,
         {
@@ -151,24 +141,15 @@ export default function BinDetailPage() {
       const data = await response.json();
       console.log("Edit POST Response:", data);
       if (response.ok) {
-        setBinItems(
-          binItems.map((item) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  currentStock: editQuantity,
-                  isLowStock: editQuantity < item.standardLevel,
-                  lastRestocked: new Date().toISOString(),
-                }
-              : item
-          )
-        );
+        await fetchBin();
         setEditingItem(null);
         setEditQuantity(0);
       } else {
+        setErrorMessage(data.error || "Failed to update item");
         console.error("Failed to update item:", data.error);
       }
     } catch (error) {
+      setErrorMessage("Something went wrong while updating item");
       console.error("Error updating item:", error);
     }
   };
@@ -180,6 +161,7 @@ export default function BinDetailPage() {
 
   const handleDeleteItem = async (itemId: string) => {
     try {
+      setErrorMessage("");
       const response = await fetch(
         `/api/technician/trucks/${truckId}/bins/${binId}?itemId=${itemId}`,
         {
@@ -190,13 +172,19 @@ export default function BinDetailPage() {
       const data = await response.json();
       console.log("DELETE Response:", data);
       if (response.ok) {
-        setBinItems(binItems.filter((item) => item.id !== itemId));
+        await fetchBin();
       } else {
+        setErrorMessage(data.error || "Failed to delete item");
         console.error("Failed to delete item:", data.error);
       }
     } catch (error) {
+      setErrorMessage("Something went wrong while deleting item");
       console.error("Error deleting item:", error);
     }
+  };
+
+  const handleBinUpdated = async () => {
+    await fetchBin();
   };
 
   if (loading || !bin) {
@@ -215,6 +203,8 @@ export default function BinDetailPage() {
 
   const lowStockItems = binItems.filter((item: any) => item.isLowStock);
   const totalItems = binItems.length;
+  const maxCapacity = bin.maxCapacity ?? 10;
+  const isAddDisabled = totalItems >= maxCapacity;
   const categories = [...new Set(binItems.map((item: any) => item.category))];
   const lowStockCount = lowStockItems.length;
   const lastUpdated = binItems.length > 0 ? binItems[0].lastRestocked : "Never";
@@ -225,6 +215,19 @@ export default function BinDetailPage() {
       subtitle={`${bin.location} • Truck #${bin.truckNumber}`}
     >
       <div className="p-4 md:p-6 space-y-6">
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="relative p-3 rounded-md bg-red-100 text-red-800 border border-red-300">
+            <span>{errorMessage}</span>
+            <button
+              onClick={() => setErrorMessage("")}
+              className="absolute right-2 top-2 text-red-600 hover:text-red-800"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Back Button */}
         <div className="flex items-center space-x-4">
           <Link href={`/trucks/${truckId}`}>
@@ -245,7 +248,7 @@ export default function BinDetailPage() {
                     Total Items
                   </p>
                   <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {totalItems}
+                    {totalItems} / {maxCapacity}
                   </p>
                   <p className="text-xs md:text-sm text-gray-500">
                     In this bin
@@ -324,6 +327,9 @@ export default function BinDetailPage() {
                 truckId={truckId}
                 binId={binId}
                 onItemSelected={handleItemSelected}
+                isDisabled={isAddDisabled}
+                maxCapacity={maxCapacity}
+                currentItems={totalItems}
               />
               <Link href={`/order?truckId=${truckId}`}>
                 <Button
@@ -343,13 +349,11 @@ export default function BinDetailPage() {
                   <span className="text-xs">Restock</span>
                 </Button>
               </Link>
-              <Button
-                variant="outline"
-                className="h-16 flex flex-col space-y-2 w-full bg-transparent"
-              >
-                <Edit className="h-5 w-5" />
-                <span className="text-xs">Edit Bin</span>
-              </Button>
+              <EditBinModal
+                truckId={truckId}
+                bin={bin}
+                onBinUpdated={handleBinUpdated}
+              />
             </div>
           </CardContent>
         </Card>
@@ -424,7 +428,8 @@ export default function BinDetailPage() {
                         )}
                       </div>
                       <p className="text-xs text-gray-400 mt-1">
-                        Last restocked {new Date(item.lastRestocked).toLocaleString()}
+                        Last restocked{" "}
+                        {new Date(item.lastRestocked).toLocaleString()}
                       </p>
                     </div>
                   </div>

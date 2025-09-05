@@ -114,31 +114,6 @@ const statusConfig = {
     icon: Package,
     label: "Confirmed",
   },
-  processing: {
-    color: "bg-blue-100 text-blue-800",
-    icon: Package,
-    label: "Processing",
-  },
-  shipped: {
-    color: "bg-purple-100 text-purple-800",
-    icon: Truck,
-    label: "Shipped",
-  },
-  delivered: {
-    color: "bg-green-100 text-green-800",
-    icon: Package,
-    label: "Delivered",
-  },
-  cancelled: {
-    color: "bg-red-100 text-red-800",
-    icon: Package,
-    label: "Cancelled",
-  },
-  unknown: {
-    color: "bg-gray-100 text-gray-800",
-    icon: Clock,
-    label: "Unknown",
-  },
 };
 
 const urgencyConfig = {
@@ -159,7 +134,7 @@ export default function AdminOrdersPage() {
     total: 0,
     pages: 1,
   });
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("pending");
   const [technicianFilter, setTechnicianFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -535,11 +510,8 @@ export default function AdminOrdersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  {Object.keys(statusConfig).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {statusConfig[status as keyof typeof statusConfig].label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -568,7 +540,7 @@ export default function AdminOrdersPage() {
           {orders.map((order) => {
             const statusKey = statusConfig.hasOwnProperty(order.status)
               ? order.status
-              : "unknown";
+              : "pending";
             const StatusIcon =
               statusConfig[statusKey as keyof typeof statusConfig].icon;
             const statusLabel =

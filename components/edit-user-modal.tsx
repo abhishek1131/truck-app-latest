@@ -57,7 +57,7 @@ export function EditUserModal({
 
   const roles = [
     { value: "admin", label: "Administrator" },
-    { value: "manager", label: "Manager" },
+    // { value: "manager", label: "Manager" },
     { value: "technician", label: "Technician" },
   ];
 

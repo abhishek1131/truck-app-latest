@@ -20,12 +20,18 @@ interface SelectInventoryItemModalProps {
   truckId: string;
   binId: string;
   onItemSelected?: (item: any, quantity: number) => void;
+  isDisabled?: boolean;
+  maxCapacity?: number;
+  currentItems?: number;
 }
 
 export function SelectInventoryItemModal({
   truckId,
   binId,
   onItemSelected,
+  isDisabled = false,
+  maxCapacity = 10,
+  currentItems = 0,
 }: SelectInventoryItemModalProps) {
   const { user, token } = useAuth();
   const [open, setOpen] = useState(false);
@@ -89,7 +95,15 @@ export function SelectInventoryItemModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-16 flex flex-col space-y-2 bg-[#E3253D] hover:bg-[#E3253D]/90">
+        <Button
+          className="h-16 flex flex-col space-y-2 bg-[#E3253D] hover:bg-[#E3253D]/90"
+          disabled={isDisabled}
+          title={
+            isDisabled
+              ? `Cannot add more items (limit: ${maxCapacity})`
+              : undefined
+          }
+        >
           <Plus className="h-5 w-5" />
           <span className="text-xs">Add Item</span>
         </Button>
@@ -100,7 +114,8 @@ export function SelectInventoryItemModal({
             <Package className="h-5 w-5" />
             Add Item to Bin
             <span className="text-sm font-normal text-gray-500">
-              - Truck #{truckId.padStart(3, "0")}
+              - Truck #{truckId.padStart(3, "0")} • {currentItems}/{maxCapacity}{" "}
+              items
             </span>
           </DialogTitle>
         </DialogHeader>

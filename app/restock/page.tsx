@@ -14,6 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   RefreshCw,
   FileText,
   Package,
@@ -21,6 +28,8 @@ import {
   CheckCircle,
   Edit,
   RotateCcw,
+  Download,
+  Mail,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -34,6 +43,20 @@ interface RestockItem {
   truck: string;
   category: string;
   priority: "high" | "medium" | "low";
+  inventoryItemId?: string;
+  binId?: string;
+}
+
+interface OrderDetails {
+  id: string;
+  orderNumber: string;
+  technician: string;
+  email: string;
+  date: string;
+  truck: string;
+  totalItems: number;
+  totalQuantity: number;
+  items: RestockItem[];
 }
 
 export default function RestockPage() {
@@ -43,7 +66,39 @@ export default function RestockPage() {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [technicianName, setTechnicianName] = useState<string>("Unknown");
+  const [isDownloading, setIsDownloading] = useState(false);
 
+  // Fetch technician name on mount
+  useEffect(() => {
+    const fetchTechnicianName = async () => {
+      if (!user || !token) return;
+
+      try {
+        const response = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setTechnicianName(data.name || "Unknown");
+        } else {
+          console.error("Failed to fetch technician name:", data.error);
+          setTechnicianName("Unknown");
+        }
+      } catch (err) {
+        console.error("Error fetching technician name:", err);
+        setTechnicianName("Unknown");
+      }
+    };
+
+    if (user && token) {
+      fetchTechnicianName();
+    }
+  }, [user, token]);
+
+  // Fetch restock items
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
@@ -60,7 +115,13 @@ export default function RestockPage() {
         });
         const data = await response.json();
         if (response.ok) {
-          setRestockItems(data.restockItems || []);
+          // Map API response to include inventoryItemId and binId
+          const items = data.restockItems.map((item: any) => ({
+            ...item,
+            inventoryItemId: item.inventory_item_id,
+            binId: item.bin_id,
+          }));
+          setRestockItems(items || []);
         } else {
           setError(data.error || "Failed to fetch restock items");
         }
@@ -87,71 +148,246 @@ export default function RestockPage() {
     );
   };
 
-const handleSubmitRestock = async () => {
-  const itemsToRestock = restockItems.filter(
-    (item) => item.suggestedQuantity > 0
-  );
-  if (itemsToRestock.length === 0) {
-    return; // No items to send
-  }
-
-  const orderId = `RESTOCK-${Date.now()}`; // Generate a temporary order ID
-  const message = `
-Order ID: ${orderId}
-Technician: ${user?.name || "Unknown"}
-Email: ${user?.email || "Unknown"}
-Date: ${new Date().toLocaleString()}
-Truck: ${itemsToRestock[0].truck}
-Total Items: ${itemsToRestock.length}
-Total Quantity: ${itemsToRestock.reduce(
-    (sum, item) => sum + item.suggestedQuantity,
-    0
-  )}
-
-Items:
-${itemsToRestock
-  .map(
-    (item, index) =>
-      `${index + 1}. ${item.name} (${item.category})
-     Quantity: ${item.suggestedQuantity}
-     Current Stock: ${item.currentStock}
-     Standard Level: ${item.standardLevel}
-     Priority: ${item.priority}`
-  )
-  .join("\n\n")}
-  `;
-
-  try {
-    const response = await fetch("https://formspree.io/f/xeozbzqy", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        name: user?.first_name + " " + user?.last_name || "Technician",
-        email: user?.email || "no-reply@company.com",
-        subject: `Restock Order Request - ${orderId}`,
-        message,
-        priority: itemsToRestock.some((item) => item.priority === "high")
-          ? "high"
-          : itemsToRestock.some((item) => item.priority === "medium")
-          ? "medium"
-          : "low",
-        orderId,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to send email");
+  const handleSubmitRestock = async () => {
+    const itemsToRestock = restockItems.filter(
+      (item) => item.suggestedQuantity > 0
+    );
+    if (itemsToRestock.length === 0) {
+      setError("No items selected for restock");
+      return;
     }
 
-    // Reset form on success
-    // setRestockItems([]);
-  } catch (err) {
-    console.error("Error sending restock order email:", err);
-  }
-};
+    try {
+      setError(null);
+      const truckId = itemsToRestock[0].truck; // Assume all items are from the same truck
+      const urgency = itemsToRestock.some((item) => item.priority === "high")
+        ? "high"
+        : itemsToRestock.some((item) => item.priority === "medium")
+        ? "medium"
+        : "low";
+      const notes = `Restock order for ${
+        itemsToRestock.length
+      } items, total quantity: ${itemsToRestock.reduce(
+        (sum, item) => sum + item.suggestedQuantity,
+        0
+      )}`;
+
+      const orderPayload = {
+        truck_id: truckId,
+        items: itemsToRestock.map((item) => ({
+          inventory_item_id: item.inventoryItemId,
+          inventory_item_name: item.name, // Include name as fallback
+          bin_id: item.binId,
+          quantity: item.suggestedQuantity,
+          unit_price: 0, // Default unit price; adjust if available
+          reason: `Restock: ${item.name} (Priority: ${item.priority})`,
+        })),
+        notes,
+        supply_house_id: null, // Adjust if a default supply house is needed
+        urgency,
+      };
+
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create order");
+      }
+
+      const { order } = await response.json();
+      setOrderDetails({
+        id: order.id,
+        orderNumber: order.order_number || `RESTOCK-${Date.now()}`, // Fallback if order_number is not returned
+        technician: technicianName, // Use fetched technician name
+        email:
+          user?.email || responseData?.data?.email || "no-reply@company.com",
+        date: new Date().toLocaleString(),
+        truck: truckId,
+        totalItems: itemsToRestock.length,
+        totalQuantity: itemsToRestock.reduce(
+          (sum, item) => sum + item.suggestedQuantity,
+          0
+        ),
+        items: itemsToRestock,
+      });
+      setIsModalOpen(true);
+      // setRestockItems([]); // Reset form on success
+    } catch (err) {
+      console.error("Error creating restock order:", err);
+      setError(err.message || "Failed to create restock order");
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!orderDetails || !token) return;
+
+    try {
+      setIsDownloading(true);
+      const response = await fetch(`/api/invoice/${orderDetails.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to download invoice");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoice-${orderDetails.orderNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading invoice:", err);
+      setError("Failed to download invoice");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleOpenGmail = () => {
+    if (!orderDetails) return;
+
+    // Create a well-formatted email body
+    const emailSubject = `Restock Order - ${orderDetails.orderNumber}`;
+
+    const emailBody = `Dear Team,
+
+Please find the restock order details below:
+
+ORDER INFORMATION:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order ID: ${orderDetails.orderNumber}
+Technician: ${orderDetails.technician}
+Email: ${orderDetails.email}
+Date: ${orderDetails.date}
+Truck: ${orderDetails.truck}
+Total Items: ${orderDetails.totalItems}
+Total Quantity: ${orderDetails.totalQuantity}
+
+ITEMS REQUESTED:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${orderDetails.items
+  .map(
+    (item, index) =>
+      `${index + 1}. ${item.name}
+   Category: ${item.category}
+   Quantity Requested: ${item.suggestedQuantity}
+   Current Stock: ${item.currentStock}
+   Standard Level: ${item.standardLevel}
+   Priority: ${item.priority.toUpperCase()}
+   
+`
+  )
+  .join("")}
+
+Please process this order at your earliest convenience.
+
+NOTE: The invoice PDF should be downloaded separately and attached to this email.
+
+Best regards,
+${orderDetails.technician}`;
+
+    // Encode the email components properly
+    const encodedSubject = encodeURIComponent(emailSubject);
+    const encodedBody = encodeURIComponent(emailBody);
+
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=&su=${encodedSubject}&body=${encodedBody}`;
+    window.open(gmailUrl, "_blank");
+  };
+
+  // Combined function that downloads PDF and opens Gmail with user guidance
+  const handleEmailWithPDF = async () => {
+    if (!orderDetails) return;
+
+    try {
+      setIsDownloading(true);
+
+      // First download the PDF
+      const response = await fetch(`/api/invoice/${orderDetails.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to download invoice");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoice-${orderDetails.orderNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Wait a moment then open Gmail
+      setTimeout(() => {
+        handleOpenGmail();
+
+        // Show user-friendly notification
+        const showNotification = () => {
+          const notification = document.createElement("div");
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10294B;
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-width: 300px;
+            font-family: system-ui, -apple-system, sans-serif;
+          `;
+          notification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
+              <strong>PDF Downloaded!</strong>
+            </div>
+            <div style="margin-top: 8px; font-size: 14px; line-height: 1.4;">
+              Please attach the downloaded invoice PDF to the email that just opened.
+            </div>
+          `;
+
+          document.body.appendChild(notification);
+
+          // Remove notification after 5 seconds
+          setTimeout(() => {
+            if (document.body.contains(notification)) {
+              document.body.removeChild(notification);
+            }
+          }, 5000);
+        };
+
+        showNotification();
+      }, 1000);
+    } catch (error) {
+      console.error("Error with email and PDF:", error);
+      setError("Failed to download invoice");
+      // Still open Gmail even if PDF download fails
+      handleOpenGmail();
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const totalItems = restockItems.filter(
     (item) => item.suggestedQuantity > 0
   ).length;
@@ -386,6 +622,95 @@ ${itemsToRestock
                 </div>
               </CardContent>
             </Card>
+
+            {/* Order Confirmation Modal */}
+            {orderDetails && (
+              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Restock Order Confirmation</DialogTitle>
+                    <DialogDescription>
+                      Your order has been successfully created. Review the
+                      details below and download the invoice or share via email.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Order ID</p>
+                        <p className="font-medium">
+                          {orderDetails.orderNumber}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Technician</p>
+                        <p className="font-medium">{technicianName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium">{orderDetails.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Date</p>
+                        <p className="font-medium">{orderDetails.date}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Truck</p>
+                        <p className="font-medium">{orderDetails.truck}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Total Items</p>
+                        <p className="font-medium">{orderDetails.totalItems}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Total Quantity</p>
+                        <p className="font-medium">
+                          {orderDetails.totalQuantity}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-2">Items</p>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {orderDetails.items.map((item, index) => (
+                          <div key={index} className="border-b pb-2">
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-sm text-gray-500">
+                              Quantity: {item.suggestedQuantity} • Category:{" "}
+                              {item.category} • Priority: {item.priority}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsModalOpen(false)}
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        onClick={handleDownloadInvoice}
+                        variant="outline"
+                        disabled={isDownloading}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {isDownloading ? "Downloading..." : "Download PDF"}
+                      </Button>
+                      <Button
+                        onClick={handleEmailWithPDF}
+                        className="bg-blue-600 hover:bg-blue-700"
+                        disabled={isDownloading}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        {isDownloading ? "Preparing..." : "Email with PDF"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </>
         ) : (
           <Card>

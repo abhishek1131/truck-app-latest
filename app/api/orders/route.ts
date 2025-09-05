@@ -43,7 +43,11 @@ export async function GET(request: NextRequest) {
       SELECT 
         o.id,
         o.created_at AS date,
-        o.status,
+        CASE 
+          WHEN o.requires_approval = TRUE THEN 'pending'
+          ELSE 'confirmed'
+        END AS status,
+        o.requires_approval,
         o.urgency,
         o.notes,
         sh.name AS supply_house,
@@ -85,9 +89,10 @@ export async function GET(request: NextRequest) {
     `;
     const queryParams: any[] = [userId];
 
-    if (status != 'all') {
-      query += " AND o.status = ?";
-      queryParams.push(status);
+    if (status != "all") {
+      query +=
+        " AND (o.requires_approval = TRUE AND ? = 'pending' OR o.requires_approval = FALSE AND ? = 'confirmed')";
+      queryParams.push(status, status);
     }
 
     if (truck) {
@@ -96,7 +101,7 @@ export async function GET(request: NextRequest) {
     }
 
     query += `
-      GROUP BY o.id, o.created_at, o.status, o.urgency, o.notes, sh.name, t.truck_number, t.make, t.model
+      GROUP BY o.id, o.created_at, o.requires_approval, o.urgency, o.notes, sh.name, t.truck_number, t.make, t.model
       ORDER BY o.created_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -111,10 +116,11 @@ export async function GET(request: NextRequest) {
       WHERE o.technician_id = ?
     `;
     const countParams: any[] = [userId];
-    
-    if (status != 'all') {
-      countQuery += " AND o.status = ?";
-      countParams.push(status);
+
+    if (status != "all") {
+      countQuery +=
+        " AND (o.requires_approval = TRUE AND ? = 'pending' OR o.requires_approval = FALSE AND ? = 'confirmed')";
+      countParams.push(status, status);
     }
 
     if (truck) {
@@ -128,6 +134,7 @@ export async function GET(request: NextRequest) {
     // Format orders
     const orders = (ordersRows as any[]).map((order) => ({
       id: order.id,
+      order_number: `ORD-${order.id}`, // Added order_number for consistency with frontend
       partName: order.order_items[0]?.inventory_item?.name || "Multiple Items",
       quantity: order.order_items.reduce(
         (sum: number, item: any) => sum + item.quantity,
@@ -137,9 +144,18 @@ export async function GET(request: NextRequest) {
         (sum: number, item: any) => sum + item.total_price,
         0
       ),
+      total_amount: order.order_items.reduce(
+        (sum: number, item: any) => sum + item.total_price,
+        0
+      ),
       status: order.status,
+      requiresApproval: order.requires_approval,
       date: order.date.toISOString().split("T")[0],
       commission: order.order_items.reduce(
+        (sum: number, item: any) => sum + item.total_price * 0.03,
+        0
+      ),
+      commission_amount: order.order_items.reduce(
         (sum: number, item: any) => sum + item.total_price * 0.03,
         0
       ),
@@ -147,37 +163,59 @@ export async function GET(request: NextRequest) {
         (sum: number, item: any) => sum + item.total_price * 0.03 * 0.25,
         0
       ),
+      total_credit: order.order_items.reduce(
+        (sum: number, item: any) => sum + item.total_price * 0.03 * 0.25,
+        0
+      ),
       supplyHouse: order.supply_house || "Unknown",
       urgency: order.urgency || "normal",
       description:
         order.order_items[0]?.inventory_item?.description || order.notes || "",
-      orderItems: (order.order_items).filter((item: any) => item.id),
+      orderItems: order.order_items.filter((item: any) => item.id),
+      technician: userData?.first_name
+        ? `${userData.first_name} ${userData.last_name || ""}`
+        : "Unknown",
+      technician_email: userData?.email || "",
+      technician_phone: userData?.phone || null,
       truck: {
         id: order.truck_id,
         truckNumber: order.truck_number,
         make: order.make,
         model: order.model,
       },
+      items: order.order_items.map((item: any) => ({
+        id: item.id,
+        part_name: item.inventory_item.name,
+        part_number: item.inventory_item.part_number,
+        bin_code: item.bin?.bin_code || "",
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+        category: item.inventory_item.category,
+        description: item.inventory_item.description,
+      })),
     }));
 
     return NextResponse.json({
-      orders,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
+      success: true,
+      data: {
+        orders,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
       },
     });
   } catch (error) {
     console.error("Orders fetch error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
 }
-
 export async function POST(request: NextRequest) {
   let connection;
   try {
@@ -206,24 +244,69 @@ export async function POST(request: NextRequest) {
       [userId]
     );
     const userData = (userRows as any[])[0];
+    if (!userData || userData.role !== "technician") {
+      return NextResponse.json(
+        { error: "User is not an active technician" },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
-    const { truck_id, requires_approval, items, notes, supply_house_id, urgency } = body;
+    console.log("Request body:", body);
+    let {
+      truck_id,
+      requires_approval,
+      items,
+      notes,
+      supply_house_id,
+      urgency,
+    } = body;
+
+    // Validate items
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: "Items array is required and cannot be empty" },
+        { status: 400 }
+      );
+    }
 
     // Validate truck if provided
     if (truck_id) {
-      const [truckRows] = await pool.query(
-        "SELECT id FROM trucks WHERE id = ? AND assigned_to = ?",
-        [truck_id, userId]
-      );
-      const truck = (truckRows as any[])[0];
-
-      if (!truck) {
-        return NextResponse.json(
-          { error: "Truck not assigned to you" },
-          { status: 403 }
+      let actualTruckId = truck_id;
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          truck_id
         );
+      if (!isUUID) {
+        // Treat as truck_number
+        const [truckRows] = await pool.query(
+          "SELECT id FROM trucks WHERE truck_number = ? AND assigned_to = ?",
+          [truck_id, userId]
+        );
+        const truck = (truckRows as any[])[0];
+        if (!truck) {
+          return NextResponse.json(
+            { error: "Truck not found or not assigned to you" },
+            { status: 403 }
+          );
+        }
+        actualTruckId = truck.id;
+        console.log(`Mapped truck_number ${truck_id} to id ${actualTruckId}`);
+      } else {
+        const [truckRows] = await pool.query(
+          "SELECT id FROM trucks WHERE id = ? AND assigned_to = ?",
+          [truck_id, userId]
+        );
+        const truck = (truckRows as any[])[0];
+        if (!truck) {
+          return NextResponse.json(
+            { error: "Truck not assigned to you" },
+            { status: 403 }
+          );
+        }
+        actualTruckId = truck.id;
       }
+      truck_id = actualTruckId; // Update truck_id with the actual UUID
     }
 
     // Start transaction
@@ -235,7 +318,16 @@ export async function POST(request: NextRequest) {
     for (const item of items) {
       let inventoryItemId = item.inventory_item_id;
 
-      if (item.inventory_item_name && !inventoryItemId) {
+      // Require either inventory_item_id or inventory_item_name
+      if (!inventoryItemId && !item.inventory_item_name) {
+        throw new Error(
+          `Item must have either inventory_item_id or inventory_item_name: ${JSON.stringify(
+            item
+          )}`
+        );
+      }
+
+      if (!inventoryItemId && item.inventory_item_name) {
         // Check if inventory item exists
         const [inventoryRows] = await connection.query(
           `SELECT id FROM inventory_items WHERE name = ?`,
@@ -264,9 +356,8 @@ export async function POST(request: NextRequest) {
             Math.random() * 1000
           )}`;
           await connection.query(
-            `INSERT INTO inventory_items
-             (id, part_number, name, description, category_id, unit_price, cost_price, supplier, min_quantity, max_quantity, standard_level, unit, created_at, updated_at)
-             VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            `INSERT INTO orders (id, technician_id, truck_id, supply_house_id, notes, status, urgency, requires_approval, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, NOW(), NOW())`,
             [
               partNumber,
               item.inventory_item_name,
@@ -279,6 +370,7 @@ export async function POST(request: NextRequest) {
               20,
               20,
               "pieces",
+              requires_approval ? 1 : 0,
             ]
           );
 
@@ -290,29 +382,60 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (!inventoryItemId) {
+        throw new Error(
+          `Failed to resolve or create inventory item for name: ${
+            item.inventory_item_name || "unknown item"
+          }`
+        );
+      }
+
+      // Validate bin_id if provided
+      if (item.bin_id && truck_id) {
+        const [binRows] = await connection.query(
+          "SELECT id FROM truck_bins WHERE id = ? AND truck_id = ?",
+          [item.bin_id, truck_id]
+        );
+        if (!(binRows as any[])[0]) {
+          throw new Error(
+            `Invalid bin_id ${item.bin_id} for truck ${truck_id}`
+          );
+        }
+      }
+
+      // Validate quantity
+      if (!item.quantity || item.quantity <= 0) {
+        throw new Error(
+          `Invalid quantity for item: ${
+            item.inventory_item_name || inventoryItemId
+          }`
+        );
+      }
+
       orderItems.push([
         inventoryItemId,
-        item.bin_id,
+        item.bin_id || null,
         item.quantity,
-        item.unit_price,
-        item.quantity * item.unit_price,
+        item.unit_price || 0,
+        item.quantity * (item.unit_price || 0),
         item.reason || "Additional stock needed",
       ]);
     }
 
     // Create order
     const orderId = crypto.randomUUID();
+    const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     await connection.query(
-      `INSERT INTO orders (id, technician_id, truck_id, supply_house_id, notes, status, urgency, requires_approval, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, NOW(), NOW())`,
+      `INSERT INTO orders (id, order_number, technician_id, truck_id, supply_house_id, notes, status, urgency, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())`,
       [
         orderId,
+        orderNumber,
         userId,
         truck_id || null,
-        supply_house_id,
+        supply_house_id || null,
         notes || "",
         urgency || "normal",
-        requires_approval ? 1 : 0,
       ]
     );
 
@@ -327,6 +450,16 @@ export async function POST(request: NextRequest) {
     if (truck_id) {
       for (const item of items) {
         if (item.bin_id && item.inventory_item_id) {
+          const [inventoryRows] = await connection.query(
+            `SELECT quantity FROM truck_inventory WHERE truck_id = ? AND bin_id = ? AND item_id = ?`,
+            [truck_id, item.bin_id, item.inventory_item_id]
+          );
+          const currentQuantity = (inventoryRows as any[])[0]?.quantity || 0;
+          if (currentQuantity < item.quantity) {
+            throw new Error(
+              `Insufficient inventory for item ${item.inventory_item_id} in bin ${item.bin_id}: ${currentQuantity} available, ${item.quantity} requested`
+            );
+          }
           await connection.query(
             `UPDATE truck_inventory
              SET quantity = quantity - ?,
@@ -342,11 +475,12 @@ export async function POST(request: NextRequest) {
     const [newOrderRows] = await connection.query(
       `SELECT
          o.id,
+         o.order_number,
          o.created_at AS date,
          o.status,
+         o.requires_approval,
          o.urgency,
          o.notes,
-         o.requires_approval,
          sh.name AS supply_house,
          t.truck_number,
          t.make,
@@ -383,7 +517,7 @@ export async function POST(request: NextRequest) {
        LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
        LEFT JOIN truck_bins tb ON oi.bin_id = tb.id
        WHERE o.id = ?
-       GROUP BY o.id, o.created_at, o.status, o.urgency, o.notes, sh.name, t.truck_number, t.make, t.model`,
+       GROUP BY o.id, o.order_number, o.created_at, o.status, o.urgency, o.notes, sh.name, t.truck_number, t.make, t.model`,
       [orderId]
     );
 
@@ -402,7 +536,7 @@ export async function POST(request: NextRequest) {
     }
     console.error("Create order error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   } finally {
@@ -411,8 +545,3 @@ export async function POST(request: NextRequest) {
     }
   }
 }
- 
- 
- 
- 
- 
