@@ -43,10 +43,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         o.id,
         o.created_at AS date,
-        CASE 
-          WHEN o.requires_approval = TRUE THEN 'pending'
-          ELSE 'confirmed'
-        END AS status,
+        o.status,
         o.requires_approval,
         o.urgency,
         o.notes,

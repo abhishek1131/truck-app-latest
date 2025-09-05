@@ -385,6 +385,7 @@ export default function OrdersPage() {
             {/* Orders List */}
             <div className="space-y-4">
               {filteredOrders.map((order) => {
+                console.log("order--",order)
                 const StatusIcon =
                   statusConfig[order.status as keyof typeof statusConfig]
                     ?.icon || Clock;
