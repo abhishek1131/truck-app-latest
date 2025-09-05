@@ -49,6 +49,95 @@ export function ContactTechnicianModal({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleSendEmail = () => {
+    if (!subject || !message || !technician.email) {
+      setError(
+        "Please fill in all required fields and ensure technician email is available"
+      );
+      return;
+    }
+
+    setIsSending(true);
+    setError(null);
+
+    try {
+      // Create formatted email body
+      const emailBody = `Dear ${technician.name},
+
+${message}
+
+---
+Priority: ${priority.toUpperCase()}
+${orderId ? `Order ID: ${orderId}` : ""}
+
+This message was sent through the TruxTok system.
+
+Best regards`;
+
+      // Encode email components
+      const encodedRecipient = encodeURIComponent(technician.email);
+      const encodedSubject = encodeURIComponent(subject);
+      const encodedBody = encodeURIComponent(emailBody);
+
+      // Create Gmail URL
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodedRecipient}&su=${encodedSubject}&body=${encodedBody}`;
+
+      // Open Gmail in new tab
+      window.open(gmailUrl, "_blank");
+
+      // Show success notification
+      const showNotification = () => {
+        const notification = document.createElement("div");
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #10294B;
+          color: white;
+          padding: 16px;
+          border-radius: 8px;
+          z-index: 9999;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          max-width: 300px;
+          font-family: system-ui, -apple-system, sans-serif;
+        `;
+        notification.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
+            <strong>Email Opened!</strong>
+          </div>
+          <div style="margin-top: 8px; font-size: 14px; line-height: 1.4;">
+            Gmail has opened in a new tab with your message ready to send to ${technician.name}.
+          </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Remove notification after 5 seconds
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+          }
+        }, 5000);
+      };
+
+      showNotification();
+
+      // Reset form and close modal
+      setTimeout(() => {
+        setSubject(orderId ? `Regarding Order #${orderId}` : "");
+        setMessage("");
+        setPriority("normal");
+        onClose();
+      }, 500);
+    } catch (err) {
+      console.error("Error opening email:", err);
+      setError("Failed to open email client. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const handleSend = async () => {
     setIsSending(true);
     setError(null);
@@ -104,6 +193,9 @@ export function ContactTechnicianModal({
           </DialogTitle>
           <DialogDescription className="text-sm">
             Send an email to {technician.name}
+            {!technician.email && (
+              <span className="text-red-500 ml-2">(Email not available)</span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -129,10 +221,15 @@ export function ContactTechnicianModal({
                       {technician.name}
                     </h3>
                     <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                      {technician.email && (
+                      {technician.email ? (
                         <span className="flex items-center gap-1 truncate">
                           <Mail className="h-3 w-3 flex-shrink-0" />
                           <span className="truncate">{technician.email}</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-red-500">
+                          <Mail className="h-3 w-3 flex-shrink-0" />
+                          <span>No email available</span>
                         </span>
                       )}
                     </div>
@@ -151,7 +248,7 @@ export function ContactTechnicianModal({
               <CardHeader className="pb-2 pt-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Mail className="h-4 w-4" />
-                  Send Email
+                  Compose Email
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-1 space-y-3">
@@ -212,10 +309,19 @@ export function ContactTechnicianModal({
                 )}
 
                 {priority === "urgent" && (
+                  <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-800">
+                      <strong>Urgent priority</strong> - This email will be
+                      marked as high importance.
+                    </p>
+                  </div>
+                )}
+
+                {!technician.email && (
                   <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-xs text-red-800">
-                      <strong>Urgent emails</strong> will be sent immediately
-                      and may trigger additional notifications.
+                      <strong>No email available</strong> for this technician.
+                      Please contact them through alternative means.
                     </p>
                   </div>
                 )}
@@ -233,12 +339,12 @@ export function ContactTechnicianModal({
             Cancel
           </Button>
           <Button
-            onClick={handleSend}
+            onClick={handleSendEmail}
             className="bg-[#E3253D] hover:bg-[#E3253D]/90 h-8 text-sm"
-            disabled={!subject || !message || isSending}
+            disabled={!subject || !message || isSending || !technician.email}
           >
             <Send className="h-3 w-3 mr-1" />
-            {isSending ? "Sending..." : "Send Email"}
+            {isSending ? "Opening..." : "Open in Gmail"}
           </Button>
         </div>
       </DialogContent>

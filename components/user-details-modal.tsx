@@ -281,12 +281,19 @@ export function UserDetailsModal({
                           <span className="text-sm font-medium text-gray-600">
                             Total Value:
                           </span>
-                          <p className="font-semibold text-2xl text-purple-600">
+                          {
+                            orders.length > 0 ? (
+                              <p className="font-semibold text-2xl text-purple-600">
                             $
                             {orders
-                              .reduce((sum, order) => sum + order.cost, 0)
-                              .toFixed(2)}
+                              ?.reduce((sum, order) => sum + order.cost, 0)
+                              ?.toFixed(2)}
+                          </p>) : (
+                                <p className="font-semibold text-2xl text-purple-600">
+                            $0.00
                           </p>
+                            )
+                          }
                         </div>
                       </CardContent>
                     </Card>
@@ -353,7 +360,7 @@ export function UserDetailsModal({
                         Order History ({orders.length})
                       </h3>
                     </div>
-                    {orders.map((order) => {
+                    {orders.length > 1 && orders?.map((order) => {
                       const StatusIcon =
                         statusConfig[order.status as keyof typeof statusConfig]
                           ?.icon || Clock;

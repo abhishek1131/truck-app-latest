@@ -64,7 +64,6 @@ export function CreateUserModal({
   const [isLoading, setIsLoading] = useState(false);
 
   const roles = [
-    { value: "admin", label: "Administrator" },
     // { value: "manager", label: "Manager" },
     { value: "technician", label: "Technician" },
   ];
