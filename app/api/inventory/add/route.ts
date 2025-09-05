@@ -129,7 +129,12 @@ export async function POST(request: NextRequest) {
     if (connection) {
       await connection.rollback();
     }
-    console.error("Add inventory item error:", error);
+    if (error?.code === "ER_DUP_ENTRY") {
+      return NextResponse.json(
+        { error: "Part number already exists" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

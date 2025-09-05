@@ -79,6 +79,7 @@ const urgencyConfig = {
 export default function OrdersPage() {
   const { user, token } = useAuth();
   const { toast } = useToast();
+  const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
@@ -162,6 +163,7 @@ export default function OrdersPage() {
   const handleDownloadInvoice = useCallback(
     async (order: Order) => {
       try {
+        setDownloadingOrderId(order.id);
         const response = await fetch(`/api/invoice/${order.id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -193,6 +195,8 @@ export default function OrdersPage() {
           description: error.message || "Failed to download invoice",
           variant: "destructive",
         });
+      } finally {
+        setDownloadingOrderId(null);
       }
     },
     [toast, token]
@@ -477,10 +481,19 @@ export default function OrdersPage() {
                             size="sm"
                             className="w-full lg:w-auto bg-transparent"
                             onClick={() => handleDownloadInvoice(order)}
-                            disabled={isLoading}
+                            disabled={downloadingOrderId === order.id}
                           >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
+                            {downloadingOrderId === order.id ? (
+                              <>
+                                <Download className="h-4 w-4 mr-2 animate-spin" />
+                                Downloading...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </>
+                            )}
                           </Button>
                         </div>
                       </div>

@@ -106,7 +106,7 @@ export async function GET(
         oi.description
       FROM orders o
       JOIN users u ON o.technician_id = u.id
-      JOIN trucks t ON o.truck_id = t.id
+      LEFT JOIN trucks t ON o.truck_id = t.id
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN inventory_items ii ON oi.item_id = ii.id
       LEFT JOIN truck_bins tb ON oi.bin_id = tb.id

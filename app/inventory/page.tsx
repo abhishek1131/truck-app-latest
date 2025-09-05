@@ -24,6 +24,7 @@ export default function InventoryPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [errorMessage, setErrorMessage] = useState("");
   const [inventoryData, setInventoryData] = useState({
     inventoryItems: [],
     stats: {
@@ -67,6 +68,7 @@ export default function InventoryPage() {
 
   const handleItemAdded = async (newItem: any) => {
     try {
+      setErrorMessage("");
       const response = await fetch("/api/inventory/add", {
         method: "POST",
         headers: {
@@ -76,7 +78,7 @@ export default function InventoryPage() {
         body: JSON.stringify(newItem),
       });
       const data = await response.json();
-      console.log(data,333333333333333);
+      console.log(data, 333333333333333);
       if (response.ok) {
         setInventoryData((prev) => ({
           ...prev,
@@ -96,9 +98,11 @@ export default function InventoryPage() {
           },
         }));
       } else {
+        setErrorMessage(data.error || "Failed to add item");
         console.error("Failed to add item:", data.error);
       }
     } catch (error) {
+      setErrorMessage("Something went wrong while adding item");
       console.error("Error adding item:", error);
     }
   };
@@ -136,6 +140,7 @@ export default function InventoryPage() {
       subtitle="Manage your inventory across all trucks"
     >
       <div className="p-4 md:p-6">
+
         <div className="space-y-6">
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -190,6 +195,17 @@ export default function InventoryPage() {
             </Card>
           </div>
 
+          {errorMessage && (
+            <div className="relative p-3 rounded-md bg-red-100 text-red-800 border border-red-300">
+              <span>{errorMessage}</span>
+              <button
+                onClick={() => setErrorMessage("")}
+                className="absolute right-2 top-2 text-red-600 hover:text-red-800"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {/* Add New Item Section */}
           <Card>
             <CardContent className="p-6">
