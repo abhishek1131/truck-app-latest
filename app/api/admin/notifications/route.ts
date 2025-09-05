@@ -50,7 +50,7 @@ export async function GET(req: Request) {
 
     const isAdmin = decoded.role === "admin";
 
-    // Query to combine activities from multiple tables
+    // Revised query to ensure all technician-related activities are included
     const query = `
       SELECT 
         a.id,
@@ -64,8 +64,24 @@ export async function GET(req: Request) {
       FROM activities a
       LEFT JOIN orders o ON a.message LIKE CONCAT('%', o.order_number, '%')
       LEFT JOIN users u ON o.technician_id = u.id
-      WHERE a.type = 'order'
+      WHERE a.type = 'order' AND o.technician_id IN (SELECT id FROM users WHERE role = 'technician')
       ${isAdmin ? "" : "AND o.technician_id = ?"}
+      
+      UNION
+
+      SELECT 
+        a.id,
+        a.user_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+        a.type AS action,
+        a.type AS entity_type,
+        a.id AS entity_id,
+        a.message AS details,
+        a.created_at
+      FROM activities a
+      LEFT JOIN users u ON a.user_id = u.id
+      WHERE a.type IN ('technician', 'redemption') AND a.user_id IN (SELECT id FROM users WHERE role = 'technician')
+      ${isAdmin ? "" : "AND a.user_id = ?"}
       
       UNION
 
@@ -79,8 +95,12 @@ export async function GET(req: Request) {
         a.message AS details,
         a.created_at
       FROM activities a
-      WHERE a.type IN ('technician', 'redemption', 'supply_house')
-      ${isAdmin ? "" : "AND a.message LIKE '%technician%'"}
+      WHERE a.type = 'supply_house'
+      ${
+        isAdmin
+          ? ""
+          : "AND EXISTS (SELECT 1 FROM restock_orders ro WHERE ro.supply_house_id IN (SELECT supply_house_id FROM orders WHERE technician_id = ?))"
+      }
       
       UNION
 
@@ -95,7 +115,8 @@ export async function GET(req: Request) {
         us.created_at
       FROM user_sessions us
       LEFT JOIN users u ON us.user_id = u.id
-      ${isAdmin ? "" : "WHERE us.user_id = ?"}
+      WHERE us.user_id IN (SELECT id FROM users WHERE role = 'technician')
+      ${isAdmin ? "" : "AND us.user_id = ?"}
       
       UNION
 
@@ -110,7 +131,8 @@ export async function GET(req: Request) {
         c.created_at
       FROM credits c
       LEFT JOIN users u ON c.technician_id = u.id
-      ${isAdmin ? "" : "WHERE c.technician_id = ?"}
+      WHERE c.technician_id IN (SELECT id FROM users WHERE role = 'technician')
+      ${isAdmin ? "" : "AND c.technician_id = ?"}
       
       UNION
 
@@ -125,7 +147,8 @@ export async function GET(req: Request) {
         ro.created_at
       FROM restock_orders ro
       LEFT JOIN users u ON ro.technician_id = u.id
-      ${isAdmin ? "" : "WHERE ro.technician_id = ?"}
+      WHERE ro.technician_id IN (SELECT id FROM users WHERE role = 'technician')
+      ${isAdmin ? "" : "AND ro.technician_id = ?"}
       
       ORDER BY created_at DESC
       LIMIT 50
@@ -133,7 +156,14 @@ export async function GET(req: Request) {
 
     const params = isAdmin
       ? []
-      : [decoded.id, decoded.id, decoded.id, decoded.id];
+      : [
+          decoded.id,
+          decoded.id,
+          decoded.id,
+          decoded.id,
+          decoded.id,
+          decoded.id,
+        ];
 
     const [rows] = await pool.query(query, params);
 

@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
 
     // Format trucks
     const trucks = (truckRows as any[]).map((truck) => ({
-      id: truck.truck_number, // Use truck_number as ID for UI consistency
+      id: truck.id, // Use truck_number as ID for UI consistency
       name: truck.name,
       items: truck.total_items || 0,
       lowStock: truck.low_stock || 0,

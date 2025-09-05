@@ -133,7 +133,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                 <Bell className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Notifications</span>
                 {notifications.length > 0 && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#E3253D] rounded-full flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-[#E3253D] rounded-full flex items-center justify-center">
                     <span className="text-xs text-white font-bold">
                       {notifications.length}
                     </span>
@@ -174,7 +174,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                         {notification.details}
                       </div>
                     )}
-                    {notification.entity_type === "order" &&
+                    {/* {notification.entity_type === "order" &&
                       notification.entity_id && (
                         <Link
                           href={`/admin/orders/${notification.entity_id}`}
@@ -182,7 +182,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                         >
                           View Order
                         </Link>
-                      )}
+                      )} */}
                   </DropdownMenuItem>
                 ))
               )}

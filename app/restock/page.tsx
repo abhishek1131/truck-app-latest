@@ -87,47 +87,71 @@ export default function RestockPage() {
     );
   };
 
-  const handleSubmitRestock = async () => {
-    const itemsToRestock = restockItems.filter(
-      (item) => item.suggestedQuantity > 0
-    );
-    if (itemsToRestock.length === 0) {
-      alert("No items selected for restock.");
-      return;
+const handleSubmitRestock = async () => {
+  const itemsToRestock = restockItems.filter(
+    (item) => item.suggestedQuantity > 0
+  );
+  if (itemsToRestock.length === 0) {
+    return; // No items to send
+  }
+
+  const orderId = `RESTOCK-${Date.now()}`; // Generate a temporary order ID
+  const message = `
+Order ID: ${orderId}
+Technician: ${user?.name || "Unknown"}
+Email: ${user?.email || "Unknown"}
+Date: ${new Date().toLocaleString()}
+Truck: ${itemsToRestock[0].truck}
+Total Items: ${itemsToRestock.length}
+Total Quantity: ${itemsToRestock.reduce(
+    (sum, item) => sum + item.suggestedQuantity,
+    0
+  )}
+
+Items:
+${itemsToRestock
+  .map(
+    (item, index) =>
+      `${index + 1}. ${item.name} (${item.category})
+     Quantity: ${item.suggestedQuantity}
+     Current Stock: ${item.currentStock}
+     Standard Level: ${item.standardLevel}
+     Priority: ${item.priority}`
+  )
+  .join("\n\n")}
+  `;
+
+  try {
+    const response = await fetch("https://formspree.io/f/xeozbzqy", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        name: user?.first_name + " " + user?.last_name || "Technician",
+        email: user?.email || "no-reply@company.com",
+        subject: `Restock Order Request - ${orderId}`,
+        message,
+        priority: itemsToRestock.some((item) => item.priority === "high")
+          ? "high"
+          : itemsToRestock.some((item) => item.priority === "medium")
+          ? "medium"
+          : "low",
+        orderId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to send email");
     }
 
-    try {
-      const response = await fetch("/api/technician/restock", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ items: itemsToRestock }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        alert(
-          `Restock order submitted! ${itemsToRestock.length} items will be restocked. Order ID: ${data.orderId}`
-        );
-        // Refresh items after submission
-        setRestockItems([]);
-        const fetchResponse = await fetch("/api/technician/restock", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const fetchData = await fetchResponse.json();
-        if (fetchResponse.ok) {
-          setRestockItems(fetchData.restockItems || []);
-        }
-      } else {
-        alert(`Failed to submit restock order: ${data.error}`);
-      }
-    } catch (err) {
-      console.error("Error submitting restock order:", err);
-      alert("Failed to submit restock order due to an error.");
-    }
-  };
-
+    // Reset form on success
+    // setRestockItems([]);
+  } catch (err) {
+    console.error("Error sending restock order email:", err);
+  }
+};
   const totalItems = restockItems.filter(
     (item) => item.suggestedQuantity > 0
   ).length;

@@ -298,7 +298,7 @@ export default function AdminOrdersPage() {
   const handleDownloadInvoice = useCallback(
     async (order: Order) => {
       try {
-        const response = await fetch(`/api/admin/orders/${order.id}/invoice`, {
+        const response = await fetch(`/api/invoice/${order.id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -628,13 +628,13 @@ export default function AdminOrdersPage() {
                           <Badge
                             className={
                               urgencyConfig[
-                                order.priority as keyof typeof urgencyConfig
+                                order.urgency as keyof typeof urgencyConfig
                               ]?.color || urgencyConfig.normal.color
                             }
                           >
                             {urgencyConfig[
-                              order.priority as keyof typeof urgencyConfig
-                            ]?.label || order.priority}
+                              order.urgency as keyof typeof urgencyConfig
+                            ]?.label || order.urgency}
                           </Badge>
                         </div>
                       </div>

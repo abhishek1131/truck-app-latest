@@ -90,41 +90,42 @@ export default function AdminUsersPage() {
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false); // New state for create operation
   const [dropdownKey, setDropdownKey] = useState(0); // To force re-render of DropdownMenu
   const triggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (!token) {
-        setError("Please log in to view users");
-        setIsLoading(false);
-        return;
-      }
+  const fetchUsers = useCallback(async () => {
+    if (!token) {
+      setError("Please log in to view users");
+      setIsLoading(false);
+      return;
+    }
 
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch("/api/admin/users", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const result = await response.json();
-        if (result.success && result.data?.users) {
-          setUsers(result.data.users);
-        } else {
-          setError(result.error || "Failed to fetch users");
-        }
-      } catch (error) {
-        setError("Error fetching users");
-        console.error("Error fetching users:", error);
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/users", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success && result.data?.users) {
+        setUsers(result.data.users);
+      } else {
+        setError(result.error || "Failed to fetch users");
       }
-    };
-
-    fetchUsers();
+    } catch (error) {
+      setError("Error fetching users");
+      console.error("Error fetching users:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [token]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -144,33 +145,6 @@ export default function AdminUsersPage() {
   const technicians = users.filter((user) => user.role === "technician").length;
   const admins = users.filter((user) => user.role === "admin").length;
 
-  const handleCreateUser = useCallback(
-    async (userData: any) => {
-      try {
-        const response = await fetch("/api/admin/users", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(userData),
-        });
-        const result = await response.json();
-        if (result.success && result.data) {
-          setUsers([...users, result.data]);
-          setShowCreateModal(false);
-          setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
-        } else {
-          alert(`Failed to create user: ${result.error}`);
-        }
-      } catch (error) {
-        console.error("Error creating user:", error);
-        alert("Error creating user. Please try again.");
-      }
-    },
-    [token, users]
-  );
-
   const handleEditUser = useCallback((user: User) => {
     setSelectedUser(user);
     setShowEditModal(true);
@@ -179,49 +153,30 @@ export default function AdminUsersPage() {
 
   const handleDeactivateUser = useCallback(
     async (user: User, onClose: () => void) => {
+      const newStatus = user.status === "active" ? "inactive" : "active";
       try {
-        const newStatus = user.status === "active" ? "inactive" : "active";
-        const response = await fetch(`/api/users/${user.id}`, {
+        const response = await fetch(`/api/admin/users/${user.id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            first_name: user.first_name,
-            last_name: user.last_name,
-            phone: user.phone,
-            role: user.role,
-            status: newStatus,
-          }),
+          body: JSON.stringify({ ...user, status: newStatus }),
         });
         const result = await response.json();
-        if (result.success && result.data) {
-          setUsers(users.map((u) => (u.id === user.id ? result.data : u)));
+        if (result.success) {
+          await fetchUsers(); // Refetch users after status change
           onClose();
           setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
         } else {
-          alert(
-            `Failed to ${
-              user.status === "active" ? "deactivate" : "activate"
-            } user: ${result.error}`
-          );
+          alert(`Failed to update user status: ${result.error}`);
         }
       } catch (error) {
-        console.error(
-          `Error ${
-            user.status === "active" ? "deactivating" : "activating"
-          } user:`,
-          error
-        );
-        alert(
-          `Error ${
-            user.status === "active" ? "deactivating" : "activating"
-          } user. Please try again.`
-        );
+        console.error("Error updating user status:", error);
+        alert("Error updating user status. Please try again.");
       }
     },
-    [token, users]
+    [token, fetchUsers]
   );
 
   const handleDeleteUser = useCallback(
@@ -243,7 +198,7 @@ export default function AdminUsersPage() {
         }
       } catch (error) {
         console.error("Error deleting user:", error);
-        alert("Error deleting user. Please try again.");
+        // alert("Error deleting user. Please try again.");
       }
     },
     [token, users]
@@ -262,6 +217,34 @@ export default function AdminUsersPage() {
     setSelectedUser(null);
     setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
   }, []);
+  const handleCreateUser = useCallback(
+    async (userData: any) => {
+      setIsCreating(true);
+      try {
+        const response = await fetch("/api/admin/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(userData),
+        });
+        const result = await response.json();
+        await fetchUsers(); // ✅ Ensure latest list
+        if (result.success && result.data) {
+          handleModalClose(); // ✅ Centralized modal closing
+        } else {
+          alert(`Failed to create user: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Error creating user:", error);
+        alert("Error creating user. Please try again.");
+      } finally {
+        setIsCreating(false);
+      }
+    },
+    [token, fetchUsers, handleModalClose]
+  );
 
   return (
     <Navigation
@@ -273,10 +256,10 @@ export default function AdminUsersPage() {
           <Button
             onClick={() => setShowCreateModal(true)}
             className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg"
-            disabled={isLoading}
+            disabled={isLoading || isCreating}
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            Add New User
+            {isCreating ? "Creating..." : "Add New User"}
           </Button>
         </div>
 
@@ -359,14 +342,14 @@ export default function AdminUsersPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
-                    disabled={isLoading}
+                    disabled={isLoading || isCreating}
                   />
                 </div>
               </div>
               <Select
                 value={statusFilter}
                 onValueChange={setStatusFilter}
-                disabled={isLoading}
+                disabled={isLoading || isCreating}
               >
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by status" />
@@ -382,7 +365,7 @@ export default function AdminUsersPage() {
               <Select
                 value={roleFilter}
                 onValueChange={setRoleFilter}
-                disabled={isLoading}
+                disabled={isLoading || isCreating}
               >
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by role" />
@@ -530,7 +513,7 @@ export default function AdminUsersPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            disabled={isLoading}
+                            disabled={isLoading || isCreating}
                             ref={(el) => {
                               if (el) {
                                 triggerRefs.current.set(user.id, el);
@@ -613,10 +596,10 @@ export default function AdminUsersPage() {
               <Button
                 onClick={() => setShowCreateModal(true)}
                 className="bg-[#E3253D] hover:bg-[#E3253D]/90"
-                disabled={isLoading}
+                disabled={isLoading || isCreating}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
-                Add New User
+                {isCreating ? "Creating..." : "Add New User"}
               </Button>
             </CardContent>
           </Card>

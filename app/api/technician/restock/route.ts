@@ -25,16 +25,16 @@ export async function GET(request: NextRequest) {
 
     const userId = decoded.id;
 
-    // Verify technician role
+    // Verify user is active
     const [userRows] = await pool.query(
       "SELECT role FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    // if (!userData || userData.role !== "technician") {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
+    if (!userData) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Fetch restock items for assigned trucks
     const [restockItems] = await pool.query(
@@ -43,21 +43,20 @@ export async function GET(request: NextRequest) {
         ti.item_id AS id,
         ii.name AS name,
         ti.quantity AS currentStock,
-        tsi.standard_quantity AS standardLevel,
-        (tsi.standard_quantity - ti.quantity) AS suggestedQuantity,
+        COALESCE(ii.standard_level, ti.min_quantity) AS standardLevel,
+        GREATEST(COALESCE(ii.standard_level, ti.min_quantity) - ti.quantity, 0) AS suggestedQuantity,
         t.truck_number AS truck,
         ic.name AS category,
         CASE 
-          WHEN (tsi.standard_quantity - ti.quantity) >= tsi.standard_quantity * 0.5 THEN 'high'
-          WHEN (tsi.standard_quantity - ti.quantity) >= tsi.standard_quantity * 0.2 THEN 'medium'
+          WHEN (COALESCE(ii.standard_level, ti.min_quantity) - ti.quantity) >= COALESCE(ii.standard_level, ti.min_quantity) * 0.5 THEN 'high'
+          WHEN (COALESCE(ii.standard_level, ti.min_quantity) - ti.quantity) >= COALESCE(ii.standard_level, ti.min_quantity) * 0.2 THEN 'medium'
           ELSE 'low'
         END AS priority
       FROM truck_inventory ti
       JOIN inventory_items ii ON ti.item_id = ii.id
       JOIN inventory_categories ic ON ii.category_id = ic.id
-      JOIN truck_standard_inventory tsi ON ti.item_id = tsi.item_name AND ti.truck_id = tsi.truck_id AND ti.bin_id = tsi.bin_id
       JOIN trucks t ON ti.truck_id = t.id
-      WHERE t.assigned_to = ? AND ti.quantity < tsi.standard_quantity
+      WHERE t.assigned_to = ? AND ti.quantity < COALESCE(ii.standard_level, ti.min_quantity)
       ORDER BY priority DESC, t.truck_number, ii.name
       `,
       [userId]
@@ -101,16 +100,16 @@ export async function POST(request: NextRequest) {
 
     const userId = decoded.id;
 
-    // Verify technician role
+    // Verify user is active
     const [userRows] = await pool.query(
       "SELECT role FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    // if (!userData || userData.role !== "technician") {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
+    if (!userData) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { items } = await request.json();
 
@@ -125,7 +124,7 @@ export async function POST(request: NextRequest) {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // Get a default supply house (e.g., the first active one)
+    // Get a default supply house
     const [supplyHouseRows] = await connection.query(
       "SELECT id FROM supply_houses WHERE status = 'active' LIMIT 1"
     );
@@ -141,29 +140,41 @@ export async function POST(request: NextRequest) {
 
     // Create restock order
     const orderId = uuidv4();
+    const [truckRows] = await connection.query(
+      "SELECT id FROM trucks WHERE truck_number = ? AND assigned_to = ?",
+      [items[0].truck, userId]
+    );
+    const truck = (truckRows as any[])[0];
+
+    if (!truck) {
+      await connection.rollback();
+      return NextResponse.json(
+        { error: `Truck ${items[0].truck} not assigned to you` },
+        { status: 403 }
+      );
+    }
+
     await connection.query(
       "INSERT INTO restock_orders (id, truck_id, supply_house_id, technician_id, status) VALUES (?, ?, ?, ?, ?)",
-      [orderId, items[0].truck, supplyHouse.id, userId, "pending"]
+      [orderId, truck.id, supplyHouse.id, userId, "pending"]
     );
 
-    // Insert restock order items
+    // Validate and insert restock order items
+    const invalidItems: string[] = [];
     for (const item of items) {
-      const [truckRows] = await connection.query(
-        "SELECT id FROM trucks WHERE truck_number = ? AND assigned_to = ?",
-        [item.truck, userId]
+      // Validate item_id exists in inventory_items
+      const [itemRows] = await connection.query(
+        "SELECT id FROM inventory_items WHERE id = ?",
+        [item.id]
       );
-      const truck = (truckRows as any[])[0];
-
-      if (!truck) {
-        await connection.rollback();
-        return NextResponse.json(
-          { error: `Truck ${item.truck} not assigned to you` },
-          { status: 403 }
-        );
+      if ((itemRows as any[]).length === 0) {
+        invalidItems.push(item.id);
+        continue;
       }
 
       const [binRows] = await connection.query(
-        "SELECT id FROM truck_bins WHERE truck_id = ? LIMIT 1"
+        "SELECT id FROM truck_bins WHERE truck_id = ? LIMIT 1",
+        [truck.id]
       );
       const bin = (binRows as any[])[0];
 
@@ -181,6 +192,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (invalidItems.length > 0) {
+      await connection.rollback();
+      return NextResponse.json(
+        {
+          error: `Invalid item IDs: ${invalidItems.join(
+            ", "
+          )} not found in inventory_items`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Log activity
+    await connection.query(
+      "INSERT INTO activities (id, type, message, status, user_id) VALUES (?, ?, ?, ?, ?)",
+      [
+        uuidv4(),
+        "order",
+        `Restock order #${orderId} created by technician`,
+        "new",
+        userId,
+      ]
+    );
+
     await connection.commit();
 
     return NextResponse.json({
@@ -192,6 +227,12 @@ export async function POST(request: NextRequest) {
       await connection.rollback();
     }
     console.error("Restock submit error:", error);
+    if (error.code === "ER_NO_REFERENCED_ROW_2") {
+      return NextResponse.json(
+        { error: `Foreign key constraint failed: Invalid item_id` },
+        { status: 400 }
+      );
+    }
     if (error.code === "ER_BAD_FIELD_ERROR") {
       return NextResponse.json(
         { error: `Database schema error: ${error.sqlMessage}` },

@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import {
   Truck,
   Search,
@@ -89,10 +88,11 @@ export default function AdminTrucksPage() {
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false); // New state for create loading
   const [technicianError, setTechnicianError] = useState<string | null>(null);
-  const [dropdownKey, setDropdownKey] = useState(0); // To force re-render of DropdownMenu
+  const [dropdownKey, setDropdownKey] = useState(0);
 
-  const fetchTrucks = async () => {
+  const fetchTrucks = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/admin/trucks?page=1&limit=10", {
@@ -111,7 +111,7 @@ export default function AdminTrucksPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     const fetchTechnicians = async () => {
@@ -149,7 +149,7 @@ export default function AdminTrucksPage() {
       fetchTrucks();
       fetchTechnicians();
     }
-  }, [token]);
+  }, [token, fetchTrucks]);
 
   const filteredTrucks = trucks.filter((truck) => {
     const matchesSearch =
@@ -187,6 +187,8 @@ export default function AdminTrucksPage() {
   );
 
   const handleCreateTruck = async (truckData: any) => {
+    if (isCreating) return; // Prevent multiple submissions
+    setIsCreating(true);
     try {
       const response = await fetch("/api/admin/trucks", {
         method: "POST",
@@ -197,14 +199,36 @@ export default function AdminTrucksPage() {
         body: JSON.stringify(truckData),
       });
       const result = await response.json();
+      await fetchTrucks(); // Fetch latest data to ensure consistency
       if (result.success) {
-        await fetchTrucks(); // Refresh truck list
+        // Optimistic update: Add the new truck to the state
+        const newTruck: Truck = {
+          id: result.data.id, // Assume API returns the new truck's ID
+          truck_number: truckData.truck_number,
+          location: truckData.location || null,
+          status: truckData.status || "active",
+          totalItems: 0, // Default, as no inventory yet
+          lowStockItems: 0,
+          bins: 0,
+          lastUpdated: new Date().toISOString(),
+          assigned_technician: truckData.assigned_to
+            ? technicians.find((t) => t.id === truckData.assigned_to) || null
+            : null,
+          model: truckData.model,
+          year: truckData.year,
+          license_plate: truckData.license_plate,
+          mileage: truckData.mileage || 0,
+          next_maintenance: truckData.next_maintenance || null,
+        };
+        setTrucks((prev) => [...prev, newTruck]);
         setShowCreateDialog(false);
       } else {
         console.error("Failed to create truck:", result.error);
       }
     } catch (error) {
       console.error("Error creating truck:", error);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -220,7 +244,7 @@ export default function AdminTrucksPage() {
         : null,
     });
     setShowAssignDialog(true);
-    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+    setDropdownKey((prev) => prev + 1);
   }, []);
 
   const handleEditTruck = useCallback((truck: Truck) => {
@@ -230,7 +254,7 @@ export default function AdminTrucksPage() {
       licensePlate: truck.license_plate,
     });
     setShowEditDialog(true);
-    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+    setDropdownKey((prev) => prev + 1);
   }, []);
 
   const handleDeleteTruck = async (truck: Truck) => {
@@ -243,14 +267,15 @@ export default function AdminTrucksPage() {
       });
       const result = await response.json();
       if (result.success) {
-        await fetchTrucks(); // Refresh truck list
+        setTrucks((prev) => prev.filter((t) => t.id !== truck.id)); // Remove deleted truck
+        await fetchTrucks(); // Fetch latest data
       } else {
         console.error("Failed to delete truck:", result.error);
       }
     } catch (error) {
       console.error("Error deleting truck:", error);
     }
-    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+    setDropdownKey((prev) => prev + 1);
   };
 
   const handleDialogClose = useCallback(() => {
@@ -258,7 +283,8 @@ export default function AdminTrucksPage() {
     setShowEditDialog(false);
     setShowCreateDialog(false);
     setSelectedTruck(null);
-    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+    setIsCreating(false); // Reset creating state
+    setDropdownKey((prev) => prev + 1);
   }, []);
 
   const handleTruckUpdate = useCallback((updated: Partial<Truck>) => {
@@ -277,9 +303,10 @@ export default function AdminTrucksPage() {
           <Button
             onClick={() => setShowCreateDialog(true)}
             className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg"
+            disabled={isCreating} // Disable button during creation
           >
             <Truck className="h-4 w-4 mr-2" />
-            Add New Truck
+            {isCreating ? "Adding Truck..." : "Add New Truck"}
           </Button>
         </div>
 
@@ -297,7 +324,6 @@ export default function AdminTrucksPage() {
               <p className="text-xs opacity-75">{activeTrucks} active</p>
             </CardContent>
           </Card>
-
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium opacity-90">
@@ -310,7 +336,6 @@ export default function AdminTrucksPage() {
               <p className="text-xs opacity-75">Available for assignment</p>
             </CardContent>
           </Card>
-
           <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium opacity-90">
@@ -323,7 +348,6 @@ export default function AdminTrucksPage() {
               <p className="text-xs opacity-75">In service</p>
             </CardContent>
           </Card>
-
           <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium opacity-90">
@@ -577,9 +601,10 @@ export default function AdminTrucksPage() {
               <Button
                 onClick={() => setShowCreateDialog(true)}
                 className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+                disabled={isCreating}
               >
                 <Truck className="h-4 w-4 mr-2" />
-                Add New Truck
+                {isCreating ? "Adding Truck..." : "Add New Truck"}
               </Button>
             </CardContent>
           </Card>
@@ -590,6 +615,7 @@ export default function AdminTrucksPage() {
           isOpen={showCreateDialog}
           onClose={handleDialogClose}
           onTruckCreated={handleCreateTruck}
+          isCreating={isCreating} // Pass loading state to dialog
         />
 
         {selectedTruck && (

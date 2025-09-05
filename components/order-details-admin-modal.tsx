@@ -152,7 +152,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
   const handleDownloadInvoice = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event bubbling
     try {
-      const response = await fetch(`/api/admin/orders/${order.id}/invoice`, {
+      const response = await fetch(`/api/invoice/${order.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
