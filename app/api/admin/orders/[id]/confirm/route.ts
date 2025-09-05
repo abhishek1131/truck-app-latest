@@ -50,12 +50,12 @@ export async function POST(
     const [result] = await pool.query(
       `
       UPDATE orders 
-      SET status = ?, confirmed_at = NOW(), updated_at = NOW()
+      SET status = ?, requires_approval = ?, confirmed_at = NOW(), updated_at = NOW()
       WHERE id = ? AND status = ?
       `,
-      ["processing", params.id, "pending"]
+      ["confirmed", 1, params.id, "pending"]
     );
-
+        
     if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {

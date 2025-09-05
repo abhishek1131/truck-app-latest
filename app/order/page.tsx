@@ -106,64 +106,63 @@ export default function OrderPage() {
     }
   }, [user, loading, router]);
 
+  const fetchData = async () => {
+    if (!user || !token) return;
+
+    // Fetch trucks
+    try {
+      const trucksResponse = await fetch("/api/orders/trucks", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const trucksData = await trucksResponse.json();
+      if (trucksResponse.ok) {
+        setTrucks(trucksData.trucks);
+      } else {
+        console.error("Failed to fetch trucks:", trucksData.error, {
+          status: trucksResponse.status,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching trucks:", error);
+    }
+
+    // Fetch supply houses
+    try {
+      const supplyHousesResponse = await fetch("/api/orders/supply-houses", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const supplyHousesData = await supplyHousesResponse.json();
+      if (supplyHousesResponse.ok) {
+        setSupplyHouses(supplyHousesData.supplyHouses);
+      } else {
+        console.error(
+          "Failed to fetch supply houses:",
+          supplyHousesData.error,
+          { status: supplyHousesResponse.status }
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching supply houses:", error);
+    }
+
+    // Fetch previous orders
+    try {
+      const ordersResponse = await fetch("/api/orders/previous", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const ordersData = await ordersResponse.json();
+      if (ordersResponse.ok) {
+        setPreviousOrders(ordersData.previousOrders);
+      } else {
+        console.error("Failed to fetch previous orders:", ordersData.error, {
+          status: ordersResponse.status,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching previous orders:", error);
+    }
+  };
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user || !token) return;
-
-      // Fetch trucks
-      try {
-        const trucksResponse = await fetch("/api/orders/trucks", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const trucksData = await trucksResponse.json();
-        if (trucksResponse.ok) {
-          setTrucks(trucksData.trucks);
-        } else {
-          console.error("Failed to fetch trucks:", trucksData.error, {
-            status: trucksResponse.status,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching trucks:", error);
-      }
-
-      // Fetch supply houses
-      try {
-        const supplyHousesResponse = await fetch("/api/orders/supply-houses", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const supplyHousesData = await supplyHousesResponse.json();
-        if (supplyHousesResponse.ok) {
-          setSupplyHouses(supplyHousesData.supplyHouses);
-        } else {
-          console.error(
-            "Failed to fetch supply houses:",
-            supplyHousesData.error,
-            { status: supplyHousesResponse.status }
-          );
-        }
-      } catch (error) {
-        console.error("Error fetching supply houses:", error);
-      }
-
-      // Fetch previous orders
-      try {
-        const ordersResponse = await fetch("/api/orders/previous", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const ordersData = await ordersResponse.json();
-        if (ordersResponse.ok) {
-          setPreviousOrders(ordersData.previousOrders);
-        } else {
-          console.error("Failed to fetch previous orders:", ordersData.error, {
-            status: ordersResponse.status,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching previous orders:", error);
-      }
-    };
-
     fetchData();
   }, [user, token, loading, router]);
 
@@ -452,6 +451,7 @@ export default function OrderPage() {
       console.error("Error submitting order:", error);
       // console.log("Error submitting order. Please try again.");
     } finally {
+      fetchData();
       setIsSubmitting(false);
     }
   };

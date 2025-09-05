@@ -273,7 +273,7 @@ export default function NewOrderPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="description">Additional Notes 222</Label>
+                      <Label htmlFor="description">Additional Notes</Label>
                       <Textarea
                         id="description"
                         placeholder="Any additional details or specifications..."

@@ -115,7 +115,7 @@ export default function OrdersPage() {
       });
       const data = await response.json();
       if (response.ok) {
-        const orders = data?.orders || [];
+        const orders = data?.data?.orders || [];
         setOrders(
           orders.map((o: any) => ({
             id: o.id,
@@ -133,7 +133,7 @@ export default function OrdersPage() {
             items: o.items || [],
           }))
         )
-        setPagination(data.pagination);
+        setPagination(data?.data?.pagination);
       } else {
         toast({
           title: "Error",
@@ -158,7 +158,7 @@ export default function OrdersPage() {
     }, 500);
 
     return () => clearTimeout(delayDebounce);
-  }, [user, token, pagination.page, statusFilter, searchTerm]);
+  }, [user, token, pagination?.page, statusFilter, searchTerm]);
 
   const handleDownloadInvoice = useCallback(
     async (order: Order) => {
@@ -206,7 +206,7 @@ export default function OrdersPage() {
     setPagination((prev) => ({ ...prev, page: newPage }));
   }, []);
 
-  const totalOrders = pagination.total;
+  const totalOrders = pagination?.total;
   const totalValue = orders.reduce(
     (sum, order) => sum + (order.total_amount || 0),
     0

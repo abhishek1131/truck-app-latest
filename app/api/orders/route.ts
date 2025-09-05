@@ -252,7 +252,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log("Request body:", body);
     let {
       truck_id,
       requires_approval,
@@ -355,9 +354,11 @@ export async function POST(request: NextRequest) {
           const partNumber = `PART-${Date.now()}-${Math.floor(
             Math.random() * 1000
           )}`;
+
           await connection.query(
-            `INSERT INTO orders (id, technician_id, truck_id, supply_house_id, notes, status, urgency, requires_approval, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, NOW(), NOW())`,
+            `INSERT INTO inventory_items
+             (id, part_number, name, description, category_id, unit_price, cost_price, supplier, min_quantity, max_quantity, standard_level, unit, created_at, updated_at)
+             VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
             [
               partNumber,
               item.inventory_item_name,
@@ -370,7 +371,6 @@ export async function POST(request: NextRequest) {
               20,
               20,
               "pieces",
-              requires_approval ? 1 : 0,
             ]
           );
 
@@ -384,8 +384,7 @@ export async function POST(request: NextRequest) {
 
       if (!inventoryItemId) {
         throw new Error(
-          `Failed to resolve or create inventory item for name: ${
-            item.inventory_item_name || "unknown item"
+          `Failed to resolve or create inventory item for name: ${item.inventory_item_name || "unknown item"
           }`
         );
       }
@@ -406,8 +405,7 @@ export async function POST(request: NextRequest) {
       // Validate quantity
       if (!item.quantity || item.quantity <= 0) {
         throw new Error(
-          `Invalid quantity for item: ${
-            item.inventory_item_name || inventoryItemId
+          `Invalid quantity for item: ${item.inventory_item_name || inventoryItemId
           }`
         );
       }
@@ -425,9 +423,22 @@ export async function POST(request: NextRequest) {
     // Create order
     const orderId = crypto.randomUUID();
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const status = requires_approval ? "confirmed" : "pending";
+
     await connection.query(
-      `INSERT INTO orders (id, order_number, technician_id, truck_id, supply_house_id, notes, status, urgency, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())`,
+      `INSERT INTO orders (
+      id,
+      order_number,
+      technician_id,
+      truck_id,
+      supply_house_id,
+      notes,
+      status,
+      urgency,
+      requires_approval,
+      created_at,
+      updated_at
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         orderId,
         orderNumber,
@@ -435,7 +446,9 @@ export async function POST(request: NextRequest) {
         truck_id || null,
         supply_house_id || null,
         notes || "",
+        status,
         urgency || "normal",
+        requires_approval ? 1 : 0,
       ]
     );
 

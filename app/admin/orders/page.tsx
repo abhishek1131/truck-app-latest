@@ -134,7 +134,7 @@ export default function AdminOrdersPage() {
     total: 0,
     pages: 1,
   });
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [technicianFilter, setTechnicianFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -241,7 +241,6 @@ export default function AdminOrdersPage() {
           },
         });
         const result = await response.json();
-
         if (result.success && result.data) {
           setOrders((prev) =>
             prev.map((o) =>

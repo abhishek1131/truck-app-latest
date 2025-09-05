@@ -82,7 +82,7 @@ export default function RestockPage() {
         });
         const data = await response.json();
         if (response.ok) {
-          setTechnicianName(data.name || "Unknown");
+          setTechnicianName(data?.data?.first_name + " " + data?.data?.last_name || "Unknown");
         } else {
           console.error("Failed to fetch technician name:", data.error);
           setTechnicianName("Unknown");
@@ -207,7 +207,7 @@ export default function RestockPage() {
         orderNumber: order.order_number || `RESTOCK-${Date.now()}`, // Fallback if order_number is not returned
         technician: technicianName, // Use fetched technician name
         email:
-          user?.email || responseData?.data?.email || "no-reply@company.com",
+          user?.email || order?.technician_email || "no-reply@company.com",
         date: new Date().toLocaleString(),
         truck: truckId,
         totalItems: itemsToRestock.length,
