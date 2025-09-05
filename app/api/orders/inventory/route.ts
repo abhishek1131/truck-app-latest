@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
        JOIN inventory_categories ic ON ii.category_id = ic.id`,
       []
     );
-    console.log(inventoryRows);
 
     let truckBinItems: any[] = [];
     if (truckId) {

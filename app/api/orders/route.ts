@@ -113,7 +113,6 @@ export async function GET(request: NextRequest) {
     const countParams: any[] = [userId];
     
     if (status != 'all') {
-      console.log("true")
       countQuery += " AND o.status = ?";
       countParams.push(status);
     }
@@ -209,8 +208,7 @@ export async function POST(request: NextRequest) {
     const userData = (userRows as any[])[0];
 
     const body = await request.json();
-    console.log("body", body);
-    const { truck_id, items, notes, supply_house_id, urgency } = body;
+    const { truck_id, requires_approval, items, notes, supply_house_id, urgency } = body;
 
     // Validate truck if provided
     if (truck_id) {
@@ -305,8 +303,8 @@ export async function POST(request: NextRequest) {
     // Create order
     const orderId = crypto.randomUUID();
     await connection.query(
-      `INSERT INTO orders (id, technician_id, truck_id, supply_house_id, notes, status, urgency, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())`,
+      `INSERT INTO orders (id, technician_id, truck_id, supply_house_id, notes, status, urgency, requires_approval, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, NOW(), NOW())`,
       [
         orderId,
         userId,
@@ -314,6 +312,7 @@ export async function POST(request: NextRequest) {
         supply_house_id,
         notes || "",
         urgency || "normal",
+        requires_approval ? 1 : 0,
       ]
     );
 
@@ -347,6 +346,7 @@ export async function POST(request: NextRequest) {
          o.status,
          o.urgency,
          o.notes,
+         o.requires_approval,
          sh.name AS supply_house,
          t.truck_number,
          t.make,

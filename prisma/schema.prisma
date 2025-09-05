@@ -119,6 +119,7 @@ CREATE TABLE `orders` (
   `truck_id` char(36)  DEFAULT NULL,
   `supply_house_id` varchar(36) DEFAULT NULL,
   `status` enum('pending','confirmed','processing','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
+  `requires_approval` BOOLEAN NOT NULL DEFAULT FALSE, 
   `priority` enum('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
   `total_amount` decimal(10,2) DEFAULT NULL,
   `tax_amount` decimal(10,2) NOT NULL DEFAULT '0.00',

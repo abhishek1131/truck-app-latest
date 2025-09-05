@@ -37,28 +37,27 @@ export default function TruckDetailPage() {
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    const fetchTruck = async () => {
-      if (!user || !token) return;
+  const fetchTruck = async () => {
+    if (!user || !token) return;
 
-      try {
-        const response = await fetch(`/api/technician/trucks/${truckId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setTruck(data);
-          setBins(data.binsData);
-        } else {
-          console.error("Failed to fetch truck:", data.error);
-          router.push("/trucks");
-        }
-      } catch (error) {
-        console.error("Error fetching truck:", error);
+    try {
+      const response = await fetch(`/api/technician/trucks/${truckId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setTruck(data);
+        setBins(data.binsData);
+      } else {
+        console.error("Failed to fetch truck:", data.error);
         router.push("/trucks");
       }
-    };
-
+    } catch (error) {
+      console.error("Error fetching truck:", error);
+      router.push("/trucks");
+    }
+  };
+  useEffect(() => {
     fetchTruck();
   }, [user, token, truckId, router]);
 
@@ -88,9 +87,9 @@ export default function TruckDetailPage() {
         cat.toLowerCase().includes(searchTerm.toLowerCase())
       )
   );
-
   const handleBinAdded = (newBin: any) => {
-    setBins([...bins, newBin]);
+    // setBins([...bins, newBin]);
+    fetchTruck();
   };
 
   const handleStandardLevelsSet = (levels: any) => {

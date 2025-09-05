@@ -98,6 +98,7 @@ export default function OrderPage() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [truckBinItems, setTruckBinItems] = useState<TruckBinItem[]>([]);
   const [previousOrders, setPreviousOrders] = useState<PreviousOrder[]>([]);
+  const [requiresApproval, setRequiresApproval] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -398,6 +399,7 @@ export default function OrderPage() {
         supply_house_id: selectedSupplyHouse,
         urgency: "normal",
         notes: "",
+        requires_approval: requiresApproval,
         items: orderItems.map((item) => ({
           inventory_item_id: item.inventoryItemId,
           bin_id: item.binId,
@@ -442,6 +444,10 @@ export default function OrderPage() {
         title: "Success",
         description: `Invoice for order #${data.order.order_number} downloaded`,
       });
+      setSelectedTruck("")
+      setSelectedSupplyHouse("");
+      setOrderItems([]);
+      setRequiresApproval(false);
     } catch (error) {
       console.error("Error submitting order:", error);
       // console.log("Error submitting order. Please try again.");
@@ -767,6 +773,20 @@ export default function OrderPage() {
                 </div>
               </div>
             )}
+
+
+            <div className="flex items-center space-x-2">
+              <input
+                id="requiresApproval"
+                type="checkbox"
+                checked={requiresApproval}
+                onChange={(e) => setRequiresApproval(e.target.checked)}
+                className="h-4 w-4 border-gray-300 rounded"
+              />
+              <Label htmlFor="requiresApproval" className="cursor-pointer">
+                This order requires approval
+              </Label>
+            </div>
 
             {/* Submit Button */}
             <div className="flex flex-col md:flex-row gap-4">

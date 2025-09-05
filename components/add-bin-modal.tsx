@@ -211,14 +211,21 @@ export function AddBinModal({ truckId, onBinAdded }: AddBinModalProps) {
             <Input
               id="maxCapacity"
               type="number"
+              min="1"
               placeholder="50"
               value={formData.maxCapacity}
-              onChange={(e) =>
-                setFormData({ ...formData, maxCapacity: e.target.value })
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+                // allow empty string or positive number only
+                if (value === "" || /^[0-9]+$/.test(value)) {
+                  setFormData({
+                    ...formData,
+                    maxCapacity: value,
+                  });
+                }
+              }}
             />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
