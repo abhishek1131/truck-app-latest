@@ -1,202 +1,432 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/auth-provider"
-import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { OrderDetailsAdminModal } from "@/components/order-details-admin-modal"
-import { ContactTechnicianModal } from "@/components/contact-technician-modal"
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "@/components/auth-provider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  ShoppingCart,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { OrderDetailsAdminModal } from "@/components/order-details-admin-modal";
+import { ContactTechnicianModal } from "@/components/contact-technician-modal";
+import { useToast } from "@/hooks/use-toast";
+import {
   Search,
   Filter,
-  Calendar,
+  Truck,
+  User,
   DollarSign,
-  Package,
   Clock,
+  Package,
+  ShoppingCart,
   CheckCircle,
-  AlertCircle,
   Eye,
   Download,
   MoreHorizontal,
-  User,
-  Truck,
-} from "lucide-react"
-import { useState } from "react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+  Calendar,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Navigation } from "@/components/layout/navigation";
+import { debounce } from "lodash";
 
-const mockOrderGroups = [
-  {
-    id: "ORD-001",
-    technician: "Mike Rodriguez",
-    truckId: "TRUCK-001",
-    status: "completed",
-    date: "2024-01-15",
-    totalCost: 310.0,
-    totalCommission: 9.3,
-    totalCredit: 2.33,
-    urgency: "normal",
-    items: [
-      {
-        partName: "HVAC Filter Set - Premium Grade",
-        quantity: 5,
-        cost: 125.0,
-        description: "High-efficiency filters for commercial HVAC system",
-      },
-      {
-        partName: "Thermostat Control Unit",
-        quantity: 2,
-        cost: 185.0,
-        description: "Smart thermostat for HVAC system",
-      },
-    ],
-  },
-  {
-    id: "ORD-002",
-    technician: "Sarah Chen",
-    truckId: "TRUCK-004",
-    status: "pending",
-    date: "2024-01-14",
-    totalCost: 89.5,
-    totalCommission: 2.69,
-    totalCredit: 0.67,
-    urgency: "high",
-    items: [
-      {
-        partName: "Copper Pipe Fittings - 3/4 inch",
-        quantity: 12,
-        cost: 89.5,
-        description: "Residential plumbing repair project",
-      },
-    ],
-  },
-  {
-    id: "ORD-003",
-    technician: "David Thompson",
-    truckId: "TRUCK-003",
-    status: "shipped",
-    date: "2024-01-13",
-    totalCost: 496.0,
-    totalCommission: 14.88,
-    totalCredit: 3.72,
-    urgency: "urgent",
-    items: [
-      {
-        partName: "Electrical Conduit - PVC 2 inch",
-        quantity: 8,
-        cost: 156.0,
-        description: "Emergency electrical installation",
-      },
-      {
-        partName: "Circuit Breaker Panel",
-        quantity: 1,
-        cost: 340.0,
-        description: "Main electrical panel replacement",
-      },
-    ],
-  },
-  {
-    id: "ORD-004",
-    technician: "Lisa Wang",
-    truckId: "TRUCK-005",
-    status: "completed",
-    date: "2024-01-12",
-    totalCost: 620.0,
-    totalCommission: 18.6,
-    totalCredit: 4.65,
-    urgency: "normal",
-    items: [
-      {
-        partName: "Industrial Valve Assembly",
-        quantity: 2,
-        cost: 340.0,
-        description: "Manufacturing equipment maintenance",
-      },
-      {
-        partName: "Pressure Gauge Set",
-        quantity: 4,
-        cost: 280.0,
-        description: "Industrial monitoring equipment",
-      },
-    ],
-  },
-]
+interface Order {
+  id: string;
+  order_number: string;
+  technician: string;
+  technician_email: string;
+  technician_phone: string | null;
+  truck_id: string;
+  truck_number: string;
+  status: string;
+  priority: string;
+  total_amount: number | null;
+  commission_amount: number | null;
+  total_credit: number | null;
+  created_at: string;
+  items: {
+    id: string;
+    part_name: string;
+    part_number: string;
+    bin_code: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    category: string;
+    description: string;
+  }[];
+}
+
+interface Technician {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+interface OrdersResponse {
+  success: boolean;
+  data?: {
+    orders: Order[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+  error?: string;
+}
+
+interface TechniciansResponse {
+  success: boolean;
+  data?: {
+    users: Technician[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+  error?: string;
+}
 
 const statusConfig = {
-  pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
-  processing: { color: "bg-blue-100 text-blue-800", icon: Package },
-  shipped: { color: "bg-purple-100 text-purple-800", icon: Package },
-  completed: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-  cancelled: { color: "bg-red-100 text-red-800", icon: AlertCircle },
-}
+  pending: {
+    color: "bg-yellow-100 text-yellow-800",
+    icon: Clock,
+    label: "Pending",
+  },
+  confirmed: {
+    color: "bg-blue-100 text-blue-800",
+    icon: Package,
+    label: "Confirmed",
+  },
+};
 
 const urgencyConfig = {
-  low: { color: "bg-gray-100 text-gray-800" },
-  normal: { color: "bg-blue-100 text-blue-800" },
-  high: { color: "bg-orange-100 text-orange-800" },
-  urgent: { color: "bg-red-100 text-red-800" },
-}
+  low: { color: "bg-gray-100 text-gray-800", label: "Low" },
+  normal: { color: "bg-blue-100 text-blue-800", label: "Normal" },
+  high: { color: "bg-orange-100 text-orange-800", label: "High" },
+  urgent: { color: "bg-red-100 text-red-800", label: "Urgent" },
+};
 
 export default function AdminOrdersPage() {
-  const { user } = useAuth()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [urgencyFilter, setUrgencyFilter] = useState("all")
-  const [technicianFilter, setTechnicianFilter] = useState("all")
-  const [selectedOrder, setSelectedOrder] = useState<any>(null)
-  const [showDetailsModal, setShowDetailsModal] = useState(false)
-  const [showContactTechnicianModal, setShowContactTechnicianModal] = useState(false)
+  const { user, token } = useAuth();
+  const { toast } = useToast();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 1,
+  });
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [technicianFilter, setTechnicianFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showOrderDetailsModal, setShowOrderDetailsModal] = useState(false);
+  const [showContactTechnicianModal, setShowContactTechnicianModal] =
+    useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [dropdownKeys, setDropdownKeys] = useState<{ [key: string]: number }>(
+    {}
+  );
+  const triggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredOrders = mockOrderGroups.filter((order) => {
-    const matchesSearch =
-      order.technician.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.truckId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.items.some((item) => item.partName.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter
-    const matchesUrgency = urgencyFilter === "all" || order.urgency === urgencyFilter
-    const matchesTechnician = technicianFilter === "all" || order.technician === technicianFilter
-    return matchesSearch && matchesStatus && matchesUrgency && matchesTechnician
-  })
+  const formatCurrency = (value: number | null | undefined): string => {
+    return value ? `$${value.toFixed(2)}` : "$0.00";
+  };
 
-  const totalOrders = mockOrderGroups.length
-  const totalValue = mockOrderGroups.reduce((sum, order) => sum + order.totalCost, 0)
-  const totalCommissions = mockOrderGroups.reduce((sum, order) => sum + order.totalCommission, 0)
-  const totalCredits = mockOrderGroups.reduce((sum, order) => sum + order.totalCredit, 0)
+  const fetchTechnicians = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/users?role=technician", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result: TechniciansResponse = await response.json();
 
-  const uniqueTechnicians = [...new Set(mockOrderGroups.map((order) => order.technician))]
-
-  const handleViewDetails = (order: any) => {
-    // Convert to format expected by modal
-    const modalOrder = {
-      ...order,
-      partName: `${order.items.length} items`,
-      quantity: order.items.reduce((sum: number, item: any) => sum + item.quantity, 0),
-      cost: order.totalCost,
-      commission: order.totalCommission,
-      credit: order.totalCredit,
-      description: order.items.map((item: any) => item.partName).join(", "),
+      if (result.success && result.data) {
+        setTechnicians(result.data.users);
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to fetch technicians",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch technicians",
+        variant: "destructive",
+      });
     }
-    setSelectedOrder(modalOrder)
-    setShowDetailsModal(true)
-  }
+  }, [token, toast]);
 
-  const handleContactTechnician = (order: any) => {
-    setSelectedOrder(order)
-    setShowContactTechnicianModal(true)
-  }
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+        ...(statusFilter && statusFilter !== "all" && { status: statusFilter }),
+        ...(technicianFilter &&
+          technicianFilter !== "all" && { technician: technicianFilter }),
+        ...(searchTerm && { search: searchTerm }),
+      });
+
+      const response = await fetch(`/api/admin/orders?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result: OrdersResponse = await response.json();
+
+      if (result.success && result.data) {
+        setOrders(result.data.orders);
+        setPagination(result.data.pagination);
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to fetch orders",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch orders",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    token,
+    pagination.page,
+    pagination.limit,
+    statusFilter,
+    technicianFilter,
+    searchTerm,
+    toast,
+  ]);
+
+  const debouncedFetchOrders = useCallback(
+    debounce(() => {
+      fetchOrders();
+    }, 300),
+    [fetchOrders]
+  );
+
+  const handleConfirmOrder = useCallback(
+    async (orderId: string) => {
+      try {
+        const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+        if (result.success && result.data) {
+          setOrders((prev) =>
+            prev.map((o) =>
+              o.id === orderId ? { ...o, status: result.data.status } : o
+            )
+          );
+          toast({
+            title: "Success",
+            description: `Order #${result.data.order_number} confirmed`,
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Failed to confirm order",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to confirm order",
+          variant: "destructive",
+        });
+      }
+    },
+    [token, toast]
+  );
+
+  const handleDownloadInvoice = useCallback(
+    async (order: Order) => {
+      try {
+        const response = await fetch(`/api/invoice/${order.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to download invoice");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `invoice-${order.order_number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast({
+          title: "Success",
+          description: `Invoice for order #${order.order_number} downloaded`,
+        });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to download invoice",
+          variant: "destructive",
+        });
+      }
+      document.activeElement?.blur();
+      setDropdownKeys((prev) => ({
+        ...prev,
+        [order.id]: (prev[order.id] || 0) + 1,
+      }));
+    },
+    [token, toast]
+  );
+
+  useEffect(() => {
+    if (user?.role === "admin" && token) {
+      fetchTechnicians();
+      fetchOrders();
+
+      const handleOpenContactModal = (event: any) => {
+        setSelectedOrder(event.detail);
+        setShowContactTechnicianModal(true);
+        setDropdownKeys((prev) => ({
+          ...prev,
+          [event.detail.id]: (prev[event.detail.id] || 0) + 1,
+        }));
+      };
+
+      document.addEventListener(
+        "openContactTechnicianModal",
+        handleOpenContactModal
+      );
+
+      return () => {
+        document.removeEventListener(
+          "openContactTechnicianModal",
+          handleOpenContactModal
+        );
+      };
+    }
+  }, [user, token, fetchTechnicians, fetchOrders]);
+
+  useEffect(() => {
+    debouncedFetchOrders();
+    return () => {
+      debouncedFetchOrders.cancel();
+    };
+  }, [statusFilter, technicianFilter, searchTerm, debouncedFetchOrders]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPagination((prev) => ({ ...prev, page: newPage }));
+    setDropdownKeys((prev) => ({
+      ...prev,
+      ...Object.fromEntries(
+        Object.keys(prev).map((key) => [key, (prev[key] || 0) + 1])
+      ),
+    }));
+  }, []);
+
+  const handleDialogClose = useCallback(() => {
+    setShowOrderDetailsModal(false);
+    setShowContactTechnicianModal(false);
+    setSelectedOrder(null);
+    setDropdownKeys((prev) => ({
+      ...prev,
+      ...(selectedOrder
+        ? { [selectedOrder.id]: (prev[selectedOrder.id] || 0) + 1 }
+        : {}),
+    }));
+  }, [selectedOrder]);
+
+  const handleViewDetails = useCallback((order: Order) => {
+    setSelectedOrder(order);
+    setShowOrderDetailsModal(true);
+    document.activeElement?.blur();
+    setDropdownKeys((prev) => ({
+      ...prev,
+      [order.id]: (prev[order.id] || 0) + 1,
+    }));
+  }, []);
+
+  const handleContactTechnician = useCallback((order: Order) => {
+    setSelectedOrder(order);
+    setShowContactTechnicianModal(true);
+    document.activeElement?.blur();
+    setDropdownKeys((prev) => ({
+      ...prev,
+      [order.id]: (prev[order.id] || 0) + 1,
+    }));
+  }, []);
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(e.target.value);
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    },
+    []
+  );
+
+  const totalValue = orders.reduce(
+    (sum, order) => sum + (order.total_amount || 0),
+    0
+  );
+  const totalCommissions = orders.reduce(
+    (sum, order) => sum + (order.commission_amount || 0),
+    0
+  );
+  const totalCredits = orders.reduce(
+    (sum, order) => sum + (order.total_credit || 0),
+    0
+  );
+  const totalOrders = orders.length;
 
   return (
-    <Navigation title="Order Management" subtitle="Monitor and manage all orders across technicians and trucks">
+    <Navigation
+      title="Order Management"
+      subtitle="Monitor and manage all orders across technicians and trucks"
+    >
       <div className="p-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-4">
           <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Total Orders</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Total Orders
+              </CardTitle>
               <ShoppingCart className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
@@ -204,36 +434,45 @@ export default function AdminOrdersPage() {
               <p className="text-xs opacity-75">Grouped by technician</p>
             </CardContent>
           </Card>
-
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Total Value</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Total Value
+              </CardTitle>
               <DollarSign className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(totalValue)}
+              </div>
               <p className="text-xs opacity-75">Order value</p>
             </CardContent>
           </Card>
-
           <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Commissions</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Commissions
+              </CardTitle>
               <DollarSign className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalCommissions.toFixed(2)}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(totalCommissions)}
+              </div>
               <p className="text-xs opacity-75">Total commissions</p>
             </CardContent>
           </Card>
-
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">Credits Issued</CardTitle>
+              <CardTitle className="text-sm font-medium opacity-90">
+                Credits Issued
+              </CardTitle>
               <CheckCircle className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalCredits.toFixed(2)}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(totalCredits)}
+              </div>
               <p className="text-xs opacity-75">To technicians</p>
             </CardContent>
           </Card>
@@ -243,57 +482,50 @@ export default function AdminOrdersPage() {
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
+              <Filter className="h-5 w-5 text-[#10294B]" />
               Filters & Search
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search orders by technician, truck ID, or part name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  ref={searchInputRef}
+                  placeholder="Search orders by technician, truck ID, or part name..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="pl-10 text-sm"
+                  disabled={isLoading}
+                />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-48">
+              <Select
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+                disabled={isLoading}
+              >
+                <SelectTrigger className="w-full md:w-48 text-sm">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filter by urgency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Urgency</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={technicianFilter} onValueChange={setTechnicianFilter}>
-                <SelectTrigger className="w-full md:w-48">
+              <Select
+                value={technicianFilter}
+                onValueChange={setTechnicianFilter}
+                disabled={isLoading}
+              >
+                <SelectTrigger className="w-full md:w-48 text-sm">
                   <SelectValue placeholder="Filter by technician" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Technicians</SelectItem>
-                  {uniqueTechnicians.map((technician) => (
-                    <SelectItem key={technician} value={technician}>
-                      {technician}
+                  {technicians.map((technician) => (
+                    <SelectItem key={technician.id} value={technician.id}>
+                      {`${technician.first_name} ${technician.last_name}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -304,8 +536,20 @@ export default function AdminOrdersPage() {
 
         {/* Orders List */}
         <div className="space-y-4">
-          {filteredOrders.map((order) => {
-            const StatusIcon = statusConfig[order.status as keyof typeof statusConfig]?.icon || Clock
+          {orders.map((order) => {
+            const statusKey = statusConfig.hasOwnProperty(order.status)
+              ? order.status
+              : "pending";
+            const StatusIcon =
+              statusConfig[statusKey as keyof typeof statusConfig].icon;
+            const statusLabel =
+              statusConfig[statusKey as keyof typeof statusConfig].label;
+
+            if (!statusConfig.hasOwnProperty(order.status)) {
+              console.warn(
+                `Unknown order status: ${order.status} for order #${order.order_number}`
+              );
+            }
 
             return (
               <Card
@@ -318,15 +562,18 @@ export default function AdminOrdersPage() {
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="text-lg font-semibold text-[#10294B] mb-1">
-                            Order #{order.id} - {order.items.length} Items
+                            Order #{order.order_number} - {order.items.length}{" "}
+                            Items
                           </h3>
                           <p className="text-sm text-gray-600 mb-2">
-                            {order.items.map((item) => item.partName).join(", ")}
+                            {order.items
+                              .map((item) => item.part_name)
+                              .join(", ")}
                           </p>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
-                              {order.date}
+                              {new Date(order.created_at).toLocaleDateString()}
                             </span>
                             <span className="flex items-center gap-1">
                               <User className="h-4 w-4" />
@@ -334,117 +581,228 @@ export default function AdminOrdersPage() {
                             </span>
                             <span className="flex items-center gap-1">
                               <Truck className="h-4 w-4" />
-                              {order.truckId}
+                              {order.truck_number}
                             </span>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Badge className={statusConfig[order.status as keyof typeof statusConfig]?.color}>
+                          <Badge
+                            className={
+                              statusConfig[
+                                statusKey as keyof typeof statusConfig
+                              ].color
+                            }
+                          >
                             <StatusIcon className="h-3 w-3 mr-1" />
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            {statusLabel}
                           </Badge>
-                          <Badge className={urgencyConfig[order.urgency as keyof typeof urgencyConfig]?.color}>
-                            {order.urgency}
+                          <Badge
+                            className={
+                              urgencyConfig[
+                                order.urgency as keyof typeof urgencyConfig
+                              ]?.color || urgencyConfig.normal.color
+                            }
+                          >
+                            {urgencyConfig[
+                              order.urgency as keyof typeof urgencyConfig
+                            ]?.label || order.urgency}
                           </Badge>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-gray-100">
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">Total Items</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Total Items
+                          </div>
                           <div className="font-semibold">
-                            {order.items.reduce((sum, item) => sum + item.quantity, 0)} units
+                            {order.items.reduce(
+                              (sum, item) => sum + item.quantity,
+                              0
+                            )}{" "}
+                            units
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">Total Cost</div>
-                          <div className="font-semibold">${order.totalCost.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Total Cost
+                          </div>
+                          <div className="font-semibold">
+                            {formatCurrency(order.total_amount)}
+                          </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">Commission</div>
-                          <div className="font-semibold text-blue-600">${order.totalCommission.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Commission
+                          </div>
+                          <div className="font-semibold text-blue-600">
+                            {formatCurrency(order.commission_amount)}
+                          </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">Credit Issued</div>
-                          <div className="font-semibold text-green-600">${order.totalCredit.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Credit Issued
+                          </div>
+                          <div className="font-semibold text-green-600">
+                            {formatCurrency(order.total_credit)}
+                          </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">Platform Fee</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Platform Fee
+                          </div>
                           <div className="font-semibold text-purple-600">
-                            ${(order.totalCommission - order.totalCredit).toFixed(2)}
+                            {formatCurrency(
+                              (order.commission_amount || 0) -
+                                (order.total_credit || 0)
+                            )}
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-2 lg:ml-6">
-                      <DropdownMenu>
+                      <DropdownMenu
+                        key={`dropdown-${order.id}-${
+                          dropdownKeys[order.id] || 0
+                        }`}
+                        onOpenChange={(open) => {
+                          if (!open && triggerRefs.current.get(order.id)) {
+                            triggerRefs.current.get(order.id)!.focus();
+                          }
+                        }}
+                      >
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isLoading}
+                            ref={(el) => {
+                              if (el) {
+                                triggerRefs.current.set(order.id, el);
+                              } else {
+                                triggerRefs.current.delete(order.id);
+                              }
+                            }}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(order)}>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(order);
+                            }}
+                          >
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleContactTechnician(order)}>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleContactTechnician(order);
+                            }}
+                          >
                             <User className="mr-2 h-4 w-4" />
                             Contact Technician
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadInvoice(order);
+                            }}
+                          >
                             <Download className="mr-2 h-4 w-4" />
                             Download Invoice
                           </DropdownMenuItem>
+                          {order.status === "pending" && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConfirmOrder(order.id);
+                              }}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Confirm Order
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            )
+            );
           })}
         </div>
 
-        {filteredOrders.length === 0 && (
+        {/* No Orders Found */}
+        {orders.length === 0 && !isLoading && (
           <Card className="border-0 shadow-lg">
             <CardContent className="text-center py-12">
               <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No orders found</h3>
-              <p className="text-gray-500 mb-6">Try adjusting your search or filter criteria</p>
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                No orders found
+              </h3>
+              <p className="text-gray-500 mb-6">
+                Try adjusting your search or filter criteria
+              </p>
             </CardContent>
           </Card>
         )}
+
+        {/* Pagination */}
+        {orders.length > 0 && (
+          <div className="flex justify-between items-center mt-4">
+            <div className="text-sm text-gray-600">
+              Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+              {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+              of {pagination.total} orders
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pagination.page === 1 || isLoading}
+                onClick={() => handlePageChange(pagination.page - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pagination.page === pagination.pages || isLoading}
+                onClick={() => handlePageChange(pagination.page + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Modals */}
+        {selectedOrder && (
+          <>
+            <OrderDetailsAdminModal
+              isOpen={showOrderDetailsModal}
+              onClose={handleDialogClose}
+              order={selectedOrder}
+              onConfirm={handleConfirmOrder}
+            />
+            <ContactTechnicianModal
+              isOpen={showContactTechnicianModal}
+              onClose={handleDialogClose}
+              technician={{
+                name: selectedOrder.technician,
+                email: selectedOrder.technician_email,
+                phone: selectedOrder.technician_phone,
+              }}
+              orderId={selectedOrder.order_number}
+            />
+          </>
+        )}
       </div>
-
-      {/* Modals */}
-      {selectedOrder && (
-        <>
-          <OrderDetailsAdminModal
-            isOpen={showDetailsModal}
-            onClose={() => {
-              setShowDetailsModal(false)
-              setSelectedOrder(null)
-            }}
-            order={selectedOrder}
-          />
-
-          <ContactTechnicianModal
-            isOpen={showContactTechnicianModal}
-            onClose={() => {
-              setShowContactTechnicianModal(false)
-              setSelectedOrder(null)
-            }}
-            technician={{
-              name: selectedOrder.technician,
-              email: "technician@email.com",
-              phone: "(555) 123-4567",
-            }}
-            orderId={selectedOrder.id}
-          />
-        </>
-      )}
     </Navigation>
-  )
+  );
 }

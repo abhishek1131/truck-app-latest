@@ -1,49 +1,119 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { loginUser } from "@/lib/auth/auth"
+import { NextResponse } from "next/server";
+import pool from "@/lib/db";
+import bcrypt from "bcrypt";
+import { sign } from "jsonwebtoken";
 
-export async function POST(request: NextRequest) {
+interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+interface AuthResponse {
+  success: boolean;
+  data?: {
+    user: { id: string; email: string };
+    profile: { first_name: string; last_name: string; role: string };
+    session: { access_token: string; expires_at: string };
+  };
+  error?: string;
+  code?: string;
+}
+
+export async function POST(req: Request) {
   try {
-    const { email, password } = await request.json()
+    const body: LoginRequest = await req.json();
+    const { email, password } = body;
 
     if (!email || !password) {
-      return NextResponse.json({ success: false, error: "Email and password are required" }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing email or password",
+          code: "BAD_REQUEST",
+        },
+        { status: 400 }
+      );
     }
 
-    console.log("[v0] Login attempt for:", email)
+    const [users] = await pool.query(
+      `
+      SELECT id, email, password, first_name, last_name, role, status
+      FROM users
+      WHERE email = ?
+      `,
+      [email]
+    );
 
-    const result = await loginUser(email, password)
-
-    if (!result.success) {
-      console.log("[v0] Login failed:", result.error)
-      return NextResponse.json({ success: false, error: result.error }, { status: 401 })
+    if ((users as any[]).length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid credentials",
+          code: "INVALID_CREDENTIALS",
+        },
+        { status: 401 }
+      );
     }
 
-    const redirectUrl = result.user?.role === "admin" ? "/admin" : "/dashboard"
+    const user = users[0];
 
-    const sessionData = {
-      id: result.user!.id,
-      email: result.user!.email,
-      first_name: result.user!.first_name,
-      last_name: result.user!.last_name,
-      role: result.user!.role,
-      phone: result.user!.phone,
-      status: result.user!.status,
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+    if (user.status !== "active") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Account is not active",
+          code: "ACCOUNT_INACTIVE",
+        },
+        { status: 403 }
+      );
     }
 
-    const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString("base64")
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid credentials",
+          code: "INVALID_CREDENTIALS",
+        },
+        { status: 401 }
+      );
+    }
 
-    console.log("[v0] Session created for user:", result.user!.email, "Role:", result.user!.role)
-    console.log("[v0] Session token length:", sessionToken.length)
+    const access_token = sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "7d" }
+    );
 
-    return NextResponse.json({
+    const response: AuthResponse = {
       success: true,
-      user: result.user,
-      redirectUrl,
-      sessionToken, // Send token to client for localStorage storage
-    })
-  } catch (error) {
-    console.error("Login error:", error)
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
+      data: {
+        user: { id: user.id, email: user.email },
+        profile: {
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+        },
+        session: {
+          access_token,
+          expires_at: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+        },
+      },
+    };
+
+    return NextResponse.json(response);
+  } catch (error: any) {
+    console.error("Login error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.sqlMessage || "Failed to login",
+        code: error.code || "SERVER_ERROR",
+      },
+      { status: 500 }
+    );
   }
 }

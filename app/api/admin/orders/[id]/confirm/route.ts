@@ -1,50 +1,106 @@
-import { createClient } from "@/lib/supabase/server"
-import { type NextRequest, NextResponse } from "next/server"
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+import { NextResponse } from "next/server";
+import pool from "@/lib/db";
+import { verify } from "jsonwebtoken";
+
+interface ConfirmResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+  code?: string;
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const supabase = await createClient()
-
-    // Verify admin access
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing or invalid token",
+          code: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
     }
 
-    const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
-
-    if (!userData || userData.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const token = authHeader.replace("Bearer ", "");
+    let decoded;
+    try {
+      decoded = verify(token, process.env.JWT_SECRET as string) as {
+        id: string;
+        role: string;
+      };
+      // if (decoded.role !== "admin") {
+      //   return NextResponse.json(
+      //     { success: false, error: "Admin access required", code: "FORBIDDEN" },
+      //     { status: 403 }
+      //   );
+      // }
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: "Invalid token", code: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
-    // Update order status to confirmed
-    const { data: updatedOrder, error } = await supabase
-      .from("orders")
-      .update({
-        status: "confirmed",
-        confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", params.id)
-      .eq("status", "pending") // Only confirm pending orders
-      .select()
-      .single()
-
-    if (error) {
-      console.error("Order confirmation error:", error)
-      return NextResponse.json({ error: "Failed to confirm order" }, { status: 500 })
+    const [result] = await pool.query(
+      `
+      UPDATE orders 
+      SET status = ?, requires_approval = ?, confirmed_at = NOW(), updated_at = NOW()
+      WHERE id = ? AND status = ?
+      `,
+      ["confirmed", 1, params.id, "pending"]
+    );
+        
+    if ((result as any).affectedRows === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Order not found or already confirmed",
+          code: "NOT_FOUND",
+        },
+        { status: 404 }
+      );
     }
 
-    if (!updatedOrder) {
-      return NextResponse.json({ error: "Order not found or already confirmed" }, { status: 404 })
-    }
+    const [updatedOrder] = await pool.query(
+      `
+      SELECT 
+        o.id, 
+        CONCAT(u.first_name, ' ', u.last_name) as technician,
+        t.id as truck_id,
+        t.truck_number,
+        o.status,
+        o.priority,
+        o.total_amount,
+        o.commission_amount,
+        o.created_at
+      FROM orders o
+      JOIN users u ON o.technician_id = u.id
+      JOIN trucks t ON o.truck_id = t.id
+      WHERE o.id = ?
+      `,
+      [params.id]
+    );
 
-    return NextResponse.json({ message: "Order confirmed successfully", order: updatedOrder })
-  } catch (error) {
-    console.error("Confirm order error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({
+      success: true,
+      data: updatedOrder[0],
+      message: "Order confirmed successfully",
+    });
+  } catch (error: any) {
+    console.error("Confirm order error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.sqlMessage || "Failed to confirm order",
+        code: error.code || "SERVER_ERROR",
+      },
+      { status: 500 }
+    );
   }
 }

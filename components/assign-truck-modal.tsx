@@ -1,77 +1,132 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { UserPlus, Truck } from "lucide-react"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { UserPlus, Truck } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
 
-interface AssignTruckModalProps {
-  isOpen: boolean
-  onClose: () => void
-  truck: any
+interface Technician {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  assignedTrucks: string[];
 }
 
-const mockTechnicians = [
-  {
-    id: "TECH-001",
-    name: "Mike Rodriguez",
-    email: "mike.rodriguez@email.com",
-    location: "Dallas, TX",
-    status: "active",
-    assignedTrucks: ["TRUCK-001", "TRUCK-002"],
-    specialization: "HVAC",
-  },
-  {
-    id: "TECH-002",
-    name: "Sarah Chen",
-    email: "sarah.chen@email.com",
-    location: "Austin, TX",
-    status: "active",
-    assignedTrucks: ["TRUCK-004"],
-    specialization: "Electrical",
-  },
-  {
-    id: "TECH-003",
-    name: "David Thompson",
-    email: "david.thompson@email.com",
-    location: "Houston, TX",
-    status: "active",
-    assignedTrucks: ["TRUCK-003"],
-    specialization: "Plumbing",
-  },
-  {
-    id: "TECH-004",
-    name: "Lisa Wang",
-    email: "lisa.wang@email.com",
-    location: "San Antonio, TX",
-    status: "active",
-    assignedTrucks: [],
-    specialization: "Industrial",
-  },
-]
+interface AssignTruckDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  truck: any;
+  technicians: Technician[];
+  onAssignSuccess?: (updatedTruck: any) => void; // Callback to update parent state
+}
 
-export function AssignTruckModal({ isOpen, onClose, truck }: AssignTruckModalProps) {
-  const [selectedTechnician, setSelectedTechnician] = useState("")
+export function AssignTruckDialog({
+  isOpen,
+  onClose,
+  truck,
+  technicians,
+  onAssignSuccess,
+}: AssignTruckDialogProps) {
+  const { token } = useAuth();
+  const [selectedTechnician, setSelectedTechnician] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const availableTechnicians = mockTechnicians.filter((tech) => tech.status === "active")
+  const availableTechnicians = technicians.filter(
+    (tech) => tech.status === "active"
+  );
 
-  const handleAssign = () => {
-    if (!selectedTechnician) return
+  const handleAssign = async () => {
+    if (!selectedTechnician) {
+      setError("Please select a technician");
+      return;
+    }
 
-    const technician = availableTechnicians.find((tech) => tech.id === selectedTechnician)
-    console.log(`Assigning ${truck.name} to ${technician?.name}`)
+    setIsLoading(true);
+    setError(null);
 
-    onClose()
-  }
+    try {
+      const response = await fetch(`/api/admin/trucks/${truck.id}/assign`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId: selectedTechnician }),
+      });
 
-  const handleUnassign = () => {
-    console.log(`Unassigning ${truck.name} from ${truck.assignedTechnician}`)
-    onClose()
-  }
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to assign truck");
+      }
+
+      // Call the success callback with the minimal updated data
+      onAssignSuccess?.({
+        id: truck.id,
+        assigned_technician: result.data.assigned_technician,
+      });
+
+      onClose();
+    } catch (error: any) {
+      setError(error.message || "Error assigning truck. Please try again.");
+      console.error("Assign truck error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUnassign = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/trucks/${truck.id}/assign`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId: null }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to unassign truck");
+      }
+
+      // Call the success callback with the minimal updated data
+      onAssignSuccess?.({
+        id: truck.id,
+        assigned_technician: result.data.assigned_technician,
+      });
+
+      onClose();
+    } catch (error: any) {
+      setError(error.message || "Error unassigning truck. Please try again.");
+      console.error("Unassign truck error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -84,6 +139,13 @@ export function AssignTruckModal({ isOpen, onClose, truck }: AssignTruckModalPro
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Error Message */}
+          {error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4 text-red-600">{error}</CardContent>
+            </Card>
+          )}
+
           {/* Current Truck Info */}
           <Card>
             <CardContent className="p-4">
@@ -117,14 +179,19 @@ export function AssignTruckModal({ isOpen, onClose, truck }: AssignTruckModalPro
                           .join("")}
                       </div>
                       <div>
-                        <p className="font-medium text-blue-900">{truck.assignedTechnician}</p>
-                        <p className="text-sm text-blue-700">ID: {truck.technicianId}</p>
+                        <p className="font-medium text-blue-900">
+                          {truck.assignedTechnician}
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          ID: {truck.technicianId}
+                        </p>
                       </div>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleUnassign}
+                      disabled={isLoading}
                       className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
                     >
                       Unassign
@@ -137,8 +204,16 @@ export function AssignTruckModal({ isOpen, onClose, truck }: AssignTruckModalPro
 
           {/* New Assignment */}
           <div className="space-y-3">
-            <Label htmlFor="technician">{truck.assignedTechnician ? "Reassign to:" : "Assign to Technician:"}</Label>
-            <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
+            <Label htmlFor="technician">
+              {truck.assignedTechnician
+                ? "Reassign to:"
+                : "Assign to Technician:"}
+            </Label>
+            <Select
+              value={selectedTechnician}
+              onValueChange={setSelectedTechnician}
+              disabled={isLoading}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select a technician" />
               </SelectTrigger>
@@ -148,13 +223,11 @@ export function AssignTruckModal({ isOpen, onClose, truck }: AssignTruckModalPro
                     <div className="flex items-center justify-between w-full">
                       <div>
                         <span className="font-medium">{tech.name}</span>
-                        <span className="text-sm text-gray-500 ml-2">({tech.specialization})</span>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
                         <Badge variant="outline" className="text-xs">
                           {tech.assignedTrucks.length} trucks
                         </Badge>
-                        <span className="text-xs text-gray-500">{tech.location}</span>
                       </div>
                     </div>
                   </SelectItem>
@@ -168,7 +241,9 @@ export function AssignTruckModal({ isOpen, onClose, truck }: AssignTruckModalPro
             <Card className="bg-green-50 border-green-200">
               <CardContent className="p-4">
                 {(() => {
-                  const tech = availableTechnicians.find((t) => t.id === selectedTechnician)
+                  const tech = availableTechnicians.find(
+                    (t) => t.id === selectedTechnician
+                  );
                   return tech ? (
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -178,38 +253,47 @@ export function AssignTruckModal({ isOpen, onClose, truck }: AssignTruckModalPro
                           .join("")}
                       </div>
                       <div>
-                        <p className="font-medium text-green-900">{tech.name}</p>
+                        <p className="font-medium text-green-900">
+                          {tech.name}
+                        </p>
                         <p className="text-sm text-green-700">{tech.email}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {tech.specialization}
-                          </Badge>
                           <span className="text-xs text-green-600">
                             Currently has {tech.assignedTrucks.length} truck(s)
                           </span>
                         </div>
                       </div>
                     </div>
-                  ) : null
+                  ) : null;
                 })()}
               </CardContent>
             </Card>
           )}
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleAssign}
-              disabled={!selectedTechnician}
+              disabled={!selectedTechnician || isLoading}
               className="bg-[#E3253D] hover:bg-[#E3253D]/90"
             >
-              {truck.assignedTechnician ? "Reassign" : "Assign"} Truck
+              {isLoading
+                ? "Processing..."
+                : truck.assignedTechnician
+                ? "Reassign"
+                : "Assign"}{" "}
+              Truck
             </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

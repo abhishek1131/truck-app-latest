@@ -1,23 +1,37 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Edit } from "lucide-react";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Edit } from "lucide-react"
-
-interface EditTruckModalProps {
-  isOpen: boolean
-  onClose: () => void
-  truck: any
+interface EditTruckDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  truck: any;
 }
 
-export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) {
+export function EditTruckDialog({
+  isOpen,
+  onClose,
+  truck,
+}: EditTruckDialogProps) {
   const [formData, setFormData] = useState({
     name: truck?.name || "",
     model: truck?.model || "",
@@ -27,7 +41,7 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
     status: truck?.status || "Available",
     mileage: truck?.mileage?.toString() || "",
     description: truck?.description || "",
-  })
+  });
 
   const truckModels = [
     "Ford Transit 150",
@@ -40,7 +54,7 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
     "Ram ProMaster 3500",
     "Mercedes Sprinter 2500",
     "Mercedes Sprinter 3500",
-  ]
+  ];
 
   const locations = [
     "Downtown Route",
@@ -51,21 +65,40 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
     "East Route",
     "West Route",
     "Unassigned",
-  ]
+  ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     const updatedTruck = {
       ...truck,
       ...formData,
       year: Number.parseInt(formData.year),
       mileage: Number.parseInt(formData.mileage) || 0,
-    }
+    };
 
-    console.log("Update truck:", updatedTruck)
-    onClose()
-  }
+    try {
+      const response = await fetch(`/api/admin/trucks/${truck.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`, // Adjust based on your auth setup
+        },
+        body: JSON.stringify(updatedTruck),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update truck");
+      }
+
+      console.log("Updated truck:", updatedTruck);
+      onClose();
+    } catch (error) {
+      console.error("Error updating truck:", error);
+      console.log(error.message || "Failed to update truck");
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -80,11 +113,13 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Truck Name *</Label>
+              <Label htmlFor="name">Truck Number *</Label>
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 required
               />
             </div>
@@ -93,7 +128,9 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
               <Input
                 id="licensePlate"
                 value={formData.licensePlate}
-                onChange={(e) => setFormData({ ...formData, licensePlate: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, licensePlate: e.target.value })
+                }
                 required
               />
             </div>
@@ -102,7 +139,12 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="model">Model *</Label>
-              <Select value={formData.model} onValueChange={(value) => setFormData({ ...formData, model: value })}>
+              <Select
+                value={formData.model}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, model: value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -123,7 +165,9 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
                 min="2015"
                 max="2025"
                 value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, year: e.target.value })
+                }
                 required
               />
             </div>
@@ -134,7 +178,9 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
               <Label htmlFor="location">Location</Label>
               <Select
                 value={formData.location}
-                onValueChange={(value) => setFormData({ ...formData, location: value })}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, location: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -150,7 +196,12 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, status: value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -170,7 +221,9 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
               id="mileage"
               type="number"
               value={formData.mileage}
-              onChange={(e) => setFormData({ ...formData, mileage: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, mileage: e.target.value })
+              }
             />
           </div>
 
@@ -179,7 +232,9 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               rows={3}
             />
           </div>
@@ -188,12 +243,15 @@ export function EditTruckModal({ isOpen, onClose, truck }: EditTruckModalProps) 
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-[#E3253D] hover:bg-[#E3253D]/90">
+            <Button
+              type="submit"
+              className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+            >
               Update Truck
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

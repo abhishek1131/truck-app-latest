@@ -1,124 +1,144 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/auth-provider"
-import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Package, Search, Calendar, Truck, Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-import { InventoryItemDetailsModal } from "@/components/inventory-item-details-modal"
-import { AddInventoryItemModal } from "@/components/add-inventory-item-modal"
-
-const mockInventoryItems = [
-  {
-    id: "ITEM-001",
-    name: "HVAC Filter Set",
-    category: "HVAC",
-    totalQuantity: 45,
-    lowStockThreshold: 10,
-    standardLevel: 20,
-    lastOrdered: "2024-01-15",
-    trucks: ["TRUCK-001", "TRUCK-002"],
-    notes: "Standard 16x20 filters",
-    unit: "pieces",
-    partNumber: "HF-1620",
-    brand: "FilterPro",
-  },
-  {
-    id: "ITEM-002",
-    name: "Copper Pipe Fittings",
-    category: "Plumbing",
-    totalQuantity: 8,
-    lowStockThreshold: 15,
-    standardLevel: 25,
-    lastOrdered: "2024-01-14",
-    trucks: ["TRUCK-001", "TRUCK-003"],
-    notes: 'Various sizes 1/2" to 2"',
-    unit: "pieces",
-    partNumber: "CPF-ASSORT",
-    brand: "CopperMax",
-  },
-  {
-    id: "ITEM-003",
-    name: "Electrical Conduit",
-    category: "Electrical",
-    totalQuantity: 25,
-    lowStockThreshold: 12,
-    standardLevel: 30,
-    lastOrdered: "2024-01-13",
-    trucks: ["TRUCK-002", "TRUCK-003"],
-    notes: '1/2" EMT conduit',
-    unit: "feet",
-    partNumber: "EC-12EMT",
-    brand: "ElectroTube",
-  },
-  {
-    id: "ITEM-004",
-    name: "Wire Nuts Assorted",
-    category: "Electrical",
-    totalQuantity: 150,
-    lowStockThreshold: 50,
-    standardLevel: 100,
-    lastOrdered: "2024-01-12",
-    trucks: ["TRUCK-001", "TRUCK-002", "TRUCK-003"],
-    notes: "Mixed sizes and colors",
-    unit: "pieces",
-    partNumber: "WN-ASSORT",
-    brand: "WireConnect",
-  },
-]
+import { useAuth } from "@/components/auth-provider";
+import { Navigation } from "@/components/layout/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Package, Search, Calendar, Truck, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { InventoryItemDetailsModal } from "@/components/inventory-item-details-modal";
+import { AddInventoryItemModal } from "@/components/add-inventory-item-modal";
 
 export default function InventoryPage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [inventoryItems, setInventoryItems] = useState(mockInventoryItems)
+  const { user, loading, token } = useAuth();
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [inventoryData, setInventoryData] = useState({
+    inventoryItems: [],
+    stats: {
+      totalItems: 0,
+      itemTypes: 0,
+      lowStockItems: 0,
+      needsRestockItems: 0,
+    },
+  });
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [user, loading, router])
+  }, [user, loading, router]);
 
-  const handleItemAdded = (newItem: any) => {
-    const item = {
-      ...newItem,
-      id: `ITEM-${String(inventoryItems.length + 1).padStart(3, "0")}`,
-      totalQuantity: 0,
-      trucks: [],
-      lastOrdered: "Never",
+  useEffect(() => {
+    const fetchInventory = async () => {
+      if (!user || !token) return;
+
+      try {
+        const response = await fetch("/api/inventory", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+          setInventoryData(data);
+        } else {
+          console.error("Failed to fetch inventory:", data.error);
+        }
+      } catch (error) {
+        console.error("Error fetching inventory:", error);
+      }
+    };
+
+    fetchInventory();
+  }, [user, token]);
+
+  const handleItemAdded = async (newItem: any) => {
+    try {
+      setErrorMessage("");
+      const response = await fetch("/api/inventory/add", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newItem),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setInventoryData((prev) => ({
+          ...prev,
+          inventoryItems: [
+            ...prev.inventoryItems,
+            {
+              ...data.item,
+              internalId: data.item.id, // uuid
+              id: data.item.partNumber,
+              totalQuantity: 0,
+              trucks: [],
+              lastOrdered: "Never",
+            },
+          ],
+          stats: {
+            ...prev.stats,
+            itemTypes: prev.stats.itemTypes + 1,
+          },
+        }));
+      } else {
+        setErrorMessage(data.error || "Failed to add item");
+        console.error("Failed to add item:", data.error);
+      }
+    } catch (error) {
+      setErrorMessage("Something went wrong while adding item");
+      console.error("Error adding item:", error);
     }
-    setInventoryItems([...inventoryItems, item])
-  }
+  };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
-  const filteredItems = inventoryItems.filter((item) => {
+  const { inventoryItems, stats } = inventoryData;
+  const filteredItems = inventoryItems.filter((item: any) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
-    return matchesSearch && matchesCategory
-  })
+      item.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "all" || item.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
-  const totalItems = inventoryItems.reduce((sum, item) => sum + item.totalQuantity, 0)
-  const lowStockItems = inventoryItems.filter((item) => item.totalQuantity <= item.lowStockThreshold).length
-  const categories = [...new Set(inventoryItems.map((item) => item.category))].length
-  const needsRestockItems = inventoryItems.filter((item) => item.totalQuantity < item.standardLevel).length
+  // Get unique categories for filter
+  const categories = [
+    ...new Set(inventoryItems.map((item: any) => item.category)),
+  ];
 
   return (
-    <Navigation title="Inventory" subtitle="Manage your inventory across all trucks">
+    <Navigation
+      title="Inventory"
+      subtitle="Manage your inventory across all trucks"
+    >
       <div className="p-4 md:p-6">
         <div className="space-y-6">
           {/* Stats */}
@@ -128,7 +148,7 @@ export default function InventoryPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm opacity-90">Total Items</p>
-                    <p className="text-2xl font-bold">{totalItems}</p>
+                    <p className="text-2xl font-bold">{stats.totalItems}</p>
                   </div>
                   <Package className="h-8 w-8 opacity-80" />
                 </div>
@@ -140,7 +160,7 @@ export default function InventoryPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm opacity-90">Item Types</p>
-                    <p className="text-2xl font-bold">{inventoryItems.length}</p>
+                    <p className="text-2xl font-bold">{stats.itemTypes}</p>
                   </div>
                   <Package className="h-8 w-8 opacity-80" />
                 </div>
@@ -152,7 +172,7 @@ export default function InventoryPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm opacity-90">Low Stock</p>
-                    <p className="text-2xl font-bold">{lowStockItems}</p>
+                    <p className="text-2xl font-bold">{stats.lowStockItems}</p>
                   </div>
                   <Package className="h-8 w-8 opacity-80" />
                 </div>
@@ -164,7 +184,9 @@ export default function InventoryPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm opacity-90">Needs Restock</p>
-                    <p className="text-2xl font-bold">{needsRestockItems}</p>
+                    <p className="text-2xl font-bold">
+                      {stats.needsRestockItems}
+                    </p>
                   </div>
                   <Package className="h-8 w-8 opacity-80" />
                 </div>
@@ -172,6 +194,17 @@ export default function InventoryPage() {
             </Card>
           </div>
 
+          {errorMessage && (
+            <div className="relative p-3 rounded-md bg-red-100 text-red-800 border border-red-300">
+              <span>{errorMessage}</span>
+              <button
+                onClick={() => setErrorMessage("")}
+                className="absolute right-2 top-2 text-red-600 hover:text-red-800"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {/* Add New Item Section */}
           <Card>
             <CardContent className="p-6">
@@ -179,10 +212,13 @@ export default function InventoryPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Plus className="h-5 w-5 text-[#10294B]" />
-                    <h3 className="text-lg font-semibold text-gray-900">Add New Inventory Item</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Add New Inventory Item
+                    </h3>
                   </div>
                   <p className="text-gray-600 text-sm">
-                    Add new items to your inventory catalog with standard levels and stock thresholds.
+                    Add new items to your inventory catalog with standard levels
+                    and stock thresholds.
                   </p>
                 </div>
                 <div className="flex-shrink-0">
@@ -207,18 +243,20 @@ export default function InventoryPage() {
                     />
                   </div>
                 </div>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <Select
+                  value={categoryFilter}
+                  onValueChange={setCategoryFilter}
+                >
                   <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Filter by category" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="HVAC">HVAC</SelectItem>
-                    <SelectItem value="Plumbing">Plumbing</SelectItem>
-                    <SelectItem value="Electrical">Electrical</SelectItem>
-                    <SelectItem value="Pipes">Pipes</SelectItem>
-                    <SelectItem value="Fittings">Fittings</SelectItem>
-                    <SelectItem value="Tools">Tools</SelectItem>
+                    {categories.map((category: string) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -227,7 +265,7 @@ export default function InventoryPage() {
 
           {/* Inventory List */}
           <div className="space-y-4">
-            {filteredItems.map((item) => (
+            {filteredItems.map((item: any) => (
               <Card key={item.id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -236,7 +274,9 @@ export default function InventoryPage() {
                         <Package className="h-8 w-8" />
                       </div>
                       <div>
-                        <h3 className="text-xl font-semibold text-[#10294B]">{item.name}</h3>
+                        <h3 className="text-xl font-semibold text-[#10294B]">
+                          {item.name}
+                        </h3>
                         <p className="text-gray-600">ID: {item.id}</p>
                         <p className="text-sm text-gray-500">{item.notes}</p>
                         <div className="flex items-center gap-6 mt-2 text-sm text-gray-600">
@@ -260,16 +300,24 @@ export default function InventoryPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      <Badge
+                        variant="outline"
+                        className="bg-blue-50 text-blue-700"
+                      >
                         {item.category}
                       </Badge>
                       {item.totalQuantity <= item.lowStockThreshold && (
-                        <Badge variant="destructive" className="bg-red-100 text-red-800">
+                        <Badge
+                          variant="destructive"
+                          className="bg-red-100 text-red-800"
+                        >
                           Low Stock
                         </Badge>
                       )}
                       {item.totalQuantity < item.standardLevel && (
-                        <Badge className="bg-orange-100 text-orange-800">Needs Restock</Badge>
+                        <Badge className="bg-orange-100 text-orange-800">
+                          Needs Restock
+                        </Badge>
                       )}
                       <InventoryItemDetailsModal item={item}>
                         <Button variant="outline">View Details</Button>
@@ -285,13 +333,17 @@ export default function InventoryPage() {
             <Card>
               <CardContent className="text-center py-12">
                 <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">No items found</h3>
-                <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                  No items found
+                </h3>
+                <p className="text-gray-500">
+                  Try adjusting your search or filter criteria
+                </p>
               </CardContent>
             </Card>
           )}
         </div>
       </div>
     </Navigation>
-  )
+  );
 }
