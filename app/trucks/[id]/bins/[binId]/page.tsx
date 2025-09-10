@@ -24,6 +24,17 @@ import Link from "next/link";
 import { SelectInventoryItemModal } from "@/components/select-inventory-item-modal";
 import { EditBinModal } from "@/components/edit-bin-modal";
 import { useAuth } from "@/components/auth-provider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function BinDetailPage() {
   const params = useParams();
@@ -84,6 +95,29 @@ export default function BinDetailPage() {
   useEffect(() => {
     fetchBin();
   }, [fetchBin]);
+
+  async function deleteBin(truckId: string, binId: string) {
+    try {
+      const response = await fetch(`/api/technician/trucks/${truckId}/bins?binId=${binId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete bin");
+      }
+
+      return true; // success
+    } catch (error) {
+      console.error(error);
+      return false; // failure
+    }
+  }
 
   const handleItemSelected = async (inventoryItem: any, quantity: number) => {
     try {
@@ -322,7 +356,7 @@ export default function BinDetailPage() {
         {/* Quick Actions */}
         <Card>
           <CardContent className="p-4 md:p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <SelectInventoryItemModal
                 truckId={truckId}
                 binId={binId}
@@ -340,7 +374,8 @@ export default function BinDetailPage() {
                   <span className="text-xs">Order Items</span>
                 </Button>
               </Link>
-              <Link href="/restock">
+              <Link href={`/order?truckId=${truckId}&fromRestock=true`}
+                onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col space-y-2 w-full bg-transparent"
@@ -354,6 +389,46 @@ export default function BinDetailPage() {
                 bin={bin}
                 onBinUpdated={handleBinUpdated}
               />
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col space-y-2 w-full bg-transparent text-red-600 hover:bg-red-50"
+                  >
+                    <span className="h-5 w-5">🗑️</span>
+                    <span className="text-xs">Delete Bin</span>
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Bin</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete {bin.name} ?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 text-white hover:bg-red-700"
+                      onClick={async () => {
+                        const success = await deleteBin(truckId, bin.id);
+
+                        if (success) {
+                          // ✅ Success pe navigate
+                          router.push(`/trucks/${truckId}`);
+                        } else {
+                          console.error("Error deleting bin");
+                        }
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
             </div>
           </CardContent>
         </Card>
@@ -392,22 +467,19 @@ export default function BinDetailPage() {
           {filteredItems.map((item: any) => (
             <Card
               key={item.id}
-              className={`hover:shadow-lg transition-shadow ${
-                item.isLowStock ? "border-red-200" : ""
-              }`}
+              className={`hover:shadow-lg transition-shadow ${item.isLowStock ? "border-red-200" : ""
+                }`}
             >
               <CardContent className="p-4 md:p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
                   <div className="flex items-center space-x-4">
                     <div
-                      className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center ${
-                        item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
-                      }`}
+                      className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center ${item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
+                        }`}
                     >
                       <Package
-                        className={`h-6 w-6 md:h-8 md:w-8 ${
-                          item.isLowStock ? "text-red-600" : "text-white"
-                        }`}
+                        className={`h-6 w-6 md:h-8 md:w-8 ${item.isLowStock ? "text-red-600" : "text-white"
+                          }`}
                       />
                     </div>
                     <div>
@@ -469,11 +541,10 @@ export default function BinDetailPage() {
                         ) : (
                           <>
                             <p
-                              className={`text-lg md:text-xl font-bold ${
-                                item.isLowStock
-                                  ? "text-red-600"
-                                  : "text-gray-900"
-                              }`}
+                              className={`text-lg md:text-xl font-bold ${item.isLowStock
+                                ? "text-red-600"
+                                : "text-gray-900"
+                                }`}
                             >
                               {item.currentStock}
                             </p>
@@ -521,9 +592,8 @@ export default function BinDetailPage() {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        item.isLowStock ? "bg-red-500" : "bg-green-500"
-                      }`}
+                      className={`h-2 rounded-full transition-all duration-300 ${item.isLowStock ? "bg-red-500" : "bg-green-500"
+                        }`}
                       style={{
                         width: `${Math.min(
                           (item.currentStock / item.standardLevel) * 100,

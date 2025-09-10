@@ -64,7 +64,10 @@ export async function GET(
             'id', tb.id,
             'name', tb.name,
             'bin_code', tb.bin_code,
-            'location', tb.name,
+            'location', tb.location,
+            'section', tb.section,
+            'binType', tb.binType,
+            'description', tb.description,
             'updated_at', tb.updated_at,
             'inventory', (
               SELECT JSON_ARRAYAGG(
@@ -77,7 +80,7 @@ export async function GET(
                   'standard_level', ii.standard_level,
                   'unit', COALESCE(ii.unit, 'pieces'),
                   'last_restocked', ti.last_restocked,
-                  'is_low_stock', ti.quantity <= ii.min_quantity
+                  'is_low_stock', ti.quantity < ii.min_quantity
                 )
               )
               FROM truck_inventory ti
@@ -151,7 +154,10 @@ export async function GET(
         id: bin.id,
         name: bin.name,
         code: bin.bin_code,
+        description: bin.description,
         location: bin.location,
+        section: bin.section,
+        binType: bin.binType,
         totalItems: bin.inventory
           ? bin.inventory.reduce(
               (sum: number, item: any) => sum + (item.current_stock || 0),

@@ -45,7 +45,6 @@ export default function NewOrderPage() {
     supplyHouseId: "",
     description: "",
     urgency: "normal",
-    requiresApproval: false, 
   });
   const [supplyHouses, setSupplyHouses] = useState<SupplyHouse[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,7 +107,6 @@ export default function NewOrderPage() {
           supply_house_id: formData.supplyHouseId,
           urgency: formData.urgency,
           notes: formData.description,
-          requires_approval: formData.requiresApproval,
           items: [
             {
               inventory_item_name: formData.partName,
@@ -286,24 +284,6 @@ export default function NewOrderPage() {
                         }
                         rows={3}
                       />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        id="requiresApproval"
-                        type="checkbox"
-                        checked={formData.requiresApproval}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            requiresApproval: e.target.checked,
-                          })
-                        }
-                        className="h-4 w-4 border-gray-300 rounded"
-                      />
-                      <Label htmlFor="requiresApproval">
-                        This order requires approval
-                      </Label>
                     </div>
 
                     {formData.estimatedCost && (

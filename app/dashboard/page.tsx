@@ -187,7 +187,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
                     {truck.lowStock > 0 && (
                       <Badge
                         variant="destructive"
@@ -284,7 +284,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/order")}>
             <CardContent className="p-4 md:p-6 text-center">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-[#E3253D] rounded-lg flex items-center justify-center mx-auto mb-4">
                 <ShoppingCart className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -294,12 +294,12 @@ export default function DashboardPage() {
               </h3>
               <p className="text-sm text-gray-600 mb-4">Place a custom order</p>
               <Button asChild className="w-full bg-[#E3253D] hover:bg-red-600">
-                <Link href="/order">Create Order</Link>
+                <Link href="/order" onClick={(e) => e.stopPropagation()}>Create Order</Link>
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={()=> router.push('/inventory')}>
             <CardContent className="p-4 md:p-6 text-center">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-[#10294B] rounded-lg flex items-center justify-center mx-auto mb-4">
                 <Package className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -313,12 +313,12 @@ export default function DashboardPage() {
                 variant="outline"
                 className="w-full bg-transparent"
               >
-                <Link href="/inventory">View Inventory</Link>
+                <Link href="/inventory" onClick={(e) => e.stopPropagation()}>View Inventory</Link>
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={()=> router.push('/restock')}>
             <CardContent className="p-4 md:p-6 text-center">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -332,7 +332,7 @@ export default function DashboardPage() {
                 variant="outline"
                 className="w-full bg-transparent"
               >
-                <Link href="/restock">View Restock</Link>
+                <Link href="/restock" onClick={(e) => e.stopPropagation()}>View Restock</Link>
               </Button>
             </CardContent>
           </Card>

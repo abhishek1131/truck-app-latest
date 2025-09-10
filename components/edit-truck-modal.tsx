@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Edit } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface EditTruckDialogProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export function EditTruckDialog({
     status: truck?.status || "Available",
     mileage: truck?.mileage?.toString() || "",
     description: truck?.description || "",
+    order_approval: truck?.order_approval ?? false,
   });
 
   const truckModels = [
@@ -75,6 +77,7 @@ export function EditTruckDialog({
       ...formData,
       year: Number.parseInt(formData.year),
       mileage: Number.parseInt(formData.mileage) || 0,
+      order_approval: formData.order_approval,
     };
 
     try {
@@ -238,7 +241,16 @@ export function EditTruckDialog({
               rows={3}
             />
           </div>
-
+          <div className="flex items-center justify-between border p-3 rounded-md">
+            <Label htmlFor="order_approval">Require Order Approval</Label>
+            <Switch
+              id="order_approval"
+              checked={formData.order_approval}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, order_approval: checked })
+              }
+            />
+          </div>
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

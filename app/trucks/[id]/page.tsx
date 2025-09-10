@@ -21,6 +21,7 @@ import Link from "next/link";
 import { AddBinModal } from "@/components/add-bin-modal";
 import { StandardInventoryModal } from "@/components/standard-inventory-modal";
 import { useAuth } from "@/components/auth-provider";
+import { EditBinModal } from "@/components/edit-bin-modal";
 
 export default function TruckDetailPage() {
   const params = useParams();
@@ -90,6 +91,14 @@ export default function TruckDetailPage() {
   const handleBinAdded = (newBin: any) => {
     // setBins([...bins, newBin]);
     fetchTruck();
+  };
+
+  const handleBinUpdated = () => {
+    fetchTruck(); // re-fetch truck to update bins
+  };
+
+  const handleClick = () => {
+    router.push(`/order?truckId=${truckId}&fromRestock=true`);
   };
 
   const handleStandardLevelsSet = (levels: any) => {
@@ -209,7 +218,8 @@ export default function TruckDetailPage() {
                   <span className="text-xs">Order Items</span>
                 </Button>
               </Link>
-              <Link href="/restock">
+              <Link href={`/order?truckId=${truckId}&fromRestock=true`}
+                onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col space-y-2 w-full bg-transparent"
@@ -298,7 +308,7 @@ export default function TruckDetailPage() {
 
                     <div className="flex flex-col space-y-2">
                       {bin.lowStockItems > 0 && (
-                        <Badge variant="destructive" className="text-xs">
+                        <Badge variant="destructive" className="text-xs cursor-pointer" onClick={handleClick}>
                           Needs Restock
                         </Badge>
                       )}
@@ -310,6 +320,16 @@ export default function TruckDetailPage() {
                           View Contents
                         </Button>
                       </Link>
+                      <EditBinModal
+                        truckId={truckId}
+                        bin={bin}
+                        onBinUpdated={handleBinUpdated}
+                        inline
+                        triggerButtonProps={{
+                          size: "sm",
+                          className: "w-full h-8", // Matching height and style
+                        }}
+                      />
                     </div>
                   </div>
                 </div>

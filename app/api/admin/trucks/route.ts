@@ -28,6 +28,7 @@ interface TruckResponse {
       lowStockItems: number;
       bins: number;
       lastUpdated: string;
+      order_approval: boolean;
     }[];
     pagination: {
       page: number;
@@ -61,16 +62,6 @@ export async function GET(req: Request) {
         id: string;
         role: string;
       };
-      // if (decoded.role !== "admin") {
-      //   return NextResponse.json(
-      //     {
-      //       success: false,
-      //       error: "Forbidden: Admin access required",
-      //       code: "FORBIDDEN",
-      //     },
-      //     { status: 403 }
-      //   );
-      // }
     } catch (error) {
       return NextResponse.json(
         {
@@ -87,13 +78,13 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get("limit") || "100");
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
-    const assigned = searchParams.get("assigned") || "";
+    const assigned = searchParams.get("assignment") || "";
 
     const offset = (page - 1) * limit;
 
     let query = `
       SELECT 
-        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.vin, t.status, t.location, t.mileage, t.next_maintenance,
+        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.vin, t.status, t.location, t.mileage, t.next_maintenance, t.order_approval,
         u.id AS technician_id, u.first_name, u.last_name, u.email,
         (SELECT COUNT(*) FROM truck_bins tb WHERE tb.truck_id = t.id) AS bins,
         (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS totalItems,
@@ -112,24 +103,17 @@ export async function GET(req: Request) {
     if (search) {
       query += ` AND (t.truck_number LIKE ? OR t.make LIKE ? OR t.model LIKE ? OR t.location LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)`;
       const searchParam = `%${search}%`;
-      params.push(
-        searchParam,
-        searchParam,
-        searchParam,
-        searchParam,
-        searchParam,
-        searchParam
-      );
+      params.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
     }
 
-    if (status) {
+    if (status != "all") {
       query += ` AND t.status = ?`;
       params.push(status);
     }
 
-    if (assigned === "true") {
+    if (assigned === "assigned") {
       query += ` AND t.assigned_to IS NOT NULL`;
-    } else if (assigned === "false") {
+    } else if (assigned === "unassigned") {
       query += ` AND t.assigned_to IS NULL`;
     }
 
@@ -154,11 +138,11 @@ export async function GET(req: Request) {
       next_maintenance: row.next_maintenance,
       assigned_technician: row.technician_id
         ? {
-            id: row.technician_id,
-            first_name: row.first_name,
-            last_name: row.last_name,
-            email: row.email,
-          }
+          id: row.technician_id,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          email: row.email,
+        }
         : null,
       totalItems: Number(row.totalItems) || 0,
       lowStockItems: Number(row.lowStockItems) || 0,
@@ -166,9 +150,33 @@ export async function GET(req: Request) {
       lastUpdated: row.lastUpdated
         ? new Date(row.lastUpdated).toLocaleString()
         : "Never",
+      order_approval: row.order_approval === 1,
     }));
 
-    const response: TruckResponse = {
+
+    // stats calculate
+    const [statsResult] = await pool.query<any[]>(`
+  SELECT 
+    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeTrucks,
+    SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS inactiveTrucks,
+    SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceTrucks,
+    (SELECT SUM(ti.quantity) FROM truck_inventory ti) AS totalItems,
+    (SELECT COUNT(*) 
+     FROM truck_inventory ti 
+     JOIN inventory_items ii ON ti.item_id = ii.id 
+     WHERE ti.quantity <= ti.min_quantity) AS totalLowStock
+  FROM trucks;
+`);
+
+    const stats = {
+      activeTrucks: Number(statsResult[0].activeTrucks) || 0,
+      inactiveTrucks: Number(statsResult[0].inactiveTrucks) || 0,
+      maintenanceTrucks: Number(statsResult[0].maintenanceTrucks) || 0,
+      totalItems: Number(statsResult[0].totalItems) || 0,
+      totalLowStock: Number(statsResult[0].totalLowStock) || 0,
+    };
+
+    const response = {
       success: true,
       data: {
         trucks,
@@ -178,6 +186,7 @@ export async function GET(req: Request) {
           total,
           pages: Math.ceil(total / limit),
         },
+        stats,
       },
     };
 
@@ -245,6 +254,7 @@ export async function POST(req: Request) {
       assigned_to,
       mileage,
       next_maintenance,
+      order_approval
     } = body;
 
     if (!truck_number || !make || !model || !year || !license_plate || !vin) {
@@ -290,8 +300,8 @@ export async function POST(req: Request) {
 
     const [result] = await pool.query(
       `
-      INSERT INTO trucks (id, truck_number, make, model, year, license_plate, vin, status, location, mileage, assigned_to, next_maintenance, created_at, updated_at)
-      VALUES (UUID(), ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, NOW(), NOW())
+      INSERT INTO trucks (id, truck_number, make, model, year, license_plate, vin, status, location, mileage, assigned_to, next_maintenance,order_approval, created_at, updated_at)
+      VALUES (UUID(), ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?,NOW(), NOW())
       `,
       [
         truck_number,
@@ -304,20 +314,23 @@ export async function POST(req: Request) {
         mileage || 0,
         assigned_to || null,
         next_maintenance || null,
+        order_approval ?? false,
       ]
     );
-
+    // inserted row ka full record le aao
     const [newTruck] = await pool.query(
       `
       SELECT 
-        t.*,
+        t.*, t.order_approval,
         u.id AS technician_id, u.first_name, u.last_name, u.email
       FROM trucks t
       LEFT JOIN users u ON t.assigned_to = u.id
-      WHERE t.id = (SELECT LAST_INSERT_ID())
-      `
+      WHERE t.truck_number = ?
+      ORDER BY t.created_at DESC
+      LIMIT 1
+      `,
+      [truck_number]
     );
-
     return NextResponse.json({
       success: true,
       data: newTruck[0],

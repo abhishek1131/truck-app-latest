@@ -41,6 +41,7 @@ interface RestockItem {
   standardLevel: number;
   suggestedQuantity: number;
   truck: string;
+  truckId: string;
   category: string;
   priority: "high" | "medium" | "low";
   inventoryItemId?: string;
@@ -481,20 +482,24 @@ ${orderDetails.technician}`;
               <CardContent>
                 <div className="space-y-4">
                   {restockItems.map((item) => (
-                    <Card key={item.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-[#10294B] rounded-lg flex items-center justify-center text-white">
+                    <Card key={item.id} className="p-4" onClick={(e)=> {
+                      router.push(`/order?truckId=${item.truckId}&fromRestock=true`);
+                      e.stopPropagation();
+                    }}>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        {/* Left Section */}
+                        <div className="flex items-start sm:items-center gap-4">
+                          <div className="w-12 h-12 bg-[#10294B] rounded-lg flex items-center justify-center text-white shrink-0">
                             <Package className="h-6 w-6" />
                           </div>
-                          <div>
-                            <h4 className="font-semibold text-[#10294B]">
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-[#10294B] truncate">
                               {item.name}
                             </h4>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-600 break-words">
                               {item.truck} • {item.category}
                             </p>
-                            <div className="flex items-center gap-4 mt-1 text-sm">
+                            <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
                               <span className="text-gray-500">
                                 Current: {item.currentStock}
                               </span>
@@ -507,7 +512,9 @@ ${orderDetails.technician}`;
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+
+                        {/* Right Section */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                           <Badge
                             className={
                               item.priority === "high"
@@ -522,7 +529,7 @@ ${orderDetails.technician}`;
                           <div className="flex items-center gap-2">
                             <Label
                               htmlFor={`quantity-${item.id}`}
-                              className="text-sm"
+                              className="text-sm whitespace-nowrap"
                             >
                               Quantity:
                             </Label>
@@ -557,7 +564,10 @@ ${orderDetails.technician}`;
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => setEditingItem(item.id)}
+                                  onClick={(e) => {
+                                    router.push(`/order?truckId=${item.truckId}&fromRestock=true`);
+                                    e.stopPropagation();
+                                  }}
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>

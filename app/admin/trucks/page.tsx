@@ -69,6 +69,19 @@ interface Technician {
   status: string;
   assignedTrucks: string[];
 }
+interface Pagination {
+  page: number
+  limit: number
+  total: number
+  pages: number
+}
+interface Stats {
+  activeTrucks: number
+  inactiveTrucks: number
+  maintenanceTrucks: number
+  totalItems: number
+  totalLowStock: number
+}
 
 const statusConfig = {
   active: { color: "bg-green-100 text-green-800", label: "Active" },
@@ -79,6 +92,8 @@ const statusConfig = {
 export default function AdminTrucksPage() {
   const { user, token } = useAuth();
   const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [pagination, setPagination] = useState<Pagination>();
+  const [stats, setStats] = useState<Stats>();
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -91,27 +106,48 @@ export default function AdminTrucksPage() {
   const [isCreating, setIsCreating] = useState(false); // New state for create loading
   const [technicianError, setTechnicianError] = useState<string | null>(null);
   const [dropdownKey, setDropdownKey] = useState(0);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  const fetchTrucks = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/admin/trucks?page=1&limit=10", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const result = await response.json();
-      if (result.success) {
-        setTrucks(result.data.trucks);
-      } else {
-        console.error("Failed to fetch trucks:", result.error);
+  const fetchTrucks = useCallback(
+    async (page = 1, limit = 10) => {
+      setIsLoading(true);
+      try {
+        const query = new URLSearchParams({
+          page: page.toString(),
+          limit: limit.toString(),
+          search: searchTerm || "",
+          status: statusFilter,
+          assignment: assignmentFilter,
+        });
+
+        const response = await fetch(`/api/admin/trucks?${query.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          setTrucks(result?.data?.trucks);
+          setPagination(result?.data?.pagination);
+          setStats(result?.data?.stats);
+        } else {
+          console.error("Failed to fetch trucks:", result.error);
+        }
+      } catch (error) {
+        console.error("Error fetching trucks:", error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching trucks:", error);
-    } finally {
-      setIsLoading(false);
+    },
+    [token, searchTerm, statusFilter, assignmentFilter]
+  );
+
+  useEffect(() => {
+    if (token) {
+      fetchTrucks(pagination?.page || 1, pagination?.limit || 10);
     }
-  }, [token]);
+  }, [token, fetchTrucks]);
 
   useEffect(() => {
     const fetchTechnicians = async () => {
@@ -170,7 +206,7 @@ export default function AdminTrucksPage() {
     return matchesSearch && matchesStatus && matchesAssignment;
   });
 
-  const totalTrucks = trucks.length;
+  const totalTrucks = pagination?.total;
   const activeTrucks = trucks.filter(
     (truck) => truck.status === "active"
   ).length;
@@ -189,6 +225,7 @@ export default function AdminTrucksPage() {
   const handleCreateTruck = async (truckData: any) => {
     if (isCreating) return; // Prevent multiple submissions
     setIsCreating(true);
+    setCreateError(null);
     try {
       const response = await fetch("/api/admin/trucks", {
         method: "POST",
@@ -200,6 +237,10 @@ export default function AdminTrucksPage() {
       });
       const result = await response.json();
       await fetchTrucks(); // Fetch latest data to ensure consistency
+      await fetchTrucks(); // Fetch latest data to ensure consistency
+      console.log("result", result)
+      await fetchTrucks(); // Fetch latest data to ensure consistency      
+      console.log("result", result)
       if (result.success) {
         // Optimistic update: Add the new truck to the state
         const newTruck: Truck = {
@@ -223,9 +264,12 @@ export default function AdminTrucksPage() {
         setTrucks((prev) => [...prev, newTruck]);
         setShowCreateDialog(false);
       } else {
-        console.error("Failed to create truck:", result.error);
+        setCreateError(result.error || "Failed to create truck");
+        setShowCreateDialog(false);
       }
     } catch (error) {
+      setCreateError("Error creating truck. Please try again.");
+      setShowCreateDialog(false);
       console.error("Error creating truck:", error);
     } finally {
       setIsCreating(false);
@@ -310,6 +354,18 @@ export default function AdminTrucksPage() {
           </Button>
         </div>
 
+        {createError && (
+          <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md mt-2 shadow-sm">
+            <span className="text-sm">{createError}</span>
+            <button
+              onClick={() => setCreateError(null)}
+              className="ml-4 text-red-600 hover:text-red-800"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
@@ -321,7 +377,7 @@ export default function AdminTrucksPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalTrucks}</div>
-              <p className="text-xs opacity-75">{activeTrucks} active</p>
+              <p className="text-xs opacity-75">{stats?.activeTrucks} active</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
@@ -332,7 +388,7 @@ export default function AdminTrucksPage() {
               <Package className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inactiveTrucks}</div>
+              <div className="text-2xl font-bold">{stats?.inactiveTrucks}</div>
               <p className="text-xs opacity-75">Available for assignment</p>
             </CardContent>
           </Card>
@@ -344,7 +400,7 @@ export default function AdminTrucksPage() {
               <Settings className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{maintenanceTrucks}</div>
+              <div className="text-2xl font-bold">{stats?.maintenanceTrucks}</div>
               <p className="text-xs opacity-75">In service</p>
             </CardContent>
           </Card>
@@ -356,7 +412,7 @@ export default function AdminTrucksPage() {
               <AlertTriangle className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalLowStock}</div>
+              <div className="text-2xl font-bold">{stats?.totalLowStock}</div>
               <p className="text-xs opacity-75">Across all trucks</p>
             </CardContent>
           </Card>
@@ -514,11 +570,10 @@ export default function AdminTrucksPage() {
                             Low Stock
                           </div>
                           <div
-                            className={`font-semibold ${
-                              truck.lowStockItems > 0
-                                ? "text-red-600"
-                                : "text-green-600"
-                            }`}
+                            className={`font-semibold ${truck.lowStockItems > 0
+                              ? "text-red-600"
+                              : "text-green-600"
+                              }`}
                           >
                             {truck.lowStockItems}
                           </div>
@@ -585,6 +640,31 @@ export default function AdminTrucksPage() {
                 </CardContent>
               </Card>
             ))}
+
+
+            {filteredTrucks.length > 0 && (
+              <div className="flex justify-center mt-6 gap-2">
+                <Button
+                  disabled={pagination?.page === 1}
+                  onClick={() =>
+                    fetchTrucks((pagination?.page || 1) - 1, pagination?.limit || 10)
+                  }
+                >
+                  Previous
+                </Button>
+                <span className="px-4 py-2 text-gray-700">
+                  Page {pagination?.page} of {pagination?.pages}
+                </span>
+                <Button
+                  disabled={pagination?.page === pagination?.pages}
+                  onClick={() =>
+                    fetchTrucks((pagination?.page || 1) + 1, pagination?.limit || 10)
+                  }
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -615,6 +695,8 @@ export default function AdminTrucksPage() {
           isOpen={showCreateDialog}
           onClose={handleDialogClose}
           onTruckCreated={handleCreateTruck}
+          fetchTrucks={fetchTrucks}
+          setCreateError={setCreateError}
           isCreating={isCreating} // Pass loading state to dialog
         />
 

@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET(request: NextRequest) {
-  let connection;
   try {
     // Verify JWT token
     const authHeader = request.headers.get("authorization");
@@ -45,6 +44,7 @@ export async function GET(request: NextRequest) {
         ti.quantity AS currentStock,
         COALESCE(ii.standard_level, ti.min_quantity) AS standardLevel,
         GREATEST(COALESCE(ii.standard_level, ti.min_quantity) - ti.quantity, 0) AS suggestedQuantity,
+        t.id AS truckId,
         t.truck_number AS truck,
         ic.name AS category,
         CASE 

@@ -266,20 +266,28 @@ export default function InventoryPage() {
           {/* Inventory List */}
           <div className="space-y-4">
             {filteredItems.map((item: any) => (
-              <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-16 h-16 bg-[#10294B] rounded-lg flex items-center justify-center text-white font-bold">
-                        <Package className="h-8 w-8" />
+              <Card
+                key={item.id}
+                className="hover:shadow-lg transition-shadow"
+              >
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
+                    {/* Left section */}
+                    <div className="flex items-start md:items-center gap-4 md:gap-6">
+                      <div className="w-16 h-16 md:w-20 md:h-20 bg-[#10294B] rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                        <Package className="h-8 w-8 md:h-10 md:w-10" />
                       </div>
-                      <div>
-                        <h3 className="text-xl font-semibold text-[#10294B]">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-semibold text-[#10294B] truncate">
                           {item.name}
                         </h3>
-                        <p className="text-gray-600">ID: {item.id}</p>
-                        <p className="text-sm text-gray-500">{item.notes}</p>
-                        <div className="flex items-center gap-6 mt-2 text-sm text-gray-600">
+                        <p className="text-gray-600 text-sm sm:text-base truncate">
+                          ID: {item.id}
+                        </p>
+                        <p className="text-gray-500 text-sm sm:text-base truncate">
+                          {item.notes}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-600">
                           <span className="flex items-center gap-1">
                             <Package className="h-4 w-4" />
                             Current: {item.totalQuantity} {item.unit}
@@ -299,7 +307,9 @@ export default function InventoryPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+
+                    {/* Right section */}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 md:mt-0">
                       <Badge
                         variant="outline"
                         className="bg-blue-50 text-blue-700"
@@ -307,10 +317,7 @@ export default function InventoryPage() {
                         {item.category}
                       </Badge>
                       {item.totalQuantity <= item.lowStockThreshold && (
-                        <Badge
-                          variant="destructive"
-                          className="bg-red-100 text-red-800"
-                        >
+                        <Badge className="bg-red-100 text-red-800">
                           Low Stock
                         </Badge>
                       )}
@@ -320,7 +327,9 @@ export default function InventoryPage() {
                         </Badge>
                       )}
                       <InventoryItemDetailsModal item={item}>
-                        <Button variant="outline">View Details</Button>
+                        <Button variant="outline" size="sm">
+                          View Details
+                        </Button>
                       </InventoryItemDetailsModal>
                     </div>
                   </div>
@@ -328,7 +337,6 @@ export default function InventoryPage() {
               </Card>
             ))}
           </div>
-
           {filteredItems.length === 0 && (
             <Card>
               <CardContent className="text-center py-12">

@@ -56,7 +56,7 @@ export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProp
       name: formData.name,
       category: formData.category,
       unit: formData.unit,
-      notes: formData.notes,
+      description: formData.notes,
       partNumber: formData.partNumber,
       brand: formData.brand,
       lowStockThreshold: Number.parseInt(formData.lowStockThreshold) || 5,

@@ -25,12 +25,18 @@ interface CreateTruckDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onTruckCreated: (truck: any) => void;
+  fetchTrucks: () => void;
+  setCreateError: any;
+  isCreating: any;
 }
 
 export function CreateTruckDialog({
   isOpen,
   onClose,
   onTruckCreated,
+  fetchTrucks,
+  setCreateError,
+  isCreating
 }: CreateTruckDialogProps) {
   const [formData, setFormData] = useState({
     truck_number: "",
@@ -43,6 +49,7 @@ export function CreateTruckDialog({
     status: "Available",
     mileage: "",
     description: "",
+    order_approval: false
   });
 
   const truckMakes = ["Ford", "Chevrolet", "Ram", "Mercedes"];
@@ -80,7 +87,8 @@ export function CreateTruckDialog({
       next_maintenance: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0], // 90 days from now
-    };
+      order_approval: formData.order_approval,
+    };    
 
     try {
       const response = await fetch("/api/admin/trucks", {
@@ -91,21 +99,23 @@ export function CreateTruckDialog({
         },
         body: JSON.stringify(payload),
       });
-
+      fetchTrucks();
       if (!response.ok) {
         const errorData = await response.json();
+        setCreateError(errorData.error || "Failed to create truck");
+        onClose();
         throw new Error(errorData.error || "Failed to create truck");
       }
 
       const newTruck = await response.json();
-      onTruckCreated({
-        ...newTruck.data,
-        totalItems: 0,
-        lowStockItems: 0,
-        bins: 0,
-        assigned_technician: null,
-        lastUpdated: "Never",
-      });
+      // onTruckCreated({
+      //   ...newTruck.data,
+      //   totalItems: 0,
+      //   lowStockItems: 0,
+      //   bins: 0,
+      //   assigned_technician: null,
+      //   lastUpdated: "Never",
+      // });
 
       // Reset form
       setFormData({
@@ -119,11 +129,26 @@ export function CreateTruckDialog({
         status: "Available",
         mileage: "",
         description: "",
+        order_approval: false
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
+      setFormData({
+        truck_number: "",
+        make: "",
+        model: "",
+        year: "",
+        license_plate: "",
+        vin: "",
+        location: "",
+        status: "Available",
+        mileage: "",
+        description: "",
+        order_approval: false
+      });
       console.error("Error creating truck:", error);
-      console.log(error.message || "Failed to create truck");
+      onClose();
+      setCreateError(error.message || "Failed to create truck");
     }
   };
 
@@ -200,7 +225,7 @@ export function CreateTruckDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {formData.make &&
-                    truckModels[formData.make]?.map((model) => (
+                    (truckModels as any)[formData.make]?.map((model:any) => (
                       <SelectItem key={model} value={model}>
                         {model}
                       </SelectItem>
@@ -308,9 +333,41 @@ export function CreateTruckDialog({
               rows={3}
             />
           </div>
-
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="order_approval"
+              checked={formData.order_approval}
+              onChange={(e) =>
+                setFormData({ ...formData, order_approval: e.target.checked })
+              }
+              className="h-4 w-4"
+            />
+            <Label htmlFor="order_approval">
+              Require approval for orders on this truck
+            </Label>
+          </div>
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setFormData({
+                  truck_number: "",
+                  make: "",
+                  model: "",
+                  year: "",
+                  license_plate: "",
+                  vin: "",
+                  location: "",
+                  status: "Available",
+                  mileage: "",
+                  description: "",
+                  order_approval: false
+                });
+                onClose();
+              }}
+            >
               Cancel
             </Button>
             <Button

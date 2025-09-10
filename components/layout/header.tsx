@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { LogOut } from "lucide-react";
 
 interface HeaderProps {
   title: string;
@@ -36,6 +37,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { logout, loading } = useAuth();
 
   const fetchNotifications = useCallback(async () => {
     if (!token || !user) return;
@@ -190,13 +192,31 @@ export function Header({ title, subtitle }: HeaderProps) {
           </DropdownMenu>
 
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#E3253D] to-red-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg">
-              {initials}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#E3253D] to-red-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg">
+                  {initials}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-3 py-2">
+                  <p className="text-sm font-semibold text-[#10294B]">{displayName}</p>
+                  <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+                </div>
+                <DropdownMenuItem
+                  onClick={logout}
+                  disabled={loading}
+                  className="text-red-600 cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Keep display name on large screens */}
             <div className="hidden lg:block">
-              <p className="text-sm font-semibold text-[#10294B]">
-                {displayName}
-              </p>
+              <p className="text-sm font-semibold text-[#10294B]">{displayName}</p>
               <p className="text-xs text-gray-600 capitalize">{user.role}</p>
             </div>
           </div>

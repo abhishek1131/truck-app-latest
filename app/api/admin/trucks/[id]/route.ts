@@ -16,6 +16,7 @@ interface TruckDetailResponse {
     status: "active" | "maintenance" | "inactive";
     location: string;
     mileage: number;
+    order_approval: boolean;
     assigned_technician: {
       id: string;
       first_name: string;
@@ -90,7 +91,7 @@ export async function GET(
     const [truckRows] = await pool.query(
       `
       SELECT 
-        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.vin, t.status, t.location, t.mileage,
+        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.vin, t.status, t.location, t.mileage,t.order_approval,
         u.id AS technician_id, u.first_name, u.last_name, u.email,
         (SELECT COUNT(*) FROM truck_bins tb WHERE tb.truck_id = t.id) AS bins,
         (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS totalItems,
@@ -159,6 +160,7 @@ export async function GET(
         status: truck.status,
         location: truck.location,
         mileage: truck.mileage,
+        order_approval: Boolean(truck.order_approval),
         assigned_technician: truck.technician_id
           ? {
               id: truck.technician_id,
@@ -247,6 +249,7 @@ export async function PUT(
       status,
       assigned_to,
       mileage,
+      order_approval
     } = body;
 
     const [result] = await pool.query(
@@ -263,6 +266,7 @@ export async function PUT(
         status = ?,
         assigned_to = ?,
         mileage = ?,
+        order_approval = ?,
         updated_at = NOW()
       WHERE id = ?
       `,
@@ -277,6 +281,7 @@ export async function PUT(
         status,
         assigned_to || null,
         mileage,
+        order_approval === undefined ? false : order_approval,
         params.id,
       ]
     );

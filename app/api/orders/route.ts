@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
         o.id,
         o.created_at AS date,
         o.status,
-        o.requires_approval,
         o.urgency,
         o.notes,
         sh.name AS supply_house,
@@ -88,8 +87,7 @@ export async function GET(request: NextRequest) {
 
     if (status != "all") {
       query +=
-        " AND (o.requires_approval = TRUE AND ? = 'pending' OR o.requires_approval = FALSE AND ? = 'confirmed')";
-      queryParams.push(status, status);
+        queryParams.push(status, status);
     }
 
     if (truck) {
@@ -98,7 +96,7 @@ export async function GET(request: NextRequest) {
     }
 
     query += `
-      GROUP BY o.id, o.created_at, o.requires_approval, o.urgency, o.notes, sh.name, t.truck_number, t.make, t.model
+      GROUP BY o.id, o.created_at, o.urgency, o.notes, sh.name, t.truck_number, t.make, t.model
       ORDER BY o.created_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -116,8 +114,7 @@ export async function GET(request: NextRequest) {
 
     if (status != "all") {
       countQuery +=
-        " AND (o.requires_approval = TRUE AND ? = 'pending' OR o.requires_approval = FALSE AND ? = 'confirmed')";
-      countParams.push(status, status);
+        countParams.push(status, status);
     }
 
     if (truck) {
@@ -146,7 +143,6 @@ export async function GET(request: NextRequest) {
         0
       ),
       status: order.status,
-      requiresApproval: order.requires_approval,
       date: order.date.toISOString().split("T")[0],
       commission: order.order_items.reduce(
         (sum: number, item: any) => sum + item.total_price * 0.03,
@@ -251,7 +247,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     let {
       truck_id,
-      requires_approval,
       items,
       notes,
       supply_house_id,
@@ -420,7 +415,31 @@ export async function POST(request: NextRequest) {
     // Create order
     const orderId = crypto.randomUUID();
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const status = requires_approval ? "confirmed" : "pending";
+
+    // Decide order status
+    let orderStatus = "pending"; // default
+
+    if (truck_id) {
+      const [truckCheckRows] = await connection.query(
+        "SELECT order_approval FROM trucks WHERE id = ?",
+        [truck_id]
+      );
+      const truckCheck = (truckCheckRows as any[])[0];
+      if (!truckCheck) {
+        throw new Error("Truck not found");
+      }
+
+      if (truckCheck.order_approval === 0) {
+        // false -> confirmed
+        orderStatus = "confirmed";
+      } else {
+        // true -> pending
+        orderStatus = "pending";
+      }
+    } else {
+      // No truck_id -> pending
+      orderStatus = "pending";
+    }
 
     await connection.query(
       `INSERT INTO orders (
@@ -432,10 +451,9 @@ export async function POST(request: NextRequest) {
       notes,
       status,
       urgency,
-      requires_approval,
       created_at,
       updated_at
-   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         orderId,
         orderNumber,
@@ -443,9 +461,8 @@ export async function POST(request: NextRequest) {
         truck_id || null,
         supply_house_id || null,
         notes || "",
-        status,
+        orderStatus,
         urgency || "normal",
-        requires_approval ? 1 : 0,
       ]
     );
 
@@ -488,7 +505,6 @@ export async function POST(request: NextRequest) {
          o.order_number,
          o.created_at AS date,
          o.status,
-         o.requires_approval,
          o.urgency,
          o.notes,
          sh.name AS supply_house,

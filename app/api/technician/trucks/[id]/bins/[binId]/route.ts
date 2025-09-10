@@ -90,11 +90,6 @@ export async function GET(
       [id]
     );
     const truck = (truckRows as any[])[0];
-    console.log(
-      `Truck details: id=${id}, assigned_to=${
-        truck?.assigned_to || "not found"
-      }`
-    );
 
     if (!truck) {
       console.log(`Truck not found: truckId=${id}`);
@@ -118,7 +113,9 @@ export async function GET(
         tb.id,
         tb.name,
         tb.bin_code AS code,
-        tb.name AS location,
+        tb.location,
+        tb.section,
+        tb.binType,
         tb.description,
         tb.max_capacity,
         t.truck_number,
@@ -132,7 +129,7 @@ export async function GET(
             'standard_level', COALESCE(ii.standard_level, 0),
             'unit', COALESCE(ii.unit, 'pieces'),
             'last_restocked', ti.last_restocked,
-            'is_low_stock', CASE WHEN ti.quantity IS NULL THEN FALSE ELSE ti.quantity <= COALESCE(ii.min_quantity, 0) END
+            'is_low_stock', CASE WHEN ti.quantity IS NULL THEN FALSE ELSE ti.quantity < COALESCE(ii.min_quantity, 0) END
           )
         ) AS inventory
       FROM truck_bins tb
@@ -141,7 +138,7 @@ export async function GET(
       LEFT JOIN inventory_items ii ON ti.item_id = ii.id
       LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
       WHERE tb.id = ? AND tb.truck_id = ? AND t.assigned_to = ?
-      GROUP BY tb.id, tb.name, tb.bin_code, tb.description, tb.max_capacity, t.truck_number
+      GROUP BY tb.id, tb.name, tb.bin_code, tb.location, tb.section, tb.binType, tb.description, tb.max_capacity, t.truck_number
       `,
       [binId, id, effectiveUserId]
     );
@@ -149,31 +146,20 @@ export async function GET(
     const bin = (binRows as any[])[0];
 
     if (!bin) {
-      console.log(
-        `Bin not found: binId=${binId}, truckId=${id}, effectiveUserId=${effectiveUserId}`
-      );
       return NextResponse.json(
         { error: "Bin not found or not assigned to the technician's truck" },
         { status: 404 }
       );
     }
 
-    // Log raw inventory value for debugging
-    console.log(`Raw inventory value: ${bin.inventory}`);
-
     let inventory;
     try {
-      inventory = bin.inventory
-        ? JSON.parse(JSON.stringify(bin.inventory))
-        : [];
-      console.log(`Parsed inventory:`, inventory);
+      inventory = bin.inventory ? JSON.parse(JSON.stringify(bin.inventory)) : [];
       if (!Array.isArray(inventory)) {
-        console.warn(`Parsed inventory is not an array:`, inventory);
         inventory = [inventory];
       }
     } catch (parseError: any) {
       console.error(`Failed to parse inventory JSON: ${parseError.message}`);
-      console.error(`Raw inventory: ${bin.inventory}`);
       inventory = [];
     }
 
@@ -182,15 +168,14 @@ export async function GET(
       name: bin.name,
       code: bin.code,
       location: bin.location,
+      section: bin.section,
+      binType: bin.binType,
       description: bin.description,
       maxCapacity: bin.max_capacity ?? 10,
       truckNumber: bin.truck_number,
       inventory: inventory.filter((item: any) => item && item.id),
     };
 
-    console.log(
-      `Successfully fetched bin: ${bin.id} with ${formattedBin.inventory.length} items, maxCapacity: ${formattedBin.maxCapacity}`
-    );
     return NextResponse.json(formattedBin);
   } catch (error: any) {
     console.error("Bin details API error:", {
@@ -545,12 +530,12 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, bin_code, description, max_capacity } = body;
+    const { name, bin_code, description, max_capacity, location, section, binType } = body;
 
-    if (!name || !bin_code) {
+    if (!name || !bin_code || !location || !binType) {
       console.log("Invalid request body: missing required fields");
       return NextResponse.json(
-        { error: "Name and bin code are required" },
+        { error: "Name, binCode, location and binType are required" },
         { status: 400 }
       );
     }
@@ -597,10 +582,23 @@ export async function PUT(
         bin_code = ?, 
         description = ?, 
         max_capacity = ?, 
+        location = ?, 
+        section = ?, 
+        binType = ?, 
         updated_at = NOW()
       WHERE id = ? AND truck_id = ?
       `,
-      [name, bin_code, description || null, max_capacity ?? null, binId, id]
+      [
+        name,
+        bin_code,
+        description || null,
+        max_capacity ?? null,
+        location,
+        section || null,
+        binType,
+        binId,
+        id,
+      ]
     );
 
     await connection.commit();

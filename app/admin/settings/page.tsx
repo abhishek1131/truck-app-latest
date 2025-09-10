@@ -76,9 +76,43 @@ export default function AdminSettingsPage() {
         });
         const result = await response.json();
         if (result.success && result.data) {
-          setPlatformSettings(result.data.platform);
-          setCommissionSettings(result.data.commission);
-          setSecuritySettings(result.data.security);
+          // Helper function to remove extra quotes from strings
+          const cleanString = (value:any) => {
+            if (typeof value === "string" && value.startsWith('"') && value.endsWith('"')) {
+              return value.slice(1, -1); // Remove surrounding quotes
+            }
+            return value === "null" ? null : value; // Handle "null" strings
+          };
+
+          // Parse platform settings
+          setPlatformSettings({
+            platformName: cleanString(result.data.platform.platformName),
+            platformDescription: cleanString(result.data.platform.platformDescription),
+            supportEmail: cleanString(result.data.platform.supportEmail),
+            adminEmail: cleanString(result.data.platform.adminEmail),
+            maintenanceMode: result.data.platform.maintenanceMode === "true",
+            allowRegistrations: result.data.platform.allowRegistrations === "true",
+          });
+
+          // Parse commission settings
+          setCommissionSettings({
+            defaultCommissionRate: Number.parseFloat(result.data.commission.defaultCommissionRate),
+            technicianCreditRate: Number.parseFloat(result.data.commission.technicianCreditRate),
+            minimumOrderValue: Number.parseFloat(result.data.commission.minimumOrderValue),
+            maximumOrderValue: Number.parseFloat(result.data.commission.maximumOrderValue),
+            autoApproveOrders: result.data.commission.autoApproveOrders === true || result.data.commission.autoApproveOrders === "true",
+            requireOrderApproval: result.data.commission.requireOrderApproval === false || result.data.commission.requireOrderApproval === "false",
+          });
+
+          // Parse security settings
+          setSecuritySettings({
+            requireTwoFactor: result.data.security.requireTwoFactor === "true",
+            sessionTimeout: result.data.security.sessionTimeout === "null" ? 24 : Number.parseInt(result.data.security.sessionTimeout),
+            passwordMinLength: result.data.security.passwordMinLength === "null" ? 8 : Number.parseInt(result.data.security.passwordMinLength),
+            requireSpecialChars: result.data.security.requireSpecialChars === "true",
+            maxLoginAttempts: result.data.security.maxLoginAttempts === "null" ? 5 : Number.parseInt(result.data.security.maxLoginAttempts),
+            lockoutDuration: result.data.security.lockoutDuration === "null" ? 30 : Number.parseInt(result.data.security.lockoutDuration),
+          });
         } else {
           setError(result.error || "Failed to fetch settings");
         }
@@ -91,47 +125,61 @@ export default function AdminSettingsPage() {
     fetchSettings();
   }, [token, user]);
 
+  const validatePlatformSettings = (settings: { platformName: any; platformDescription: any; supportEmail: any; adminEmail: any; maintenanceMode: any; allowRegistrations: any; }) => ({
+    platformName: settings.platformName.trim(),
+    platformDescription: settings.platformDescription.trim(),
+    supportEmail: settings.supportEmail.trim(),
+    adminEmail: settings.adminEmail.trim(),
+    maintenanceMode: Boolean(settings.maintenanceMode),
+    allowRegistrations: Boolean(settings.allowRegistrations),
+  });
+
   const handleSavePlatform = async () => {
-    setIsSaving(true);
-    setError("");
-    try {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(platformSettings.supportEmail)) {
-        setError("Invalid support email format");
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(platformSettings.adminEmail)) {
-        setError("Invalid admin email format");
-        return;
-      }
-
-      const response = await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          category: "platform",
-          settings: platformSettings,
-        }),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        toast({
-          title: "Platform settings updated",
-          description: "Your platform settings have been successfully saved.",
-        });
-      } else {
-        setError(result.error || "Failed to update platform settings");
-      }
-    } catch (error) {
-      setError("Failed to update platform settings");
-      console.error("Save platform settings error:", error);
-    } finally {
-      setIsSaving(false);
+  setIsSaving(true);
+  setError("");
+  try {
+    const validatedSettings = validatePlatformSettings(platformSettings);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(validatedSettings.supportEmail)) {
+      setError("Invalid support email format");
+      return;
     }
-  };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(validatedSettings.adminEmail)) {
+      setError("Invalid admin email format");
+      return;
+    }
+ 
+    const payload = {
+      category: "platform",
+      settings: validatedSettings,
+    };
+    console.log("Sending payload:", JSON.stringify(payload)); // Debug log
+ 
+    const response = await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+ 
+    const result = await response.json();
+    if (result.success) {
+      setPlatformSettings(validatedSettings);
+      toast({
+        title: "Platform settings updated",
+        description: "Your platform settings have been successfully saved.",
+      });
+    } else {
+      setError(result.error || "Failed to update platform settings");
+    }
+  } catch (error) {
+    setError("Failed to update platform settings");
+    console.error("Save platform settings error:", error);
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleSaveCommission = async () => {
     setIsSaving(true);

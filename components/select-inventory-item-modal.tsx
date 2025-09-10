@@ -67,9 +67,9 @@ export function SelectInventoryItemModal({
 
   const filteredItems = inventoryItems.filter(
     (item) =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.partNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.partNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSelectItem = (item: any) => {

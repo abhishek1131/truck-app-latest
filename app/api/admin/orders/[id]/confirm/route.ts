@@ -50,10 +50,10 @@ export async function POST(
     const [result] = await pool.query(
       `
       UPDATE orders 
-      SET status = ?, requires_approval = ?, confirmed_at = NOW(), updated_at = NOW()
+      SET status = ?, confirmed_at = NOW(), updated_at = NOW()
       WHERE id = ? AND status = ?
       `,
-      ["confirmed", 1, params.id, "pending"]
+      ["confirmed", params.id, "pending"]
     );
         
     if ((result as any).affectedRows === 0) {
