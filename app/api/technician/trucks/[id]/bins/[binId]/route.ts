@@ -340,18 +340,18 @@ export async function POST(
     const existing = (existingInventory as any[])[0];
 
     const maxQuantity = existing?.max_quantity ?? item.max_quantity ?? 20;
-    if (quantity > maxQuantity) {
-      console.log(
-        `Requested quantity ${quantity} exceeds max_quantity ${maxQuantity} for item ${inventory_item_id}`
-      );
-      await connection.rollback();
-      return NextResponse.json(
-        {
-          error: `Cannot add item: quantity exceeds maximum allowed (${maxQuantity})`,
-        },
-        { status: 400 }
-      );
-    }
+    // if (quantity > maxQuantity) {
+    //   console.log(
+    //     `Requested quantity ${quantity} exceeds max_quantity ${maxQuantity} for item ${inventory_item_id}`
+    //   );
+    //   await connection.rollback();
+    //   return NextResponse.json(
+    //     {
+    //       error: `Cannot add item: quantity exceeds maximum allowed (${maxQuantity})`,
+    //     },
+    //     { status: 400 }
+    //   );
+    // }
 
     // Check max_capacity limit for distinct items
     if (!existing) {

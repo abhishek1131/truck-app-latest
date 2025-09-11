@@ -80,8 +80,6 @@ export default function BinDetailPage() {
         }));
         setBin({ ...data, inventory: mappedItems });
         setBinItems(mappedItems);
-        console.log("Response:", data);
-        console.log("Mapped Items:", mappedItems);
       } else {
         console.error("Failed to fetch bin:", data.error);
         router.push(`/trucks/${truckId}`);
@@ -98,7 +96,8 @@ export default function BinDetailPage() {
 
   async function deleteBin(truckId: string, binId: string) {
     try {
-      const response = await fetch(`/api/technician/trucks/${truckId}/bins?binId=${binId}`,
+      const response = await fetch(
+        `/api/technician/trucks/${truckId}/bins?binId=${binId}`,
         {
           method: "DELETE",
           headers: {
@@ -137,16 +136,13 @@ export default function BinDetailPage() {
         }
       );
       const data = await response.json();
-      console.log("POST Response:", data);
       if (response.ok) {
         await fetchBin();
       } else {
         setErrorMessage(data.error || "Failed to add item");
-        console.error("Failed to add item:", data.error);
       }
     } catch (error) {
       setErrorMessage("Something went wrong while adding item");
-      console.error("Error adding item:", error);
     }
   };
 
@@ -173,18 +169,15 @@ export default function BinDetailPage() {
         }
       );
       const data = await response.json();
-      console.log("Edit POST Response:", data);
       if (response.ok) {
         await fetchBin();
         setEditingItem(null);
         setEditQuantity(0);
       } else {
         setErrorMessage(data.error || "Failed to update item");
-        console.error("Failed to update item:", data.error);
       }
     } catch (error) {
       setErrorMessage("Something went wrong while updating item");
-      console.error("Error updating item:", error);
     }
   };
 
@@ -204,16 +197,13 @@ export default function BinDetailPage() {
         }
       );
       const data = await response.json();
-      console.log("DELETE Response:", data);
       if (response.ok) {
         await fetchBin();
       } else {
         setErrorMessage(data.error || "Failed to delete item");
-        console.error("Failed to delete item:", data.error);
       }
     } catch (error) {
       setErrorMessage("Something went wrong while deleting item");
-      console.error("Error deleting item:", error);
     }
   };
 
@@ -272,82 +262,72 @@ export default function BinDetailPage() {
           </Link>
         </div>
 
-        {/* Bin Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Bin Stats - always 2 per row */}
+        <div className="grid grid-cols-2 gap-4">
           <Card>
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Items
-                  </p>
-                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {totalItems} / {maxCapacity}
-                  </p>
-                  <p className="text-xs md:text-sm text-gray-500">
-                    In this bin
-                  </p>
-                </div>
-                <div className="p-2 md:p-3 rounded-lg bg-green-500">
-                  <Package className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                </div>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-600 truncate">
+                  Total Items
+                </p>
+                <p className="text-xl md:text-2xl font-bold text-gray-900 truncate">
+                  {totalItems} / {maxCapacity}
+                </p>
+                <p className="text-xs text-gray-500 truncate">In this bin</p>
+              </div>
+              <div className="p-2 rounded-lg bg-green-500 shrink-0">
+                <Package className="h-5 w-5 text-white" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Categories
-                  </p>
-                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {categories.length}
-                  </p>
-                  <p className="text-xs md:text-sm text-gray-500">Item types</p>
-                </div>
-                <div className="p-2 md:p-3 rounded-lg bg-blue-500">
-                  <Grid3X3 className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                </div>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-600 truncate">
+                  Categories
+                </p>
+                <p className="text-xl md:text-2xl font-bold text-gray-900 truncate">
+                  {categories.length}
+                </p>
+                <p className="text-xs text-gray-500 truncate">Item types</p>
+              </div>
+              <div className="p-2 rounded-lg bg-blue-500 shrink-0">
+                <Grid3X3 className="h-5 w-5 text-white" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Low Stock</p>
-                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {lowStockCount}
-                  </p>
-                  <p className="text-xs md:text-sm text-gray-500">
-                    Need restock
-                  </p>
-                </div>
-                <div className="p-2 md:p-3 rounded-lg bg-red-500">
-                  <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                </div>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-600 truncate">
+                  Low Stock
+                </p>
+                <p className="text-xl md:text-2xl font-bold text-gray-900 truncate">
+                  {lowStockCount}
+                </p>
+                <p className="text-xs text-gray-500 truncate">Need restock</p>
+              </div>
+              <div className="p-2 rounded-lg bg-red-500 shrink-0">
+                <AlertTriangle className="h-5 w-5 text-white" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Last Updated
-                  </p>
-                  <p className="text-lg md:text-xl font-bold text-gray-900">
-                    {lastUpdated}
-                  </p>
-                  <p className="text-xs md:text-sm text-gray-500">Activity</p>
-                </div>
-                <div className="p-2 md:p-3 rounded-lg bg-purple-500">
-                  <Package className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                </div>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-600">
+                  Last Updated
+                </p>
+                <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 break-words leading-snug">
+                  {lastUpdated}
+                </p>
+                <p className="text-xs text-gray-500 truncate">Activity</p>
+              </div>
+              <div className="p-2 rounded-lg bg-purple-500 shrink-0">
+                <Package className="h-5 w-5 text-white" />
               </div>
             </CardContent>
           </Card>
@@ -356,7 +336,7 @@ export default function BinDetailPage() {
         {/* Quick Actions */}
         <Card>
           <CardContent className="p-4 md:p-6">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               <SelectInventoryItemModal
                 truckId={truckId}
                 binId={binId}
@@ -368,20 +348,22 @@ export default function BinDetailPage() {
               <Link href={`/order?truckId=${truckId}`}>
                 <Button
                   variant="outline"
-                  className="h-16 flex flex-col space-y-2 w-full bg-transparent"
+                  className="h-16 flex flex-col items-center justify-center space-y-1 w-full bg-transparent text-center"
                 >
-                  <ShoppingCart className="h-5 w-5" />
-                  <span className="text-xs">Order Items</span>
+                  <ShoppingCart className="h-5 w-5 shrink-0" />
+                  <span className="text-xs truncate">Order Items</span>
                 </Button>
               </Link>
-              <Link href={`/order?truckId=${truckId}&fromRestock=true`}
-                onClick={(e) => e.stopPropagation()}>
+              <Link
+                href={`/order?truckId=${truckId}&fromRestock=true`}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Button
                   variant="outline"
-                  className="h-16 flex flex-col space-y-2 w-full bg-transparent"
+                  className="h-16 flex flex-col items-center justify-center space-y-1 w-full bg-transparent text-center"
                 >
-                  <RotateCcw className="h-5 w-5" />
-                  <span className="text-xs">Restock</span>
+                  <RotateCcw className="h-5 w-5 shrink-0" />
+                  <span className="text-xs truncate">Restock</span>
                 </Button>
               </Link>
               <EditBinModal
@@ -389,23 +371,21 @@ export default function BinDetailPage() {
                 bin={bin}
                 onBinUpdated={handleBinUpdated}
               />
-
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="outline"
-                    className="h-16 flex flex-col space-y-2 w-full bg-transparent text-red-600 hover:bg-red-50"
+                    className="h-16 flex flex-col items-center justify-center space-y-1 w-full bg-transparent text-red-600 hover:bg-red-50"
                   >
                     <span className="h-5 w-5">🗑️</span>
-                    <span className="text-xs">Delete Bin</span>
+                    <span className="text-xs truncate">Delete Bin</span>
                   </Button>
                 </AlertDialogTrigger>
-
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Bin</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to delete {bin.name} ?
+                      Are you sure you want to delete {bin.name}?
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -414,9 +394,7 @@ export default function BinDetailPage() {
                       className="bg-red-600 text-white hover:bg-red-700"
                       onClick={async () => {
                         const success = await deleteBin(truckId, bin.id);
-
                         if (success) {
-                          // ✅ Success pe navigate
                           router.push(`/trucks/${truckId}`);
                         } else {
                           console.error("Error deleting bin");
@@ -428,7 +406,6 @@ export default function BinDetailPage() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-
             </div>
           </CardContent>
         </Card>
@@ -438,7 +415,7 @@ export default function BinDetailPage() {
           <Card className="border-red-200 bg-red-50">
             <CardHeader>
               <CardTitle className="text-red-800 flex items-center">
-                <AlertTriangle className="h-5 w-5 mr-2" />
+                <AlertTriangle className="h-5 w-5 mr-2 shrink-0" />
                 Low Stock Alert
               </CardTitle>
             </CardHeader>
@@ -452,7 +429,7 @@ export default function BinDetailPage() {
                   <Badge
                     key={item.id}
                     variant="destructive"
-                    className="text-xs"
+                    className="text-xs truncate max-w-[150px]"
                   >
                     {item.name} ({item.currentStock}/{item.standardLevel})
                   </Badge>
@@ -467,30 +444,34 @@ export default function BinDetailPage() {
           {filteredItems.map((item: any) => (
             <Card
               key={item.id}
-              className={`hover:shadow-lg transition-shadow ${item.isLowStock ? "border-red-200" : ""
-                }`}
+              className={`hover:shadow-lg transition-shadow ${
+                item.isLowStock ? "border-red-200" : ""
+              }`}
             >
               <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
-                  <div className="flex items-center space-x-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  {/* Left: Icon + Info */}
+                  <div className="flex items-center space-x-4 min-w-0">
                     <div
-                      className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center ${item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
-                        }`}
+                      className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center shrink-0 ${
+                        item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
+                      }`}
                     >
                       <Package
-                        className={`h-6 w-6 md:h-8 md:w-8 ${item.isLowStock ? "text-red-600" : "text-white"
-                          }`}
+                        className={`h-6 w-6 md:h-8 md:w-8 ${
+                          item.isLowStock ? "text-red-600" : "text-white"
+                        }`}
                       />
                     </div>
-                    <div>
-                      <h3 className="text-lg md:text-xl font-semibold text-gray-900">
+                    <div className="min-w-0">
+                      <h3 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
                         {item.name}
                       </h3>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary" className="text-xs">
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs truncate">
                           {item.category}
                         </Badge>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs truncate">
                           ID: {item.inventoryItemId}
                         </Badge>
                         {item.isLowStock && (
@@ -499,15 +480,16 @@ export default function BinDetailPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-gray-400 mt-1 truncate">
                         Last restocked{" "}
                         {new Date(item.lastRestocked).toLocaleString()}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col md:flex-row items-start md:items-center space-y-3 md:space-y-0 md:space-x-6">
-                    <div className="flex space-x-4 md:space-x-6">
+                  {/* Right: Stock + Actions */}
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-6 w-full md:w-auto">
+                    <div className="flex space-x-6 w-full md:w-auto justify-between md:justify-start">
                       <div className="text-center">
                         {editingItem === item.id ? (
                           <div className="flex items-center space-x-2">
@@ -541,10 +523,11 @@ export default function BinDetailPage() {
                         ) : (
                           <>
                             <p
-                              className={`text-lg md:text-xl font-bold ${item.isLowStock
-                                ? "text-red-600"
-                                : "text-gray-900"
-                                }`}
+                              className={`text-lg md:text-xl font-bold ${
+                                item.isLowStock
+                                  ? "text-red-600"
+                                  : "text-gray-900"
+                              }`}
                             >
                               {item.currentStock}
                             </p>
@@ -592,8 +575,9 @@ export default function BinDetailPage() {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full transition-all duration-300 ${item.isLowStock ? "bg-red-500" : "bg-green-500"
-                        }`}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        item.isLowStock ? "bg-red-500" : "bg-green-500"
+                      }`}
                       style={{
                         width: `${Math.min(
                           (item.currentStock / item.standardLevel) * 100,
@@ -606,21 +590,21 @@ export default function BinDetailPage() {
               </CardContent>
             </Card>
           ))}
-        </div>
 
-        {filteredItems.length === 0 && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No items found
-              </h3>
-              <p className="text-gray-500">
-                Try adjusting your search terms or add items from inventory.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+          {filteredItems.length === 0 && (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No items found
+                </h3>
+                <p className="text-gray-500">
+                  Try adjusting your search terms or add items from inventory.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </Navigation>
   );
