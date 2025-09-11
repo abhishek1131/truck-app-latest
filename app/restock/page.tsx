@@ -60,9 +60,16 @@ interface OrderDetails {
   items: RestockItem[];
 }
 
+interface TruckRestock {
+  truckId: string;
+  truck: string;
+  items: RestockItem[];
+}
+
 export default function RestockPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
+  const [trucksRestock, setTrucksRestock] = useState<TruckRestock[]>([]);
   const [restockItems, setRestockItems] = useState<RestockItem[]>([]);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
@@ -118,13 +125,16 @@ export default function RestockPage() {
         });
         const data = await response.json();
         if (response.ok) {
-          // Map API response to include inventoryItemId and binId
-          const items = data.restockItems.map((item: any) => ({
-            ...item,
-            inventoryItemId: item.inventory_item_id,
-            binId: item.bin_id,
+          const trucks = data.trucks.map((truck: any) => ({
+            truckId: truck.truckId,
+            truck: truck.truck,
+            items: truck.items.map((item: any) => ({
+              ...item,
+              inventoryItemId: item.inventory_item_id,
+              binId: item.bin_id,
+            })),
           }));
-          setRestockItems(items || []);
+          setTrucksRestock(trucks);
         } else {
           setError(data.error || "Failed to fetch restock items");
         }
@@ -141,91 +151,26 @@ export default function RestockPage() {
     }
   }, [user, token, loading, router]);
 
-  const updateQuantity = (id: string, quantity: number) => {
-    setRestockItems((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, suggestedQuantity: Math.max(0, quantity) }
-          : item
+  const updateQuantity = (truckId: string, itemId: string, quantity: number) => {
+    setTrucksRestock((trucks) =>
+      trucks.map((truck) =>
+        truck.truckId === truckId
+          ? {
+              ...truck,
+              items: truck.items.map((item) =>
+                item.id === itemId
+                  ? { ...item, suggestedQuantity: Math.max(0, quantity) }
+                  : item
+              ),
+            }
+          : truck
       )
     );
   };
 
-  const handleSubmitRestock = async () => {
-    const itemsToRestock = restockItems.filter(
-      (item) => item.suggestedQuantity > 0
-    );
-    if (itemsToRestock.length === 0) {
-      setError("No items selected for restock");
-      return;
-    }
-
-    try {
-      setError(null);
-      const truckId = itemsToRestock[0].truck; // Assume all items are from the same truck
-      const urgency = itemsToRestock.some((item) => item.priority === "high")
-        ? "high"
-        : itemsToRestock.some((item) => item.priority === "medium")
-        ? "medium"
-        : "low";
-      const notes = `Restock order for ${
-        itemsToRestock.length
-      } items, total quantity: ${itemsToRestock.reduce(
-        (sum, item) => sum + item.suggestedQuantity,
-        0
-      )}`;
-
-      const orderPayload = {
-        truck_id: truckId,
-        items: itemsToRestock.map((item) => ({
-          inventory_item_id: item.inventoryItemId,
-          inventory_item_name: item.name, // Include name as fallback
-          bin_id: item.binId,
-          quantity: item.suggestedQuantity,
-          unit_price: 0, // Default unit price; adjust if available
-          reason: `Restock: ${item.name} (Priority: ${item.priority})`,
-        })),
-        notes,
-        // supply_house_id: null, // Adjust if a default supply house is needed
-        urgency,
-      };
-
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderPayload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create order");
-      }
-
-      const { order } = await response.json();
-      setOrderDetails({
-        id: order.id,
-        orderNumber: order.order_number || `RESTOCK-${Date.now()}`, // Fallback if order_number is not returned
-        technician: technicianName, // Use fetched technician name
-        email: user?.email || order?.technician_email || "no-reply@company.com",
-        date: new Date().toLocaleString(),
-        truck: truckId,
-        totalItems: itemsToRestock.length,
-        totalQuantity: itemsToRestock.reduce(
-          (sum, item) => sum + item.suggestedQuantity,
-          0
-        ),
-        items: itemsToRestock,
-      });
-      setIsModalOpen(true);
-      // setRestockItems([]); // Reset form on success
-    } catch (err) {
-      console.error("Error creating restock order:", err);
-      setError(err.message || "Failed to create restock order");
-    }
-  };
+  const handleSubmitRestock = (truck: TruckRestock) => {
+    router.push(`/order?truckId=${truck.truckId}&fromRestock=true`);
+  }
 
   const handleDownloadInvoice = async () => {
     if (!orderDetails || !token) return;
@@ -416,7 +361,7 @@ ${orderDetails.technician}`;
               <p className="text-gray-500">{error}</p>
             </CardContent>
           </Card>
-        ) : restockItems.length > 0 ? (
+        ) : trucksRestock.length > 0 ? (
           <>
             {/* Dashboard Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -470,123 +415,138 @@ ${orderDetails.technician}`;
                       Review and adjust quantities before submitting
                     </CardDescription>
                   </div>
-                  <Button
-                    onClick={handleSubmitRestock}
-                    className="bg-[#E3253D] hover:bg-red-600 flex items-center justify-center"
-                    disabled={totalItems === 0}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Submit Restock Order
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {restockItems.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="p-4"
-                      onClick={(e) => {
-                        router.push(
-                          `/order?truckId=${item.truckId}&fromRestock=true`
-                        );
-                        e.stopPropagation();
-                      }}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        {/* Left Section */}
-                        <div className="flex items-start sm:items-center gap-4">
-                          <div className="w-12 h-12 bg-[#10294B] rounded-lg flex items-center justify-center text-white shrink-0">
-                            <Package className="h-6 w-6" />
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="font-semibold text-[#10294B] truncate">
-                              {item.name}
-                            </h4>
-                            <p className="text-sm text-gray-600 break-words">
-                              {item.truck} • {item.category}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
-                              <span className="text-gray-500">
-                                Current: {item.currentStock}
-                              </span>
-                              <span className="text-gray-500">
-                                Standard: {item.standardLevel}
-                              </span>
-                              <span className="text-blue-600 font-medium">
-                                Need: {item.standardLevel - item.currentStock}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                  {/* Suggested Restock Items - Grouped by Truck */}
+                  {trucksRestock.length > 0 ? (
+                    trucksRestock.map((truck) => {
+                      const totalTruckItems = truck.items.filter((i) => i.suggestedQuantity > 0).length;
 
-                        {/* Right Section */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                          <Badge
-                            className={
-                              item.priority === "high"
-                                ? "bg-red-100 text-red-800"
-                                : item.priority === "medium"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-green-100 text-green-800"
-                            }
-                          >
-                            {item.priority} priority
-                          </Badge>
-                          <div className="flex items-center gap-2">
-                            <Label
-                              htmlFor={`quantity-${item.id}`}
-                              className="text-sm whitespace-nowrap"
+                      return (
+                        <Card key={truck.truckId} className="mb-6">
+                          {/* Truck Header */}
+                          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                            <CardTitle className="text-lg font-semibold">{truck.truck}</CardTitle>
+                            <Button
+                              onClick={() => handleSubmitRestock(truck)}
+                              className="bg-[#E3253D] hover:bg-red-600 flex items-center justify-center"
+                              disabled={totalTruckItems === 0}
                             >
-                              Quantity:
-                            </Label>
-                            {editingItem === item.id ? (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  id={`quantity-${item.id}`}
-                                  type="number"
-                                  min="0"
-                                  value={item.suggestedQuantity}
-                                  onChange={(e) =>
-                                    updateQuantity(
-                                      item.id,
-                                      Number.parseInt(e.target.value) || 0
-                                    )
-                                  }
-                                  className="w-20"
-                                />
-                                <Button
-                                  size="sm"
-                                  onClick={() => setEditingItem(null)}
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-lg min-w-[3rem] text-center">
-                                  {item.suggestedQuantity}
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    router.push(
-                                      `/order?truckId=${item.truckId}&fromRestock=true`
-                                    );
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Submit Restock Order
+                            </Button>
+                          </CardHeader>
+
+                          {/* Truck Items */}
+                          <CardContent className="space-y-4">
+                            {truck.items.map((item) => (
+                              <Card
+                                key={item.id}
+                                className="p-4"
+                                onClick={(e) => {
+                                  router.push(`/order?truckId=${truck.truckId}&fromRestock=true&itemId=${item.id}`);
+                                  e.stopPropagation();
+                                }}
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                  {/* Left Section */}
+                                  <div className="flex items-start sm:items-center gap-4">
+                                    <div className="w-12 h-12 bg-[#10294B] rounded-lg flex items-center justify-center text-white shrink-0">
+                                      <Package className="h-6 w-6" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h4 className="font-semibold text-[#10294B] truncate">{item.name}</h4>
+                                      <p className="text-sm text-gray-600 break-words">
+                                        {truck.truck} • {item.category}
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
+                                        <span className="text-gray-500">Current: {item.currentStock}</span>
+                                        <span className="text-gray-500">Standard: {item.standardLevel}</span>
+                                        <span className="text-blue-600 font-medium">
+                                          Need: {item.standardLevel - item.currentStock}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Right Section */}
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                                    <Badge
+                                      className={
+                                        item.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : item.priority === "medium"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-green-100 text-green-800"
+                                      }
+                                    >
+                                      {item.priority} priority
+                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                      <Label htmlFor={`quantity-${item.id}`} className="text-sm whitespace-nowrap">
+                                        Quantity:
+                                      </Label>
+                                      {editingItem === item.id ? (
+                                        <div className="flex items-center gap-2">
+                                          <Input
+                                            id={`quantity-${item.id}`}
+                                            type="number"
+                                            min="0"
+                                            value={item.suggestedQuantity}
+                                            onChange={(e) =>
+                                              updateQuantity(
+                                                truck.truckId,
+                                                item.id,
+                                                Number.parseInt(e.target.value) || 0
+                                              )
+                                            }
+                                            className="w-20"
+                                          />
+                                          <Button
+                                            size="sm"
+                                            onClick={() => setEditingItem(null)}
+                                            className="bg-green-600 hover:bg-green-700"
+                                          >
+                                            <CheckCircle className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-lg min-w-[3rem] text-center">
+                                            {item.suggestedQuantity}
+                                          </span>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              router.push(`/order?truckId=${truck.truckId}&fromRestock=true&itemId=${item.id}`);
+                                              e.stopPropagation();
+                                            }}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  ) : (
+                    <Card>
+                      <CardContent className="p-8 text-center">
+                        <RotateCcw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Restock Management</h3>
+                        <p className="text-gray-500">No items need restocking at this time.</p>
+                      </CardContent>
                     </Card>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -57,12 +57,37 @@ export async function GET(request: NextRequest) {
       JOIN inventory_categories ic ON ii.category_id = ic.id
       JOIN trucks t ON ti.truck_id = t.id
       WHERE t.assigned_to = ? AND ti.quantity < COALESCE(ii.standard_level, ti.min_quantity)
-      ORDER BY priority DESC, t.truck_number, ii.name
+      ORDER BY t.truck_number, priority DESC, ii.name
       `,
       [userId]
     );
 
-    return NextResponse.json({ restockItems });
+    // Group items by truck
+    const groupedByTruck: Record<string, any> = {};
+
+    (restockItems as any[]).forEach((item) => {
+      if (!groupedByTruck[item.truckId]) {
+        groupedByTruck[item.truckId] = {
+          truckId: item.truckId,
+          truck: item.truck,
+          items: [],
+        };
+      }
+      groupedByTruck[item.truckId].items.push({
+        id: item.id,
+        name: item.name,
+        currentStock: item.currentStock,
+        standardLevel: item.standardLevel,
+        suggestedQuantity: item.suggestedQuantity,
+        category: item.category,
+        priority: item.priority,
+      });
+    });
+
+    // Convert to array
+    const response = Object.values(groupedByTruck);
+
+    return NextResponse.json({ trucks: response });
   } catch (error: any) {
     console.error("Restock fetch error:", error);
     if (error.code === "ER_BAD_FIELD_ERROR") {

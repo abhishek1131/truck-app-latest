@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { verify } from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
 
 interface ConfirmResponse {
   success: boolean;
@@ -86,6 +87,27 @@ export async function POST(
       `,
       [params.id]
     );
+
+    // 🔹 Log activity
+    try {
+      await pool.query(
+        `
+        INSERT INTO activities (id, type, message, status, user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, NOW())
+        `,
+        [
+          uuidv4(),                                  // id
+          "order",                                   // type
+          `Order #${params.id} confirmed successfully`, // message
+          "info",                               // status
+          decoded.id,                                // user_id (who confirmed)
+        ]
+      );
+      console.log(`Activity logged: Order #${params.id} confirmed by user ${decoded.id}`);
+    } catch (activityError: any) {
+      console.error("Failed to log activity:", activityError);
+      // Do not block response if activity logging fails
+    }
 
     return NextResponse.json({
       success: true,

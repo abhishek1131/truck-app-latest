@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { verify } from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
 
 interface Order {
   id: string;
@@ -197,6 +198,26 @@ export async function GET(req: Request) {
     });
 
     const orders = Object.values(ordersMap);
+
+    // 🔹 Log activity: "Viewed orders"
+    try {
+      await pool.query(
+        `
+        INSERT INTO activities (id, type, message, status, user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, NOW())
+        `,
+        [
+          uuidv4(), 
+          "order", 
+          `User viewed orders list (page ${page}, filters applied: status=${status || "all"})`, 
+          "new", 
+          decoded.id
+        ]
+      );
+      console.log(`Activity logged: user ${decoded.id} viewed orders`);
+    } catch (activityError: any) {
+      console.error("Failed to log activity:", activityError);
+    }
 
     return NextResponse.json({
       success: true,

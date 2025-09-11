@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 export async function GET(request: NextRequest) {
   try {
@@ -548,10 +549,29 @@ export async function POST(request: NextRequest) {
     );
 
     await connection.commit();
-
     const newOrder = (newOrderRows as any[])[0];
     newOrder.order_items = newOrder.order_items.filter((item: any) => item.id);
 
+    console.log("Creating the activity record", newOrder);
+    try {
+      await connection.query(   // ✅ use the same connection
+        `
+        INSERT INTO activities (id, type, message, status, user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, NOW())
+        `,
+        [
+          uuidv4(),
+          "order",
+          `Created order ${newOrder.order_number} with ${newOrder.order_items.length} item(s)`,
+          "new",
+          userId,
+        ]
+      );
+      console.log(`Activity logged: Created order ${newOrder.order_number} by user ${userId}`);
+    } catch (activityError: any) {
+      console.error("Failed to log activity:", activityError);
+    }
+    
     return NextResponse.json({
       message: "Order created successfully",
       order: newOrder,

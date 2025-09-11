@@ -111,6 +111,7 @@ export default function OrderPage() {
   const searchParams = useSearchParams();
   const isRestock = searchParams.get("fromRestock") === "true";
   const truckId = searchParams.get("truckId");
+  const itemId = searchParams.get("itemId"); // New parameter for specific item
   const [selectedTruck, setSelectedTruck] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -170,21 +171,49 @@ export default function OrderPage() {
         });
         const data = await response.json();
         if (response.ok) {
-          const items = data.restockItems
-            .map((item: any) => ({
-              ...item,
-              inventoryItemId: item.inventory_item_id,
-              binId: item.bin_id,
-            }))
-            .filter((item: any) => item.suggestedQuantity > 0);
+          // Validate API response
+          if (!data.trucks || !Array.isArray(data.trucks)) {
+            throw new Error("Invalid API response: trucks data is missing or not an array");
+          }
 
-          if (items.length === 0) {
-            setError("No items need restocking at this time.");
+          // Flatten items from all trucks with defensive check for items
+          const allItems = data.trucks.flatMap((truck: any) => {
+            if (!truck.items || !Array.isArray(truck.items)) {
+              console.warn(`No items found for truck: ${truck.truckId}`);
+              return [];
+            }
+            return truck.items.map((item: any) => ({
+              ...item,
+              inventoryItemId: item.id,
+              truckId: truck.truckId,
+              truck: truck.truck,
+            }));
+          });
+
+          // Filter items based on truckId and itemId
+          let filteredItems = allItems;
+          if (truckId) {
+            filteredItems = filteredItems.filter(
+              (item: any) => item.truckId === truckId
+            );
+          }
+          if (itemId) {
+            filteredItems = filteredItems.filter(
+              (item: any) => item.id === itemId
+            );
+          }
+
+          if (filteredItems.length === 0) {
+            setError(
+              itemId
+                ? "No restock items found for the specified item."
+                : "No items need restocking at this time."
+            );
             setIsLoadingRestock(false);
             return;
           }
 
-          const truckIds = [...new Set(items.map((item: any) => item.truckId))];
+          const truckIds = [...new Set(filteredItems.map((item: any) => item.truckId))];
           if (truckIds.length > 1 && !truckId) {
             setNeedsTruckSelection(true);
             setError("Multiple trucks detected. Please select a truck.");
@@ -192,7 +221,7 @@ export default function OrderPage() {
             return;
           }
 
-          const inferredTruckId = truckId || items[0]?.truckId;
+          const inferredTruckId = truckId || filteredItems[0]?.truckId;
           if (!inferredTruckId) {
             setError("No truck information available for restock items.");
             setIsLoadingRestock(false);
@@ -208,13 +237,13 @@ export default function OrderPage() {
 
           setSelectedTruck(inferredTruckId);
 
-          const prefilledOrderItems: OrderItem[] = items
+          const prefilledOrderItems: OrderItem[] = filteredItems
             .filter((item: any) => item.truckId === inferredTruckId)
             .map((item: any) => ({
               id: Date.now().toString() + Math.random(),
-              inventoryItemId: item.inventoryItemId,
+              inventoryItemId: item.id,
               inventoryItem: {
-                id: item.inventoryItemId,
+                id: item.id,
                 name: item.name,
                 category: item.category,
                 unit: "unit",
@@ -228,8 +257,8 @@ export default function OrderPage() {
               requestedQuantity: item.suggestedQuantity,
               truckId: inferredTruckId,
               truckName: item.truck,
-              binId: item.binId,
-              binName: item.binId || "General",
+              binId: undefined, // No binId in new API response
+              binName: "General",
               currentStock: item.currentStock,
               reason: `Restock: ${item.name} (Priority: ${item.priority})`,
               unitPrice: 0,
@@ -242,14 +271,14 @@ export default function OrderPage() {
         }
       } catch (err) {
         console.error("Error fetching restock items:", err);
-        setError("Failed to load restock items");
+        setError("Failed to load restock items: " + (err.message || "Unknown error"));
       } finally {
         setIsLoadingRestock(false);
       }
     };
 
     fetchRestockItems();
-  }, [token, user, trucks, searchParams, truckId, isRestock]);
+  }, [token, user, trucks, searchParams, truckId, itemId, isRestock]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -278,6 +307,14 @@ export default function OrderPage() {
     }
 
     // Fetch previous orders
+    fetchPreviousOrder();
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [user, token, loading, router]);
+
+  const fetchPreviousOrder = async () => {
     try {
       const ordersResponse = await fetch("/api/orders/previous", {
         headers: { Authorization: `Bearer ${token}` },
@@ -294,10 +331,6 @@ export default function OrderPage() {
       console.error("Error fetching previous orders:", error);
     }
   };
-
-  useEffect(() => {
-    fetchData();
-  }, [user, token, loading, router]);
 
   useEffect(() => {
     const fetchInventory = async () => {
@@ -458,6 +491,7 @@ export default function OrderPage() {
       }
 
       const data = await response.json();
+      fetchPreviousOrder();
       setOrderDetails({
         id: data.order.id,
         orderNumber: data.order.order_number || `ORDER-${Date.now()}`,
@@ -809,9 +843,12 @@ ${orderDetails.technician}`;
                       if (selectedTruck) {
                         setError(null);
                         setNeedsTruckSelection(false);
-                        router.push(
-                          `/order?truckId=${selectedTruck}&fromRestock=true`
-                        );
+                        const queryParams = new URLSearchParams({
+                          truckId: selectedTruck,
+                          fromRestock: "true",
+                          ...(itemId && { itemId }),
+                        }).toString();
+                        router.push(`/order?${queryParams}`);
                       }
                     }}
                     disabled={!selectedTruck}
@@ -898,8 +935,8 @@ ${orderDetails.technician}`;
                         key={`${binItem.binId}-${binItem.inventoryItemId}`}
                         className="flex items-center justify-between p-3 bg-white rounded border"
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm">
                               {binItem.inventoryItem.name}
                             </span>
@@ -1007,8 +1044,8 @@ ${orderDetails.technician}`;
                           key={item.id}
                           className="flex items-center justify-between p-3 border rounded hover:bg-gray-50"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                          <div className="flex-1 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium">{item.name}</span>
                               <Badge variant="outline" className="text-xs">
                                 {item.category}
@@ -1064,8 +1101,8 @@ ${orderDetails.technician}`;
                       className="border rounded-lg p-4 grid grid-cols-1 gap-4"
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium">
                               {item.inventoryItem.name}
                             </span>

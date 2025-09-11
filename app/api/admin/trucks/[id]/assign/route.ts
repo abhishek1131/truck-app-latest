@@ -146,20 +146,26 @@ export async function PUT(
     try {
       await pool.query(
         `
-        INSERT INTO activities (id, type, message, status, created_at)
-        VALUES (?, ?, ?, ?, NOW())
+        INSERT INTO activities (id, type, message, status, user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, NOW())
         `,
-        [uuidv4(), action, message, "completed"]
+        [
+          uuidv4(),   // id
+          "truck",    // type (you can use "truck" to categorize truck-related activities)
+          message,    // message
+          "success",// status
+          decoded.id, // user_id (who performed the action)
+        ]
       );
       console.log(
-        `Logged activity: ${action} for truck #${truckRows[0].truck_number}`
+        `Logged activity: ${action} for truck #${truckRows[0].truck_number} by user ${decoded.id}`
       );
     } catch (activityError: any) {
       console.error(
         `Failed to log activity for truck #${truckRows[0].truck_number}:`,
         activityError
       );
-      // Note: We don't fail the request if activity logging fails, but log the error
+      // Do not block main flow if logging fails
     }
 
     // Fetch updated truck data
