@@ -509,6 +509,10 @@ export default function OrderPage() {
         items: itemsToSubmit,
       });
       setIsModalOpen(true);
+      setTimeout(() => {
+        console.log("Attempting redirect to /order"); // Debug log
+        router.push("/order");
+      }, 500);
     } catch (error) {
       console.error("Error submitting order:", error);
       setError(error.message || "Failed to submit order. Please try again.");
@@ -1224,16 +1228,20 @@ ${orderDetails.technician}`;
         {/* Order Confirmation Modal */}
         {orderDetails && (
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="w-full max-w-lg sm:max-w-[600px] max-h-[90vh] overflow-y-auto rounded-xl">
               <DialogHeader>
-                <DialogTitle>Order Confirmation</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-lg sm:text-xl">
+                  Order Confirmation
+                </DialogTitle>
+                <DialogDescription className="text-sm sm:text-base">
                   Your order has been successfully created. Review the details
                   below and download the invoice or share via email.
                 </DialogDescription>
               </DialogHeader>
+
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* Order Info Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Order ID</p>
                     <p className="font-medium">{orderDetails.orderNumber}</p>
@@ -1244,7 +1252,7 @@ ${orderDetails.technician}`;
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">{orderDetails.email}</p>
+                    <p className="font-medium break-all">{orderDetails.email}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Date</p>
@@ -1263,9 +1271,11 @@ ${orderDetails.technician}`;
                     <p className="font-medium">{orderDetails.totalQuantity}</p>
                   </div>
                 </div>
+
+                {/* Items List */}
                 <div>
                   <p className="text-sm text-gray-500 mb-2">Items</p>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-52 sm:max-h-60 overflow-y-auto pr-2">
                     {orderDetails.items.map((item, index) => (
                       <div key={index} className="border-b pb-2">
                         <p className="font-medium">{item.inventoryItem.name}</p>
@@ -1278,7 +1288,9 @@ ${orderDetails.technician}`;
                     ))}
                   </div>
                 </div>
-                <div className="flex justify-end space-x-2">
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -1286,7 +1298,9 @@ ${orderDetails.technician}`;
                       setSelectedTruck("");
                       setOrderItems([]);
                       setShowItemSelection(isRestock);
+                      router.push("/order");
                     }}
+                    className="w-full sm:w-auto"
                   >
                     Close
                   </Button>
@@ -1294,13 +1308,14 @@ ${orderDetails.technician}`;
                     onClick={handleDownloadInvoice}
                     variant="outline"
                     disabled={isDownloading}
+                    className="w-full sm:w-auto"
                   >
                     <Download className="h-4 w-4 mr-2" />
                     {isDownloading ? "Downloading..." : "Download PDF"}
                   </Button>
                   <Button
                     onClick={handleEmailWithPDF}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                     disabled={isDownloading}
                   >
                     <Mail className="h-4 w-4 mr-2" />

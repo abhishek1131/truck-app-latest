@@ -22,6 +22,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { useRouter } from "next/navigation";
 
 interface InventoryItem {
   internalId: string;
@@ -67,6 +68,7 @@ export function InventoryItemDetailsModal({
   const { token } = useAuth();
   const [open, setOpen] = useState(false);
   const [detailedItem, setDetailedItem] = useState<InventoryItem>(item);
+  const router = useRouter();
 
   useEffect(() => {
     if (open) {
@@ -355,7 +357,7 @@ export function InventoryItemDetailsModal({
             <Button variant="outline" onClick={() => setOpen(false)}>
               Close
             </Button>
-            <Button className="bg-[#E3253D] hover:bg-[#E3253D]/90">
+            <Button className="bg-[#E3253D] hover:bg-[#E3253D]/90" onClick={()=> router.push('/order')}>
               Order More
             </Button>
           </div>

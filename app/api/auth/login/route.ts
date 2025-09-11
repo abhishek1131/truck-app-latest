@@ -12,7 +12,7 @@ interface AuthResponse {
   success: boolean;
   data?: {
     user: { id: string; email: string };
-    profile: { first_name: string; last_name: string; role: string };
+    profile: { first_name: string; last_name: string; role: string, created_at: string };
     session: { access_token: string; expires_at: string };
   };
   error?: string;
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     const [users] = await pool.query(
       `
-      SELECT id, email, password, first_name, last_name, role, status
+      SELECT id, email, password, first_name, last_name, role, status, created_at
       FROM users
       WHERE email = ?
       `,
@@ -94,6 +94,7 @@ export async function POST(req: Request) {
           first_name: user.first_name,
           last_name: user.last_name,
           role: user.role,
+          created_at: user.created_at,
         },
         session: {
           access_token,

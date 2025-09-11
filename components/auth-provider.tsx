@@ -16,6 +16,7 @@ interface User {
   last_name: string;
   role: "technician" | "admin" | "manager";
   status: "active" | "inactive" | "suspended" | "pending";
+  created_at?: Date;
 }
 
 interface AuthContextType {
@@ -43,6 +44,7 @@ interface AuthResponse {
       role: "technician" | "admin" | "manager";
       first_name: string;
       last_name: string;
+      created_at: Date;
     };
     session: { access_token: string; expires_at: string };
   };
@@ -59,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  console.log("user",user);
   useEffect(() => {
     // Check localStorage for existing auth data
     const storedUser = localStorage.getItem("user");
@@ -147,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         last_name: profile.last_name,
         role: profile.role,
         status: "active",
+        created_at: profile.created_at,
       };
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("access_token", session.access_token);

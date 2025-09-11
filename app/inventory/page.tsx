@@ -271,7 +271,7 @@ export default function InventoryPage() {
                 className="hover:shadow-lg transition-shadow"
               >
                 <CardContent className="p-4 sm:p-6">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-4">
                     {/* Left section */}
                     <div className="flex items-start md:items-center gap-4 md:gap-6">
                       <div className="w-16 h-16 md:w-20 md:h-20 bg-[#10294B] rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
