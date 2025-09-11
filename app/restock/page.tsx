@@ -186,7 +186,7 @@ export default function RestockPage() {
           reason: `Restock: ${item.name} (Priority: ${item.priority})`,
         })),
         notes,
-        supply_house_id: null, // Adjust if a default supply house is needed
+        // supply_house_id: null, // Adjust if a default supply house is needed
         urgency,
       };
 

@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Building,
   DollarSign,
@@ -76,15 +76,13 @@ export default function AdminSettingsPage() {
         });
         const result = await response.json();
         if (result.success && result.data) {
-          // Helper function to remove extra quotes from strings
-          const cleanString = (value:any) => {
+          const cleanString = (value: any) => {
             if (typeof value === "string" && value.startsWith('"') && value.endsWith('"')) {
-              return value.slice(1, -1); // Remove surrounding quotes
+              return value.slice(1, -1);
             }
-            return value === "null" ? null : value; // Handle "null" strings
+            return value === "null" ? null : value;
           };
 
-          // Parse platform settings
           setPlatformSettings({
             platformName: cleanString(result.data.platform.platformName),
             platformDescription: cleanString(result.data.platform.platformDescription),
@@ -94,7 +92,6 @@ export default function AdminSettingsPage() {
             allowRegistrations: result.data.platform.allowRegistrations === "true",
           });
 
-          // Parse commission settings
           setCommissionSettings({
             defaultCommissionRate: Number.parseFloat(result.data.commission.defaultCommissionRate),
             technicianCreditRate: Number.parseFloat(result.data.commission.technicianCreditRate),
@@ -104,7 +101,6 @@ export default function AdminSettingsPage() {
             requireOrderApproval: result.data.commission.requireOrderApproval === false || result.data.commission.requireOrderApproval === "false",
           });
 
-          // Parse security settings
           setSecuritySettings({
             requireTwoFactor: result.data.security.requireTwoFactor === "true",
             sessionTimeout: result.data.security.sessionTimeout === "null" ? 24 : Number.parseInt(result.data.security.sessionTimeout),
@@ -135,51 +131,51 @@ export default function AdminSettingsPage() {
   });
 
   const handleSavePlatform = async () => {
-  setIsSaving(true);
-  setError("");
-  try {
-    const validatedSettings = validatePlatformSettings(platformSettings);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(validatedSettings.supportEmail)) {
-      setError("Invalid support email format");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(validatedSettings.adminEmail)) {
-      setError("Invalid admin email format");
-      return;
-    }
- 
-    const payload = {
-      category: "platform",
-      settings: validatedSettings,
-    };
-    console.log("Sending payload:", JSON.stringify(payload)); // Debug log
- 
-    const response = await fetch("/api/admin/settings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
- 
-    const result = await response.json();
-    if (result.success) {
-      setPlatformSettings(validatedSettings);
-      toast({
-        title: "Platform settings updated",
-        description: "Your platform settings have been successfully saved.",
+    setIsSaving(true);
+    setError("");
+    try {
+      const validatedSettings = validatePlatformSettings(platformSettings);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(validatedSettings.supportEmail)) {
+        setError("Invalid support email format");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(validatedSettings.adminEmail)) {
+        setError("Invalid admin email format");
+        return;
+      }
+
+      const payload = {
+        category: "platform",
+        settings: validatedSettings,
+      };
+      console.log("Sending payload:", JSON.stringify(payload));
+
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       });
-    } else {
-      setError(result.error || "Failed to update platform settings");
+
+      const result = await response.json();
+      if (result.success) {
+        setPlatformSettings(validatedSettings);
+        toast({
+          title: "Platform settings updated",
+          description: "Your platform settings have been successfully saved.",
+        });
+      } else {
+        setError(result.error || "Failed to update platform settings");
+      }
+    } catch (error) {
+      setError("Failed to update platform settings");
+      console.error("Save platform settings error:", error);
+    } finally {
+      setIsSaving(false);
     }
-  } catch (error) {
-    setError("Failed to update platform settings");
-    console.error("Save platform settings error:", error);
-  } finally {
-    setIsSaving(false);
-  }
-};
+  };
 
   const handleSaveCommission = async () => {
     setIsSaving(true);
@@ -422,26 +418,26 @@ export default function AdminSettingsPage() {
 
   return (
     <Navigation>
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="mb-8 px-4 sm:px-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-[#10294B] mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#10294B] mb-2">
               Platform Settings
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm sm:text-base">
               Configure and manage your TruXtoK platform
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
             <Button
               variant="outline"
-              className="flex items-center gap-2 bg-transparent"
+              className="flex items-center gap-2 bg-transparent w-full sm:w-auto"
               onClick={handleExportConfig}
             >
               <Download className="h-4 w-4" />
               Export Config
             </Button>
-            <label className="flex items-center gap-2 bg-transparent border rounded-md px-3 py-2 cursor-pointer">
+            <label className="flex items-center gap-2 bg-transparent border rounded-md px-3 py-2 cursor-pointer w-full sm:w-auto">
               <Upload className="h-4 w-4" />
               Import Config
               <input
@@ -455,14 +451,14 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      {/* {error && (
-        <Alert variant="destructive" className="mb-6">
+      {error && (
+        <Alert variant="destructive" className="mb-6 mx-4 sm:mx-0">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-      )} */}
+      )}
 
-      <Tabs defaultValue="platform" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
+      <Tabs defaultValue="platform" className="w-full px-4 sm:px-0">
+        <TabsList className="grid grid-cols-3 mb-8 w-full sm:w-auto flex-col sm:flex-row">
           <TabsTrigger value="platform" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             Platform
@@ -480,16 +476,16 @@ export default function AdminSettingsPage() {
         <TabsContent value="platform" className="space-y-6">
           <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <Building className="h-5 w-5 text-[#E3253D]" />
                 Platform Configuration
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm sm:text-base">
                 Basic platform settings and information
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="platformName">Platform Name</Label>
                   <Input
@@ -602,7 +598,7 @@ export default function AdminSettingsPage() {
               <Button
                 onClick={handleSavePlatform}
                 disabled={isSaving}
-                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90 w-full sm:w-auto"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Save Platform Settings"}
@@ -614,16 +610,16 @@ export default function AdminSettingsPage() {
         <TabsContent value="commission" className="space-y-6">
           <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <DollarSign className="h-5 w-5 text-[#E3253D]" />
                 Commission & Credit Settings
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm sm:text-base">
                 Configure commission rates and credit calculations
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="defaultCommissionRate">
                     Default Commission Rate (%)
@@ -666,7 +662,7 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="minimumOrderValue">
                     Minimum Order Value ($)
@@ -758,7 +754,7 @@ export default function AdminSettingsPage() {
               <Button
                 onClick={handleSaveCommission}
                 disabled={isSaving}
-                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90 w-full sm:w-auto"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Save Commission Settings"}
@@ -770,16 +766,16 @@ export default function AdminSettingsPage() {
         <TabsContent value="security" className="space-y-6">
           <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <Shield className="h-5 w-5 text-[#E3253D]" />
                 Security Settings
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm sm:text-base">
                 Configure platform security and authentication
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sessionTimeout">
                     Session Timeout (hours)
@@ -816,7 +812,7 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
                   <Input
@@ -897,7 +893,7 @@ export default function AdminSettingsPage() {
               <Button
                 onClick={handleSaveSecurity}
                 disabled={isSaving}
-                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90 w-full sm:w-auto"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Save Security Settings"}
@@ -963,7 +959,7 @@ export default function AdminSettingsPage() {
               <Button
                 onClick={handleChangePassword}
                 disabled={isSaving}
-                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90 w-full sm:w-auto"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Change Password"}

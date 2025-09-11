@@ -3,9 +3,10 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, Truck, Package, ShoppingCart, RotateCcw } from "lucide-react"
+import { Home, Truck, Package, ShoppingCart, RotateCcw, Shield, Users, Settings } from "lucide-react"
+import { useAuth } from "../auth-provider"
 
-const navigation = [
+const technicianNavigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Trucks", href: "/trucks", icon: Truck },
   { name: "Inventory", href: "/inventory", icon: Package },
@@ -13,8 +14,19 @@ const navigation = [
   { name: "Restock", href: "/restock", icon: RotateCcw },
 ]
 
+const adminNavigation = [
+  { name: "Admin Dashboard", href: "/admin", icon: Shield },
+  { name: "Fleet Management", href: "/admin/trucks", icon: Truck },
+  { name: "User Management", href: "/admin/users", icon: Users },
+  { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "Settings", href: "/admin/settings", icon: Settings },
+]
+
 export function MobileTabNavigation() {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  const { user, logout, loading } = useAuth();
+  const navigation =
+    user?.role === "admin" ? adminNavigation : technicianNavigation;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
@@ -37,9 +49,10 @@ export function MobileTabNavigation() {
               </div>
               <span
                 className={cn(
-                  "text-xs font-medium transition-colors duration-200",
+                  "text-[0.6rem] font-medium transition-colors duration-200 text-center", // Reduced font size to 0.6rem
                   isActive ? "text-[#E3253D]" : "text-gray-500",
                 )}
+                style={{ maxWidth: "100%", padding: "0 2px" }} // Kept maxWidth and padding
               >
                 {item.name}
               </span>

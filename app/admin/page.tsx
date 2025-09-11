@@ -352,8 +352,8 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-6">
-                    <div className="text-right">
+                  <div className="flex items-center space-x-6 flex-wrap justify-end">
+                    <div className="text-right sm:m-0">
                       <div className="text-sm font-medium text-green-600">
                         ${performer.credits.toFixed(2)}
                       </div>

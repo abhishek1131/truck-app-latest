@@ -35,7 +35,7 @@ interface OrderDetailsModalProps {
     order_number: string;
     part_name: string;
     description: string;
-    supply_house: string;
+    // supply_house: string;
     status: string;
     priority: string;
     total_amount: number | null;
@@ -236,7 +236,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
           </div>
 
           {/* Supply House Information */}
-          <div className="bg-blue-50 rounded-lg p-4">
+          {/* <div className="bg-blue-50 rounded-lg p-4">
             <h3 className="font-semibold text-[#10294B] mb-3 flex items-center gap-2">
               <Building2 className="h-5 w-5" />
               Supply House
@@ -254,7 +254,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 Contact
               </Button>
             </div>
-          </div>
+          </div> */}
 
           {/* Truck Information */}
           <div className="bg-gray-50 rounded-lg p-4">

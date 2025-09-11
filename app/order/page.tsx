@@ -87,12 +87,6 @@ interface PreviousOrder {
   supplyHouseId?: string;
 }
 
-interface SupplyHouse {
-  id: string;
-  name: string;
-  location: string;
-}
-
 interface Truck {
   id: string;
   name: string;
@@ -118,14 +112,12 @@ export default function OrderPage() {
   const isRestock = searchParams.get("fromRestock") === "true";
   const truckId = searchParams.get("truckId");
   const [selectedTruck, setSelectedTruck] = useState("");
-  const [selectedSupplyHouse, setSelectedSupplyHouse] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showItemSelection, setShowItemSelection] = useState(isRestock);
   const [trucks, setTrucks] = useState<Truck[]>([]);
-  const [supplyHouses, setSupplyHouses] = useState<SupplyHouse[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [truckBinItems, setTruckBinItems] = useState<TruckBinItem[]>([]);
   const [previousOrders, setPreviousOrders] = useState<PreviousOrder[]>([]);
@@ -285,25 +277,6 @@ export default function OrderPage() {
       console.error("Error fetching trucks:", error);
     }
 
-    // Fetch supply houses
-    try {
-      const supplyHousesResponse = await fetch("/api/orders/supply-houses", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const supplyHousesData = await supplyHousesResponse.json();
-      if (supplyHousesResponse.ok) {
-        setSupplyHouses(supplyHousesData.supplyHouses);
-      } else {
-        console.error(
-          "Failed to fetch supply houses:",
-          supplyHousesData.error,
-          { status: supplyHousesResponse.status }
-        );
-      }
-    } catch (error) {
-      console.error("Error fetching supply houses:", error);
-    }
-
     // Fetch previous orders
     try {
       const ordersResponse = await fetch("/api/orders/previous", {
@@ -453,7 +426,6 @@ export default function OrderPage() {
         truck_id: selectedTruck,
         truckName:
           trucks.find((t) => t.id === selectedTruck)?.name || "Unknown Truck",
-        supply_house_id: selectedSupplyHouse || null,
         urgency,
         notes,
         items: itemsToSubmit.map((item) => ({
@@ -699,15 +671,6 @@ ${orderDetails.technician}`;
     doc.text(`Order ID: ${orderData.id}`, 20, 30);
     doc.text(`Date: ${new Date(orderData.timestamp).toLocaleString()}`, 20, 38);
     doc.text(`Truck: ${orderData.truckName}`, 20, 46);
-    doc.text(
-      `Supply House: ${
-        supplyHouses.find(
-          (sh: SupplyHouse) => sh.id === orderData.supply_house_id
-        )?.name || "Unknown"
-      }`,
-      20,
-      54
-    );
     doc.text(`Technician: ${technicianName || "Unknown"}`, 20, 62);
     doc.setFontSize(14);
     doc.text("ITEMS ORDERED:", 20, 74);
@@ -763,8 +726,6 @@ ${orderDetails.technician}`;
         order.id,
         new Date(order.date).toLocaleDateString(),
         order.truckName,
-        supplyHouses.find((sh: SupplyHouse) => sh.id === order.supplyHouseId)
-          ?.name || "Unknown",
         item.inventoryItem.name,
         item.inventoryItem.partNumber,
         item.requestedQuantity.toString(),
@@ -908,26 +869,6 @@ ${orderDetails.technician}`;
                   {trucks.map((truck: Truck) => (
                     <SelectItem key={truck.id} value={truck.id}>
                       {truck.name} - {truck.location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Supply House Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="supply-house-select">Select Supply House *</Label>
-              <Select
-                value={selectedSupplyHouse}
-                onValueChange={setSelectedSupplyHouse}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a supply house..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {supplyHouses.map((house: SupplyHouse) => (
-                    <SelectItem key={house.id} value={house.id}>
-                      {house.name} - {house.location}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1225,7 +1166,6 @@ ${orderDetails.technician}`;
                 onClick={handleSubmit}
                 disabled={
                   !selectedTruck ||
-                  !selectedSupplyHouse ||
                   orderItems.length === 0 ||
                   isSubmitting
                 }
@@ -1307,7 +1247,6 @@ ${orderDetails.technician}`;
                     onClick={() => {
                       setIsModalOpen(false);
                       setSelectedTruck("");
-                      setSelectedSupplyHouse("");
                       setOrderItems([]);
                       setShowItemSelection(isRestock);
                     }}

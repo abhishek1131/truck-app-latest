@@ -229,10 +229,10 @@ export default function TruckDetailPage() {
                 </Button>
               </Link>
               <AddBinModal truckId={truckId} onBinAdded={handleBinAdded} />
-              <StandardInventoryModal
+              {/* <StandardInventoryModal
                 truckId={truckId}
                 onStandardLevelsSet={handleStandardLevelsSet}
-              />
+              /> */}
             </div>
           </CardContent>
         </Card>

@@ -134,7 +134,7 @@ export function UserDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto sm:max-w-[90%] sm:max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-[#10294B]">
             User Details - {user.first_name} {user.last_name}
@@ -151,16 +151,16 @@ export function UserDetailsModal({
         )} */}
 
         <div className="space-y-6">
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-gray-50 rounded-lg">
             <div className="w-16 h-16 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-xl">
               {user.first_name[0]}
               {user.last_name[0]}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 text-center sm:text-left">
               <h3 className="text-xl font-semibold text-[#10294B]">
                 {user.first_name} {user.last_name}
               </h3>
-              <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+              <div className="flex flex-col sm:flex-row items-center gap-2 text-sm text-gray-500 mt-1">
                 <span className="flex items-center gap-1">
                   <Mail className="h-3 w-3" />
                   {user.email}
@@ -173,7 +173,7 @@ export function UserDetailsModal({
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Badge
                 className={
                   statusConfig[user.status as keyof typeof statusConfig]?.color
@@ -209,7 +209,7 @@ export function UserDetailsModal({
             ) : (
               <>
                 {activeTab === "overview" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -281,19 +281,18 @@ export function UserDetailsModal({
                           <span className="text-sm font-medium text-gray-600">
                             Total Value:
                           </span>
-                          {
-                            orders.length > 0 ? (
-                              <p className="font-semibold text-2xl text-purple-600">
-                            $
-                            {orders
-                              ?.reduce((sum, order) => sum + order.cost, 0)
-                              ?.toFixed(2)}
-                          </p>) : (
-                                <p className="font-semibold text-2xl text-purple-600">
-                            $0.00
-                          </p>
-                            )
-                          }
+                          {orders.length > 0 ? (
+                            <p className="font-semibold text-2xl text-purple-600">
+                              $
+                              {orders
+                                ?.reduce((sum, order) => sum + order.cost, 0)
+                                ?.toFixed(2)}
+                            </p>
+                          ) : (
+                            <p className="font-semibold text-2xl text-purple-600">
+                              $0.00
+                            </p>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -309,8 +308,8 @@ export function UserDetailsModal({
                     </div>
                     {trucks.map((truck) => (
                       <Card key={truck.id} className="border-0 shadow-md">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
+                        <CardContent className="p-3 sm:p-4">
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                                 <Truck className="h-5 w-5 text-blue-600" />
@@ -324,7 +323,7 @@ export function UserDetailsModal({
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mt-2 sm:mt-0">
                               <Badge
                                 className={
                                   statusConfig[
@@ -360,63 +359,64 @@ export function UserDetailsModal({
                         Order History ({orders.length})
                       </h3>
                     </div>
-                    {orders.length > 1 && orders?.map((order) => {
-                      const StatusIcon =
-                        statusConfig[order.status as keyof typeof statusConfig]
-                          ?.icon || Clock;
-                      return (
-                        <Card key={order.id} className="border-0 shadow-md">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                  <Package className="h-5 w-5 text-green-600" />
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold">
-                                    Order #{order.id}
-                                  </h4>
-                                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                                    <span className="flex items-center gap-1">
-                                      <Calendar className="h-3 w-3" />
-                                      {new Date(
-                                        order.date
-                                      ).toLocaleDateString()}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Truck className="h-3 w-3" />
-                                      {order.truck_id}
-                                    </span>
+                    {orders.length > 1 &&
+                      orders?.map((order) => {
+                        const StatusIcon =
+                          statusConfig[order.status as keyof typeof statusConfig]
+                            ?.icon || Clock;
+                        return (
+                          <Card key={order.id} className="border-0 shadow-md">
+                            <CardContent className="p-3 sm:p-4">
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <Package className="h-5 w-5 text-green-600" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold">
+                                      Order #{order.id}
+                                    </h4>
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-gray-500">
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        {new Date(
+                                          order.date
+                                        ).toLocaleDateString()}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Truck className="h-3 w-3" />
+                                        {order.truck_id}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="text-right">
-                                  <p className="font-semibold">
-                                    ${order.cost.toFixed(2)}
-                                  </p>
-                                  <p className="text-sm text-gray-500">
-                                    {order.items} items
-                                  </p>
+                                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2 sm:mt-0">
+                                  <div className="text-right">
+                                    <p className="font-semibold">
+                                      ${order.cost.toFixed(2)}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      {order.items} items
+                                    </p>
+                                  </div>
+                                  <Badge
+                                    className={
+                                      statusConfig[
+                                        order.status as keyof typeof statusConfig
+                                      ]?.color
+                                    }
+                                  >
+                                    {StatusIcon && (
+                                      <StatusIcon className="h-3 w-3 mr-1" />
+                                    )}
+                                    {order.status}
+                                  </Badge>
                                 </div>
-                                <Badge
-                                  className={
-                                    statusConfig[
-                                      order.status as keyof typeof statusConfig
-                                    ]?.color
-                                  }
-                                >
-                                  {StatusIcon && (
-                                    <StatusIcon className="h-3 w-3 mr-1" />
-                                  )}
-                                  {order.status}
-                                </Badge>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     {orders.length === 0 && (
                       <div className="text-center py-8 text-gray-500">
                         <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-50" />

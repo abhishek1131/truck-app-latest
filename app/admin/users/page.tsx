@@ -167,7 +167,7 @@ export default function AdminUsersPage() {
         if (result.success) {
           await fetchUsers(); // Refetch users after status change
           onClose();
-          setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+          setDropdownKey((prev) => prev + 1);
         } else {
           console.log(`Failed to update user status: ${result.error}`);
         }
@@ -193,7 +193,7 @@ export default function AdminUsersPage() {
         if (result.success) {
           setUsers(users.filter((u) => u.id !== user.id));
           onClose();
-          setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+          setDropdownKey((prev) => prev + 1);
         } else {
           console.log(`Failed to delete user: ${result.error}`);
         }
@@ -208,7 +208,7 @@ export default function AdminUsersPage() {
   const handleViewUserDetails = useCallback((user: User) => {
     setSelectedUser(user);
     setShowUserDetailsModal(true);
-    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+    setDropdownKey((prev) => prev + 1);
   }, []);
 
   const handleModalClose = useCallback(() => {
@@ -216,8 +216,9 @@ export default function AdminUsersPage() {
     setShowEditModal(false);
     setShowUserDetailsModal(false);
     setSelectedUser(null);
-    setDropdownKey((prev) => prev + 1); // Reset DropdownMenu
+    setDropdownKey((prev) => prev + 1);
   }, []);
+
   const handleCreateUser = useCallback(
     async (userData: any) => {
       setIsCreating(true);
@@ -231,9 +232,9 @@ export default function AdminUsersPage() {
           body: JSON.stringify(userData),
         });
         const result = await response.json();
-        await fetchUsers(); // ✅ Ensure latest list
+        await fetchUsers();
         if (result.success && result.data) {
-          handleModalClose(); // ✅ Centralized modal closing
+          handleModalClose();
         } else {
           console.log(`Failed to create user: ${result.error}`);
         }
@@ -253,10 +254,10 @@ export default function AdminUsersPage() {
       subtitle="Manage all system users and their roles"
     >
       <div className="p-4 md:p-6 space-y-6">
-        <div className="flex items-center justify-end mb-6">
+        <div className="flex flex-col md:flex-row items-center justify-end mb-6 gap-4">
           <Button
             onClick={() => setShowCreateModal(true)}
-            className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg"
+            className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg w-full md:w-auto"
             disabled={isLoading || isCreating}
           >
             <UserPlus className="h-4 w-4 mr-2" />
@@ -264,7 +265,7 @@ export default function AdminUsersPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium opacity-90">
@@ -400,17 +401,17 @@ export default function AdminUsersPage() {
                 key={user.id}
                 className="border-0 shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex-1 space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between">
+                        <div className="flex items-center space-x-4 mb-4 sm:mb-0">
                           <div className="w-12 h-12 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold">
                             {`${user.first_name[0]}${user.last_name[0]}`.toUpperCase()}
                           </div>
                           <div>
                             <h3 className="text-lg font-semibold text-[#10294B]">{`${user.first_name} ${user.last_name}`}</h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-gray-500 mt-1">
                               <span className="flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
                                 {user.email}
@@ -434,7 +435,7 @@ export default function AdminUsersPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-2 sm:mt-0 flex-wrap">
                           <Badge
                             className={
                               statusConfig[
@@ -463,7 +464,7 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-gray-100">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t border-gray-100">
                         <div>
                           <div className="text-xs text-gray-500 mb-1">
                             Join Date

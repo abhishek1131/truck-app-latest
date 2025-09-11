@@ -559,7 +559,7 @@ export default function AdminOrdersPage() {
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex-1 space-y-3">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between flex-wrap">
                         <div>
                           <h3 className="text-lg font-semibold text-[#10294B] mb-1">
                             Order #{order.order_number} - {order.items.length}{" "}

@@ -104,7 +104,7 @@ export default function NewOrderPage() {
         },
         body: JSON.stringify({
           truck_id: null, // New orders don't require truck_id
-          supply_house_id: formData.supplyHouseId,
+          // supply_house_id: formData.supplyHouseId,
           urgency: formData.urgency,
           notes: formData.description,
           items: [

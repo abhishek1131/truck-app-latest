@@ -103,7 +103,7 @@ export default function AdminTrucksPage() {
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false); // New state for create loading
+  const [isCreating, setIsCreating] = useState(false);
   const [technicianError, setTechnicianError] = useState<string | null>(null);
   const [dropdownKey, setDropdownKey] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -223,7 +223,7 @@ export default function AdminTrucksPage() {
   );
 
   const handleCreateTruck = async (truckData: any) => {
-    if (isCreating) return; // Prevent multiple submissions
+    if (isCreating) return;
     setIsCreating(true);
     setCreateError(null);
     try {
@@ -236,19 +236,18 @@ export default function AdminTrucksPage() {
         body: JSON.stringify(truckData),
       });
       const result = await response.json();
-      await fetchTrucks(); // Fetch latest data to ensure consistency
-      await fetchTrucks(); // Fetch latest data to ensure consistency
+      await fetchTrucks();
+      await fetchTrucks();
       console.log("result", result)
-      await fetchTrucks(); // Fetch latest data to ensure consistency      
+      await fetchTrucks();
       console.log("result", result)
       if (result.success) {
-        // Optimistic update: Add the new truck to the state
         const newTruck: Truck = {
-          id: result.data.id, // Assume API returns the new truck's ID
+          id: result.data.id,
           truck_number: truckData.truck_number,
           location: truckData.location || null,
           status: truckData.status || "active",
-          totalItems: 0, // Default, as no inventory yet
+          totalItems: 0,
           lowStockItems: 0,
           bins: 0,
           lastUpdated: new Date().toISOString(),
@@ -311,8 +310,8 @@ export default function AdminTrucksPage() {
       });
       const result = await response.json();
       if (result.success) {
-        setTrucks((prev) => prev.filter((t) => t.id !== truck.id)); // Remove deleted truck
-        await fetchTrucks(); // Fetch latest data
+        setTrucks((prev) => prev.filter((t) => t.id !== truck.id));
+        await fetchTrucks();
       } else {
         console.error("Failed to delete truck:", result.error);
       }
@@ -327,7 +326,7 @@ export default function AdminTrucksPage() {
     setShowEditDialog(false);
     setShowCreateDialog(false);
     setSelectedTruck(null);
-    setIsCreating(false); // Reset creating state
+    setIsCreating(false);
     setDropdownKey((prev) => prev + 1);
   }, []);
 
@@ -343,11 +342,11 @@ export default function AdminTrucksPage() {
       subtitle="Manage trucks, assignments, and fleet operations"
     >
       <div className="p-4 md:p-6 space-y-6">
-        <div className="flex items-center justify-end mb-6">
+        <div className="flex flex-col md:flex-row items-center justify-end mb-6 gap-4">
           <Button
             onClick={() => setShowCreateDialog(true)}
-            className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg"
-            disabled={isCreating} // Disable button during creation
+            className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg w-full md:w-auto"
+            disabled={isCreating}
           >
             <Truck className="h-4 w-4 mr-2" />
             {isCreating ? "Adding Truck..." : "Add New Truck"}
@@ -367,7 +366,7 @@ export default function AdminTrucksPage() {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium opacity-90">
@@ -444,7 +443,7 @@ export default function AdminTrucksPage() {
                     placeholder="Search by truck number, location, technician, or license plate..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
                 </div>
               </div>
@@ -490,11 +489,11 @@ export default function AdminTrucksPage() {
                 key={truck.id}
                 className="border-0 shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex-1 space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between">
+                        <div className="flex items-center space-x-4 mb-4 sm:mb-0">
                           <div className="w-12 h-12 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold">
                             <Truck className="h-6 w-6" />
                           </div>
@@ -505,7 +504,7 @@ export default function AdminTrucksPage() {
                             <p className="text-sm text-gray-600">
                               {truck.model} ({truck.year})
                             </p>
-                            <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-gray-500 mt-1">
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
                                 {truck.location || "Unspecified"}
@@ -525,7 +524,7 @@ export default function AdminTrucksPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-2 sm:mt-0">
                           <Badge
                             className={
                               statusConfig[
@@ -550,7 +549,7 @@ export default function AdminTrucksPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-3 border-t border-gray-100">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-3 border-t border-gray-100">
                         <div>
                           <div className="text-xs text-gray-500 mb-1">
                             Total Items
@@ -597,7 +596,7 @@ export default function AdminTrucksPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 lg:ml-6">
+                    <div className="flex justify-end mt-4 sm:mt-0">
                       <DropdownMenu key={dropdownKey}>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -680,7 +679,7 @@ export default function AdminTrucksPage() {
               </p>
               <Button
                 onClick={() => setShowCreateDialog(true)}
-                className="bg-[#E3253D] hover:bg-[#E3253D]/90"
+                className="bg-[#E3253D] hover:bg-[#E3253D]/90 w-full sm:w-auto"
                 disabled={isCreating}
               >
                 <Truck className="h-4 w-4 mr-2" />

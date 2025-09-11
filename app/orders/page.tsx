@@ -36,7 +36,7 @@ interface Order {
   order_number: string;
   part_name: string;
   description: string;
-  supply_house: string;
+  // supply_house: string;
   status: string;
   priority: string;
   total_amount: number | null;
@@ -122,7 +122,7 @@ export default function OrdersPage() {
             order_number: o.order_number || "N/A",
             part_name: o.partName,
             description: o.description,
-            supply_house: o.supplyHouse,
+            // supply_house: o.supplyHouse,
             status: o.status,
             priority: o.urgency,
             total_amount: o.cost,
@@ -412,7 +412,7 @@ export default function OrdersPage() {
                                   {order.created_at}
                                 </span>
                                 <span>Order #{order.order_number}</span>
-                                <span>Supply House: {order.supply_house}</span>
+                                {/* <span>Supply House: {order.supply_house}</span> */}
                               </div>
                             </div>
                             <div className="flex gap-2">
