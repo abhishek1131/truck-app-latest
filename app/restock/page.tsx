@@ -83,7 +83,9 @@ export default function RestockPage() {
         });
         const data = await response.json();
         if (response.ok) {
-          setTechnicianName(data?.data?.first_name + " " + data?.data?.last_name || "Unknown");
+          setTechnicianName(
+            data?.data?.first_name + " " + data?.data?.last_name || "Unknown"
+          );
         } else {
           console.error("Failed to fetch technician name:", data.error);
           setTechnicianName("Unknown");
@@ -207,8 +209,7 @@ export default function RestockPage() {
         id: order.id,
         orderNumber: order.order_number || `RESTOCK-${Date.now()}`, // Fallback if order_number is not returned
         technician: technicianName, // Use fetched technician name
-        email:
-          user?.email || order?.technician_email || "no-reply@company.com",
+        email: user?.email || order?.technician_email || "no-reply@company.com",
         date: new Date().toLocaleString(),
         truck: truckId,
         totalItems: itemsToRestock.length,
@@ -459,19 +460,19 @@ ${orderDetails.technician}`;
             {/* Suggested Restock Items */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-sm md:text-base">
                       <RefreshCw className="h-5 w-5" />
                       Suggested Restock Items
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-xs md:text-sm">
                       Review and adjust quantities before submitting
                     </CardDescription>
                   </div>
                   <Button
                     onClick={handleSubmitRestock}
-                    className="bg-[#E3253D] hover:bg-red-600"
+                    className="bg-[#E3253D] hover:bg-red-600 flex items-center justify-center"
                     disabled={totalItems === 0}
                   >
                     <FileText className="h-4 w-4 mr-2" />
@@ -482,10 +483,16 @@ ${orderDetails.technician}`;
               <CardContent>
                 <div className="space-y-4">
                   {restockItems.map((item) => (
-                    <Card key={item.id} className="p-4" onClick={(e)=> {
-                      router.push(`/order?truckId=${item.truckId}&fromRestock=true`);
-                      e.stopPropagation();
-                    }}>
+                    <Card
+                      key={item.id}
+                      className="p-4"
+                      onClick={(e) => {
+                        router.push(
+                          `/order?truckId=${item.truckId}&fromRestock=true`
+                        );
+                        e.stopPropagation();
+                      }}
+                    >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         {/* Left Section */}
                         <div className="flex items-start sm:items-center gap-4">
@@ -565,7 +572,9 @@ ${orderDetails.technician}`;
                                   size="sm"
                                   variant="outline"
                                   onClick={(e) => {
-                                    router.push(`/order?truckId=${item.truckId}&fromRestock=true`);
+                                    router.push(
+                                      `/order?truckId=${item.truckId}&fromRestock=true`
+                                    );
                                     e.stopPropagation();
                                   }}
                                 >
