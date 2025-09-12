@@ -230,7 +230,7 @@ export default function AdminOrdersPage() {
               o.id === orderId ? { ...o, status: result.data.status } : o
             )
           );
-          toast.error(`Order #${result.data.order_number} confirmed`),
+          toast.success(`Order #${result.data.order_number} confirmed`);
         } else {
           toast.error(result.error || "Failed to confirm order");
         }
