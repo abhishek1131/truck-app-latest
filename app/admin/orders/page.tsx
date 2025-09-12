@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { OrderDetailsAdminModal } from "@/components/order-details-admin-modal";
 import { ContactTechnicianModal } from "@/components/contact-technician-modal";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import {
   Search,
   Filter,
@@ -125,7 +125,6 @@ const urgencyConfig = {
 
 export default function AdminOrdersPage() {
   const { user, token } = useAuth();
-  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [pagination, setPagination] = useState({
@@ -162,18 +161,10 @@ export default function AdminOrdersPage() {
       if (result.success && result.data) {
         setTechnicians(result.data.users);
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to fetch technicians",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to fetch technicians");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch technicians",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch technicians");
     }
   }, [token, toast]);
 
@@ -198,18 +189,10 @@ export default function AdminOrdersPage() {
         setOrders(result.data.orders);
         setPagination(result.data.pagination);
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to fetch orders",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to fetch orders");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch orders",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch orders");
     } finally {
       setIsLoading(false);
     }
@@ -247,23 +230,12 @@ export default function AdminOrdersPage() {
               o.id === orderId ? { ...o, status: result.data.status } : o
             )
           );
-          toast({
-            title: "Success",
-            description: `Order #${result.data.order_number} confirmed`,
-          });
+          toast.error(`Order #${result.data.order_number} confirmed`),
         } else {
-          toast({
-            title: "Error",
-            description: result.error || "Failed to confirm order",
-            variant: "destructive",
-          });
+          toast.error(result.error || "Failed to confirm order");
         }
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to confirm order",
-          variant: "destructive",
-        });
+        toast.error("Failed to confirm order");
       }
     },
     [token, toast]
@@ -293,16 +265,9 @@ export default function AdminOrdersPage() {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        toast({
-          title: "Success",
-          description: `Invoice for order #${order.order_number} downloaded`,
-        });
+        toast.success(`Invoice for order #${order.order_number} downloaded`);
       } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to download invoice",
-          variant: "destructive",
-        });
+        toast.error(error.message || "Failed to download invoice");
       }
       document.activeElement?.blur();
       setDropdownKeys((prev) => ({

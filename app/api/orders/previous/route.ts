@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     const [orderRows] = await pool.query(
       `SELECT 
          o.id,
+         o.order_number,
          o.created_at AS date,
          o.status,
          o.truck_id,
@@ -85,6 +86,7 @@ export async function GET(request: NextRequest) {
 
     const previousOrders = (orderRows as any[]).map((order) => ({
       id: order.id,
+      orderId: order.order_number,
       date: order.date,
       truckId: order.truck_id,
       truckName: order.truck_name,

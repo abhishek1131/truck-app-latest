@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Building,
@@ -30,7 +30,6 @@ import { useState, useEffect } from "react";
 
 export default function AdminSettingsPage() {
   const { user, token } = useAuth();
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [platformSettings, setPlatformSettings] = useState({
@@ -162,10 +161,7 @@ export default function AdminSettingsPage() {
       const result = await response.json();
       if (result.success) {
         setPlatformSettings(validatedSettings);
-        toast({
-          title: "Platform settings updated",
-          description: "Your platform settings have been successfully saved.",
-        });
+        toast.success("Your platform settings have been successfully saved.");
       } else {
         setError(result.error || "Failed to update platform settings");
       }
@@ -208,10 +204,7 @@ export default function AdminSettingsPage() {
 
       const result = await response.json();
       if (result.success) {
-        toast({
-          title: "Commission settings updated",
-          description: "Your commission settings have been successfully saved.",
-        });
+        toast.success("Your commission settings have been successfully saved.");
       } else {
         setError(result.error || "Failed to update commission settings");
       }
@@ -251,10 +244,7 @@ export default function AdminSettingsPage() {
 
       const result = await response.json();
       if (result.success) {
-        toast({
-          title: "Security settings updated",
-          description: "Your security settings have been successfully saved.",
-        });
+        toast.success("Your security settings have been successfully saved.");
       } else {
         setError(result.error || "Failed to update security settings");
       }
@@ -309,10 +299,7 @@ export default function AdminSettingsPage() {
 
       const result = await response.json();
       if (result.success) {
-        toast({
-          title: "Password changed",
-          description: "Your password has been successfully updated.",
-        });
+        toast.success("Your password has been successfully updated.");
         setPasswordForm({
           currentPassword: "",
           newPassword: "",
@@ -344,10 +331,7 @@ export default function AdminSettingsPage() {
         a.download = "truxtok-config.json";
         a.click();
         URL.revokeObjectURL(url);
-        toast({
-          title: "Configuration exported",
-          description: "Settings have been exported to truxtok-config.json",
-        });
+        toast.success("Settings have been exported to truxtok-config.json");
       } else {
         setError(result.error || "Failed to export configuration");
       }
@@ -389,10 +373,7 @@ export default function AdminSettingsPage() {
         setPlatformSettings(config.platform);
         setCommissionSettings(config.commission);
         setSecuritySettings(config.security);
-        toast({
-          title: "Configuration imported",
-          description: "Settings have been successfully imported.",
-        });
+        toast.success("Settings have been successfully imported.");
       } else {
         setError(result.error || "Failed to import configuration");
       }

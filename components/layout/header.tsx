@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import { format } from "date-fns";
 import { LogOut } from "lucide-react";
 
@@ -34,7 +34,6 @@ interface Notification {
 
 export function Header({ title, subtitle }: HeaderProps) {
   const { user, token } = useAuth();
-  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { logout, loading } = useAuth();
@@ -50,18 +49,10 @@ export function Header({ title, subtitle }: HeaderProps) {
       if (result.success && result.data) {
         setNotifications(result.data.notifications);
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to fetch notifications",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to fetch notifications");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch notifications",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch notifications");
     } finally {
       setIsLoading(false);
     }

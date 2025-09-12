@@ -24,7 +24,7 @@ import {
   Box,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import { useState, useEffect, useRef } from "react";
 
 interface OrderItem {
@@ -78,7 +78,6 @@ const urgencyConfig = {
 
 export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsAdminModalProps) {
   const { token } = useAuth();
-  const { toast } = useToast();
   const [status, setStatus] = useState(order.status);
   const [isUpdating, setIsUpdating] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -126,23 +125,12 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
       const result = await response.json();
       if (result.success) {
         setStatus("confirmed");
-        toast({
-          title: "Order status updated",
-          description: `Order #${order.order_number} has been confirmed.`,
-        });
+        toast.success(`Order #${order.order_number} has been confirmed.`);
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to update order status",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to update order status");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update order status",
-        variant: "destructive",
-      });
+      toast.error("Failed to update order status");
     } finally {
       setIsUpdating(false);
     }
@@ -162,24 +150,13 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
         a.download = `invoice-${order.order_number}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
-        toast({
-          title: "Invoice downloaded",
-          description: `Invoice for order #${order.order_number} has been downloaded.`,
-        });
+        toast.success(`Invoice for order #${order.order_number} has been downloaded.`);
       } else {
         const result = await response.json();
-        toast({
-          title: "Error",
-          description: result.error || "Failed to download invoice",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to download invoice");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to download invoice",
-        variant: "destructive",
-      });
+      toast.error("Failed to download invoice");
     }
   };
 

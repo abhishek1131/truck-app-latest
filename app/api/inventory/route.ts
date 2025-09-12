@@ -86,8 +86,8 @@ export async function GET(request: NextRequest) {
       );
       basic.lastOrdered = (lastOrderRow as any)[0].lastOrdered
         ? new Date((lastOrderRow as any)[0].lastOrdered)
-            .toISOString()
-            .split("T")[0]
+          .toISOString()
+          .split("T")[0]
         : "Never";
 
       // Last restocked
@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
       );
       basic.lastRestocked = (lastRestockRow as any)[0].lastRestocked
         ? new Date((lastRestockRow as any)[0].lastRestocked)
-            .toISOString()
-            .split("T")[0]
+          .toISOString()
+          .split("T")[0]
         : "Never";
 
       // Truck bin distribution
@@ -184,8 +184,9 @@ export async function GET(request: NextRequest) {
            ii.min_quantity AS low_stock_threshold,
            (SELECT SUM(ti.quantity) 
             FROM truck_inventory ti 
+            JOIN trucks t ON ti.truck_id = t.id 
             WHERE ti.item_id = ii.id 
-            AND ti.truck_id IN (SELECT id FROM trucks WHERE assigned_to = ?)) AS total_quantity,
+            AND t.assigned_to = ?) AS total_quantity,
            (SELECT GROUP_CONCAT(t.truck_number) 
             FROM truck_inventory ti 
             JOIN trucks t ON ti.truck_id = t.id 
@@ -195,41 +196,54 @@ export async function GET(request: NextRequest) {
             FROM order_items oi 
             JOIN orders o ON oi.order_id = o.id 
             WHERE oi.item_id = ii.id 
-            AND o.technician_id = ?) AS last_ordered
-         FROM inventory_items ii
-         JOIN inventory_categories ic ON ii.category_id = ic.id
-         WHERE EXISTS (
-           SELECT 1 
-           FROM truck_inventory ti 
-           JOIN trucks t ON ti.truck_id = t.id 
-           WHERE ti.item_id = ii.id 
-           AND t.assigned_to = ?
-         )`,
-        [userId, userId, userId, userId]
+            AND o.technician_id = ?) AS last_ordered,
+           ii.created_at
+        FROM inventory_items ii
+        JOIN inventory_categories ic ON ii.category_id = ic.id
+        ORDER BY ii.created_at DESC;`,
+        [userId, userId, userId]
       );
 
       // Get statistics
       const [statsRows] = await pool.query(
         `SELECT 
-           (SELECT SUM(ti.quantity) 
-            FROM truck_inventory ti 
-            JOIN trucks t ON ti.truck_id = t.id 
-            WHERE t.assigned_to = ?) AS total_items,
-           (SELECT COUNT(DISTINCT ii.id) 
-            FROM inventory_items ii 
-            JOIN truck_inventory ti ON ii.id = ti.item_id 
-            JOIN trucks t ON ti.truck_id = t.id 
-            WHERE t.assigned_to = ?) AS item_types,
-           (SELECT COUNT(*) 
-            FROM truck_inventory ti 
-            JOIN trucks t ON ti.truck_id = t.id 
-            WHERE t.assigned_to = ? 
-            AND ti.quantity <= ti.min_quantity) AS low_stock_items,
-           (SELECT COUNT(*) 
-            FROM truck_inventory ti 
-            JOIN trucks t ON ti.truck_id = t.id 
-            WHERE t.assigned_to = ? 
-            AND ti.quantity < COALESCE(ti.max_quantity, 10)) AS needs_restock_items`,
+   -- Total items quantity (sum of all truck inventory quantities)
+   (SELECT SUM(ti.quantity) 
+    FROM truck_inventory ti 
+    JOIN trucks t ON ti.truck_id = t.id 
+    WHERE t.assigned_to = ?) AS total_items,
+
+   -- Total unique item types
+   (SELECT COUNT(DISTINCT ii.id) 
+    FROM inventory_items ii 
+    JOIN truck_inventory ti ON ii.id = ti.item_id 
+    JOIN trucks t ON ti.truck_id = t.id 
+    WHERE t.assigned_to = ?) AS item_types,
+
+   -- Low stock items (count of items where total stock <= min_quantity)
+   (SELECT COUNT(*) 
+    FROM (
+      SELECT ii.id, SUM(ti.quantity) AS total_qty, ii.min_quantity
+      FROM inventory_items ii
+      JOIN truck_inventory ti ON ii.id = ti.item_id
+      JOIN trucks t ON ti.truck_id = t.id
+      WHERE t.assigned_to = ?
+      GROUP BY ii.id, ii.min_quantity
+      HAVING total_qty <= ii.min_quantity
+    ) AS low_stock) AS low_stock_items,
+
+   -- Needs restock items (count of items where total stock < max_quantity or standard level)
+   (SELECT COUNT(*) 
+    FROM (
+      SELECT ii.id, SUM(ti.quantity) AS total_qty, COALESCE(ii.max_quantity, 10) AS max_qty
+      FROM inventory_items ii
+      JOIN truck_inventory ti ON ii.id = ti.item_id
+      JOIN trucks t ON ti.truck_id = t.id
+      WHERE t.assigned_to = ?
+      GROUP BY ii.id, ii.max_quantity
+      HAVING total_qty < max_qty
+    ) AS restock) AS needs_restock_items;
+`,
         [userId, userId, userId, userId]
       );
 
@@ -250,6 +264,7 @@ export async function GET(request: NextRequest) {
         unit: item.unit,
         partNumber: item.id_for_ui,
         brand: item.brand,
+        assigned: (item.total_quantity || 0) > 0 || (item.trucks && item.trucks.length > 0),
       }));
 
       const stats = (statsRows as any[])[0];
@@ -258,7 +273,7 @@ export async function GET(request: NextRequest) {
         inventoryItems,
         stats: {
           totalItems: stats.total_items || 0,
-          itemTypes: stats.item_types || 0,
+          assignedItem: stats.item_types || 0,
           lowStockItems: stats.low_stock_items || 0,
           needsRestockItems: stats.needs_restock_items || 0,
         },

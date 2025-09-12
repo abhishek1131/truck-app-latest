@@ -78,6 +78,7 @@ interface OrderItem {
 
 interface PreviousOrder {
   id: string;
+  orderId: string;
   date: string;
   truckId: string;
   truckName: string;
@@ -1348,7 +1349,7 @@ ${orderDetails.technician}`;
                   <div key={order.id} className="border rounded-lg p-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-3">
                       <div>
-                        <div className="font-medium">{order.id}</div>
+                        <div className="font-medium">{order.orderId}</div>
                         <div className="text-sm text-gray-500">
                           {new Date(order.date).toLocaleDateString()} •{" "}
                           {order.truckName}

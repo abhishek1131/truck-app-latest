@@ -28,7 +28,7 @@ import {
   Download,
 } from "lucide-react";
 import Link from "next/link";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import { OrderDetailsModal } from "@/components/order-details-modal";
 
 interface Order {
@@ -78,7 +78,6 @@ const urgencyConfig = {
 
 export default function OrdersPage() {
   const { user, token } = useAuth();
-  const { toast } = useToast();
   const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -135,18 +134,10 @@ export default function OrdersPage() {
         )
         setPagination(data?.data?.pagination);
       } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to fetch orders",
-          variant: "destructive",
-        });
+        toast.error(data.error || "Failed to fetch orders");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch orders",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch orders");
     } finally {
       setIsLoading(false);
     }
@@ -185,16 +176,9 @@ export default function OrdersPage() {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        toast({
-          title: "Success",
-          description: `Invoice for order #${order.order_number} downloaded`,
-        });
+        toast.success(`Invoice for order #${order.order_number} downloaded`);
       } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to download invoice",
-          variant: "destructive",
-        });
+        toast.error(error.message || "Failed to download invoice");
       } finally {
         setDownloadingOrderId(null);
       }

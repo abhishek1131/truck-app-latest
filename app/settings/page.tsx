@@ -9,12 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import { Save, User, Shield } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, token } = useAuth();
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,18 +48,10 @@ export default function SettingsPage() {
             phone: result.data.phone || "",
           });
         } else {
-          toast({
-            title: "Error",
-            description: result.error || "Failed to fetch user details",
-            variant: "destructive",
-          });
+          toast.error( result.error || "Failed to fetch user details");
         }
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to fetch user details",
-          variant: "destructive",
-        });
+        toast.error( "Failed to fetch user details");
       } finally {
         setIsLoading(false);
       }
@@ -86,23 +77,12 @@ export default function SettingsPage() {
       const result = await response.json();
       if (result.success) {
         setProfileData(result.data);
-        toast({
-          title: "Profile updated",
-          description: "Your profile has been successfully updated.",
-        });
+        toast.success("Your profile has been successfully updated.");
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to update profile",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to update profile");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to update profile. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -110,20 +90,12 @@ export default function SettingsPage() {
 
   const handleChangePassword = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast({
-        title: "Error",
-        description: "New passwords do not match.",
-        variant: "destructive",
-      });
+      toast.error("New passwords do not match.");
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 8 characters long.",
-        variant: "destructive",
-      });
+      toast.error("Password must be at least 8 characters long.");
       return;
     }
 
@@ -144,28 +116,17 @@ export default function SettingsPage() {
 
       const result = await response.json();
       if (result.success) {
-        toast({
-          title: "Password changed",
-          description: "Your password has been successfully updated.",
-        });
+        toast.success("Your password has been successfully updated.");
         setPasswordData({
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
         });
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to change password",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to change password");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to change password. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to change password. Please try again.");
     } finally {
       setIsSaving(false);
     }

@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast"
 import { Loader2, Truck } from "lucide-react";
 import Link from "next/link";
 
@@ -39,7 +39,6 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const { register } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,10 +76,7 @@ export default function RegisterPage() {
       });
 
       if (success) {
-        toast({
-          title: "Registration successful",
-          description: "Please log in to continue.",
-        });
+        toast.success("Registration successful ,Please log in to continue");
         router.push("/login");
       } else {
         const response = await fetch("/api/auth/register", {

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       `SELECT 
          t.id,
          t.truck_number,
-         COALESCE(t.name, CONCAT(t.make, ' ', t.model)) AS name,
+         COALESCE(t.name, t.truck_number) AS name,
          t.status,
          (SELECT COUNT(*) FROM truck_bins tb WHERE tb.truck_id = t.id) AS bin_count,
          (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS total_items,

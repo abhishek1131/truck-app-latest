@@ -305,7 +305,7 @@ export function InventoryItemDetailsModal({
           </Card>
 
           {/* Recent Activity */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle className="text-lg">Recent Activity</CardTitle>
             </CardHeader>
@@ -350,7 +350,7 @@ export function InventoryItemDetailsModal({
                 </p>
               )}
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-2 pt-4 border-t">

@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import { Calculator, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -35,7 +35,6 @@ interface SupplyHouse {
 
 export default function NewOrderPage() {
   const { user, token } = useAuth();
-  const { toast } = useToast();
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -65,19 +64,11 @@ export default function NewOrderPage() {
           setSupplyHouses(data.supplyHouses);
         } else {
           console.error("Failed to fetch supply houses:", data.error);
-          toast({
-            title: "Error",
-            description: "Failed to fetch supply houses.",
-            variant: "destructive",
-          });
+          toast.error("Failed to fetch supply houses.");
         }
       } catch (error) {
         console.error("Error fetching supply houses:", error);
-        toast({
-          title: "Error",
-          description: "Error fetching supply houses.",
-          variant: "destructive",
-        });
+        toast.error("Error fetching supply houses.");
       }
     };
 
@@ -124,23 +115,16 @@ export default function NewOrderPage() {
 
       if (response.ok) {
         const { commission, techCredit } = calculateCommission();
-        toast({
-          title: "Order submitted successfully!",
-          description: `Your order has been sent to the supply house. You'll earn $${techCredit.toFixed(
+        toast.success(`Your order has been sent to the supply house. You'll earn $${techCredit.toFixed(
             2
-          )} in credits.`,
-        });
+          )} in credits.`);
         router.push("/dashboard");
       } else {
         throw new Error(data.error || "Failed to submit order");
       }
     } catch (error) {
       console.error("Error submitting order:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit order. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to submit order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

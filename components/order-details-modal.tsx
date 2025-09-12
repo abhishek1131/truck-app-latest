@@ -27,7 +27,7 @@ import {
   MessageSquare,
   Truck,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 
 interface OrderDetailsModalProps {
   order: {
@@ -92,7 +92,6 @@ const urgencyConfig = {
 export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { token } = useAuth();
-  const { toast } = useToast();
   const StatusIcon =
     statusConfig[order.status as keyof typeof statusConfig]?.icon || Clock;
 
@@ -123,16 +122,9 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast({
-        title: "Success",
-        description: `Invoice for order #${order.order_number} downloaded`,
-      });
+      toast.success(`Invoice for order #${order.order_number} downloaded`);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to download invoice",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to download invoice");
     }
   }, [toast, token, order.id, order.order_number]);
 

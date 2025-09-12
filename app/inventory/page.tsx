@@ -25,11 +25,12 @@ export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [errorMessage, setErrorMessage] = useState("");
+  const [totalItemType, settotalItemType] = useState(0);
   const [inventoryData, setInventoryData] = useState({
     inventoryItems: [],
     stats: {
       totalItems: 0,
-      itemTypes: 0,
+      assignedItem: 0,
       lowStockItems: 0,
       needsRestockItems: 0,
     },
@@ -41,27 +42,28 @@ export default function InventoryPage() {
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    const fetchInventory = async () => {
-      if (!user || !token) return;
+  const fetchInventory = async () => {
+    if (!user || !token) return;
 
-      try {
-        const response = await fetch("/api/inventory", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
+    try {
+      const response = await fetch("/api/inventory", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
 
-        if (response.ok) {
-          setInventoryData(data);
-        } else {
-          console.error("Failed to fetch inventory:", data.error);
-        }
-      } catch (error) {
-        console.error("Error fetching inventory:", error);
+      if (response.ok) {
+        setInventoryData(data);
+        settotalItemType(data?.inventoryItems?.length);
+      } else {
+        console.error("Failed to fetch inventory:", data.error);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+    }
+  };
+  useEffect(() => {
 
     fetchInventory();
   }, [user, token]);
@@ -79,24 +81,7 @@ export default function InventoryPage() {
       });
       const data = await response.json();
       if (response.ok) {
-        setInventoryData((prev) => ({
-          ...prev,
-          inventoryItems: [
-            ...prev.inventoryItems,
-            {
-              ...data.item,
-              internalId: data.item.id, // uuid
-              id: data.item.partNumber,
-              totalQuantity: 0,
-              trucks: [],
-              lastOrdered: "Never",
-            },
-          ],
-          stats: {
-            ...prev.stats,
-            itemTypes: prev.stats.itemTypes + 1,
-          },
-        }));
+        fetchInventory();
       } else {
         setErrorMessage(data.error || "Failed to add item");
         console.error("Failed to add item:", data.error);
@@ -159,10 +144,10 @@ export default function InventoryPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm opacity-90">Item Types</p>
-                    <p className="text-2xl font-bold">{stats.itemTypes}</p>
+                    <p className="text-sm opacity-90">Total Item Types</p>
+                    <p className="text-2xl font-bold">{totalItemType}</p>
+                    <p className="text-xs opacity-75">{stats.assignedItem} Assigned Items</p>
                   </div>
-                  <Package className="h-8 w-8 opacity-80" />
                 </div>
               </CardContent>
             </Card>
@@ -316,12 +301,12 @@ export default function InventoryPage() {
                       >
                         {item.category}
                       </Badge>
-                      {item.totalQuantity <= item.lowStockThreshold && (
+                      {item.assigned && Number(item.totalQuantity) <= item.lowStockThreshold && (
                         <Badge className="bg-red-100 text-red-800">
                           Low Stock
                         </Badge>
                       )}
-                      {item.totalQuantity < item.standardLevel && (
+                      { item.assigned && Number(item.totalQuantity) < item.standardLevel && (
                         <Badge className="bg-orange-100 text-orange-800">
                           Needs Restock
                         </Badge>
