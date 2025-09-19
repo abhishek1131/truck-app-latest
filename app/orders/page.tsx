@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { OrderDetailsModal } from "@/components/order-details-modal";
+import { fetchClient } from "@/lib/fetchClient";
 
 interface Order {
   id: string;
@@ -44,6 +45,36 @@ interface Order {
   credit: number | null;
   created_at: string;
   quantity: number;
+  items: {
+    id: string;
+    inventory_item_id: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    reason: string;
+    inventory_item: {
+      id: string;
+      part_number: string;
+      name: string;
+      description: string;
+      unit: string;
+      supplier: string;
+      category: string;
+    };
+    bin: {
+      id: string;
+      bin_code: string;
+      name: string;
+    };
+  }[];
+  truck: {
+    id: string;
+    truck_number: string;
+    make: string;
+    model: string;
+    year: number;
+    location: string;
+  };
 }
 
 interface OrdersResponse {
@@ -107,7 +138,7 @@ export default function OrdersPage() {
         ...(searchTerm && { search: searchTerm }),
       });
 
-      const response = await fetch(`/api/orders?${params}`, {
+      const response = await fetchClient(`/api/orders?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -125,11 +156,19 @@ export default function OrdersPage() {
             status: o.status,
             priority: o.urgency,
             total_amount: o.cost,
-            commission_amount: o.commission,
-            total_credit: o.credit,
+            commission: o.commission,
+            credit: o.credit,
             created_at: o.date,
             quantity: o.quantity,
             items: o.items || [],
+            truck: o.truck || {
+              id: "",
+              truck_number: "N/A",
+              make: "N/A",
+              model: "N/A",
+              year: 0,
+              location: "N/A"
+            },
           }))
         )
         setPagination(data?.data?.pagination);
@@ -155,7 +194,7 @@ export default function OrdersPage() {
     async (order: Order) => {
       try {
         setDownloadingOrderId(order.id);
-        const response = await fetch(`/api/invoice/${order.id}`, {
+        const response = await fetchClient(`/api/invoice/${order.id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -199,9 +238,9 @@ export default function OrdersPage() {
     (sum, order) => sum + (order.credit || 0),
     0
   );
-  const completedOrders = orders.filter(
-    (order) => order.status === "completed"
-  ).length;
+  // const completedOrders = orders.filter(
+  //   (order) => order.status === "completed"
+  // ).length;
 
   const filteredOrders = orders
     .filter((order) => {
@@ -244,7 +283,7 @@ export default function OrdersPage() {
                   asChild
                   className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg"
                 >
-                  <Link href="/orders/new">
+                  <Link href="/order">
                     <Plus className="h-4 w-4 mr-2" />
                     New Order
                   </Link>
@@ -252,7 +291,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium opacity-90">
@@ -293,7 +332,8 @@ export default function OrdersPage() {
                     <p className="text-xs opacity-75">Available credits</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
+                {/* Completed Card - Commented Out */}
+                {/* <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium opacity-90">
                       Completed
@@ -304,7 +344,7 @@ export default function OrdersPage() {
                     <div className="text-2xl font-bold">{completedOrders}</div>
                     <p className="text-xs opacity-75">Successful orders</p>
                   </CardContent>
-                </Card>
+                </Card> */}
               </div>
             </div>
 
@@ -341,10 +381,7 @@ export default function OrdersPage() {
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="shipped">Shipped</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select
@@ -411,7 +448,7 @@ export default function OrdersPage() {
                                 {order.status.charAt(0).toUpperCase() +
                                   order.status.slice(1)}
                               </Badge>
-                              <Badge
+                              {/* <Badge
                                 className={
                                   urgencyConfig[
                                     order.priority as keyof typeof urgencyConfig
@@ -419,7 +456,7 @@ export default function OrdersPage() {
                                 }
                               >
                                 {order.priority}
-                              </Badge>
+                              </Badge> */}
                             </div>
                           </div>
 

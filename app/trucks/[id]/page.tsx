@@ -22,6 +22,7 @@ import { AddBinModal } from "@/components/add-bin-modal";
 import { StandardInventoryModal } from "@/components/standard-inventory-modal";
 import { useAuth } from "@/components/auth-provider";
 import { EditBinModal } from "@/components/edit-bin-modal";
+import { fetchClient } from "@/lib/fetchClient";
 
 export default function TruckDetailPage() {
   const params = useParams();
@@ -42,7 +43,7 @@ export default function TruckDetailPage() {
     if (!user || !token) return;
 
     try {
-      const response = await fetch(`/api/technician/trucks/${truckId}`, {
+      const response = await fetchClient(`/api/technician/trucks/${truckId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -105,6 +106,9 @@ export default function TruckDetailPage() {
     console.log("Standard levels set:", levels);
     // In real app, this would save to backend
   };
+
+  // Calculate total bin capacity
+  const totalBinCapacity = bins.reduce((total, bin) => total + (bin.binCapacity || 0), 0);
 
   return (
     <Navigation
@@ -170,12 +174,12 @@ export default function TruckDetailPage() {
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Low Stock</p>
+                  <p className="text-sm font-medium text-gray-600">Truck Capacity</p>
                   <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {truck.lowStockItems}
+                    { totalBinCapacity }
                   </p>
                   <p className="text-xs md:text-sm text-gray-500">
-                    Need restock
+                    Across all bins
                   </p>
                 </div>
                 <div className="p-2 md:p-3 rounded-lg bg-red-500">
@@ -290,28 +294,23 @@ export default function TruckDetailPage() {
                         <p className="text-lg md:text-xl font-bold text-gray-900">
                           {bin.totalItems}
                         </p>
-                        <p className="text-xs text-gray-500">Items</p>
+                        <p className="text-xs text-gray-500">Current Items</p>
                       </div>
                       <div className="text-center">
                         <p
-                          className={`text-lg md:text-xl font-bold ${
-                            bin.lowStockItems > 0
-                              ? "text-red-600"
-                              : "text-green-600"
-                          }`}
-                        >
-                          {bin.lowStockItems}
+                          className="text-lg md:text-xl font-bold text-green-600">
+                          {bin.binCapacity}
                         </p>
-                        <p className="text-xs text-gray-500">Low Stock</p>
+                        <p className="text-xs text-gray-500">Bin Capacity</p>
                       </div>
                     </div>
 
                     <div className="flex flex-col space-y-2">
-                      {bin.lowStockItems > 0 && (
+                      {/* {bin.lowStockItems > 0 && (
                         <Badge variant="destructive" className="text-xs cursor-pointer" onClick={handleClick}>
                           Needs Restock
                         </Badge>
-                      )}
+                      )} */}
                       <Link href={`/trucks/${truckId}/bins/${bin.id}`}>
                         <Button
                           size="sm"

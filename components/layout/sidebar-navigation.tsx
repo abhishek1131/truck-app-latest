@@ -14,6 +14,7 @@ import {
   LogOut,
   Users,
   Shield,
+  Package2,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 
@@ -22,6 +23,7 @@ const technicianNavigation = [
   { name: "Trucks", href: "/trucks", icon: Truck },
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Order", href: "/order", icon: ShoppingCart },
+  { name: "Use Parts", href: "/use-parts", icon: Package2 },
   { name: "Restock", href: "/restock", icon: RotateCcw },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

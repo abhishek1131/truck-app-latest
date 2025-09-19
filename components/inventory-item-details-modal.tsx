@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
+import { fetchClient } from "@/lib/fetchClient";
 
 interface InventoryItem {
   internalId: string;
@@ -30,6 +31,7 @@ interface InventoryItem {
   name: string;
   category: string;
   totalQuantity: number;
+  standardLevel: number;
   lowStockThreshold: number;
   lastOrdered: string;
   trucks: string[];
@@ -38,6 +40,7 @@ interface InventoryItem {
   partNumber?: string;
   brand?: string;
   unitCost?: number;
+  costPrice?: number;
   supplier?: string;
   lastRestocked?: string;
   averageUsage?: string;
@@ -74,7 +77,7 @@ export function InventoryItemDetailsModal({
     if (open) {
       const fetchDetails = async () => {
         try {
-          const response = await fetch(
+          const response = await fetchClient(
             `/api/inventory?item=${item.internalId}`,
             {
               headers: {
@@ -154,13 +157,13 @@ export function InventoryItemDetailsModal({
                   <p className="text-sm font-medium text-gray-500">Brand</p>
                   <p className="text-base">{detailedItem.brand || "N/A"}</p>
                 </div>
-                {detailedItem.unitCost && (
+                {detailedItem.costPrice && (
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      Unit Cost
+                      Cost Price
                     </p>
                     <p className="text-base">
-                      ${detailedItem.unitCost}
+                      ${detailedItem.costPrice}
                     </p>
                   </div>
                 )}
@@ -207,14 +210,12 @@ export function InventoryItemDetailsModal({
                   </p>
                   <p className="text-sm text-orange-600">Low Stock Alert</p>
                 </div>
-                {detailedItem.averageUsage && (
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <p className="text-2xl font-bold text-green-600">
-                      {detailedItem.averageUsage}
-                    </p>
-                    <p className="text-sm text-green-600">Average Usage</p>
-                  </div>
-                )}
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <p className="text-2xl font-bold text-green-600">
+                    {detailedItem.standardLevel}
+                  </p>
+                  <p className="text-sm text-green-600">Standard Level</p>
+                </div>
               </div>
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">

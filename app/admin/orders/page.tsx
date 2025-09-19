@@ -230,7 +230,7 @@ export default function AdminOrdersPage() {
               o.id === orderId ? { ...o, status: result.data.status } : o
             )
           );
-          toast.success(`Order #${result.data.order_number} confirmed`);
+          toast.error(`Order #${result.data.order_number} confirmed`);
         } else {
           toast.error(result.error || "Failed to confirm order");
         }
@@ -561,7 +561,7 @@ export default function AdminOrdersPage() {
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {statusLabel}
                           </Badge>
-                          <Badge
+                          {/* <Badge
                             className={
                               urgencyConfig[
                                 order.urgency as keyof typeof urgencyConfig
@@ -571,7 +571,7 @@ export default function AdminOrdersPage() {
                             {urgencyConfig[
                               order.urgency as keyof typeof urgencyConfig
                             ]?.label || order.urgency}
-                          </Badge>
+                          </Badge> */}
                         </div>
                       </div>
 
@@ -764,6 +764,7 @@ export default function AdminOrdersPage() {
                 phone: selectedOrder.technician_phone,
               }}
               orderId={selectedOrder.order_number}
+              role="Technician"
             />
           </>
         )}

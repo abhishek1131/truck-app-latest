@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Edit } from "lucide-react";
+import { fetchClient } from "@/lib/fetchClient";
 
 interface EditUserModalProps {
   isOpen: boolean;
@@ -77,7 +78,7 @@ export function EditUserModal({
     setIsLoading(true);
 
     try {
-      const response = await fetch(`/api/admin/users/${user.id}`, {
+      const response = await fetchClient(`/api/admin/users/${user.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

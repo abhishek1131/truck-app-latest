@@ -258,13 +258,13 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             >
                               {status.charAt(0).toUpperCase() + status.slice(1)}
                             </Badge>
-                            <Badge
+                            {/* <Badge
                               className={`text-xs sm:text-xs ${
                                 urgencyConfig[order.urgency as keyof typeof urgencyConfig]?.color
                               }`}
                             >
                               {order.urgency.toUpperCase()}
-                            </Badge>
+                            </Badge> */}
                           </div>
                         </div>
                       </CardHeader>

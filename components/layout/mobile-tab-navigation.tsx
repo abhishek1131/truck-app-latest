@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, Truck, Package, ShoppingCart, RotateCcw, Shield, Users, Settings } from "lucide-react"
+import { Home, Truck, Package, ShoppingCart, RotateCcw, Shield, Users, Settings, Package2 } from "lucide-react"
 import { useAuth } from "../auth-provider"
 
 const technicianNavigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Trucks", href: "/trucks", icon: Truck },
   { name: "Inventory", href: "/inventory", icon: Package },
+  { name: "Use Parts", href: "/use-parts", icon: Package2 },
   { name: "Order", href: "/order", icon: ShoppingCart },
   { name: "Restock", href: "/restock", icon: RotateCcw },
 ]
@@ -30,7 +31,7 @@ export function MobileTabNavigation() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
-      <div className="grid grid-cols-5 h-20">
+      <div className="grid grid-cols-6 h-20">
         {navigation.map((item) => {
           const isActive =
             item.href === "/admin"

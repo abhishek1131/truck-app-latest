@@ -28,6 +28,7 @@ import {
   Truck,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { ContactTechnicianModal } from "./contact-technician-modal";
 
 interface OrderDetailsModalProps {
   order: {
@@ -92,6 +93,7 @@ const urgencyConfig = {
 export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { token } = useAuth();
+  const [showContactSupport, setShowContactSupport] = useState(false);
   const StatusIcon =
     statusConfig[order.status as keyof typeof statusConfig]?.icon || Clock;
 
@@ -162,7 +164,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <StatusIcon className="h-3 w-3 mr-1" />
                 {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
               </Badge>
-              <Badge
+              {/* <Badge
                 className={
                   urgencyConfig[order.priority as keyof typeof urgencyConfig]
                     ?.color
@@ -171,7 +173,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 {order.priority.charAt(0).toUpperCase() +
                   order.priority.slice(1)}{" "}
                 Priority
-              </Badge>
+              </Badge> */}
             </div>
             <div className="text-sm text-gray-500 flex items-center gap-1">
               <Calendar className="h-4 w-4" />
@@ -379,6 +381,17 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 </div>
               )}
             </div>
+            <ContactTechnicianModal
+              isOpen={showContactSupport}
+              onClose={() => setShowContactSupport(false)}
+              technician={{
+                name: process.env.NEXT_PUBLIC_ADMIN_NAME || "TruxTok Admin",
+                email: process.env.NEXT_PUBLIC_ADMIN_EMAIL || "support@truxtok.com",
+                phone: process.env.NEXT_PUBLIC_ADMIN_PHONE || "",
+              }}
+              orderId={order.order_number}
+              role="Admin"
+            />
           </div>
 
           {/* Actions */}
@@ -390,7 +403,8 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
               <Download className="h-4 w-4 mr-2" />
               Download Invoice
             </Button>
-            <Button variant="outline" className="flex-1 bg-transparent">
+            <Button variant="outline" className="flex-1 bg-transparent"
+            onClick={() => setShowContactSupport(true)}>
               <MessageSquare className="h-4 w-4 mr-2" />
               Contact Support
             </Button>

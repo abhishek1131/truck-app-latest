@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import toast from "react-hot-toast";
 import { Save, User, Shield } from "lucide-react";
+import { fetchClient } from "@/lib/fetchClient";
 
 export default function SettingsPage() {
   const { user, token } = useAuth();
@@ -34,7 +35,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
-        const response = await fetch("/api/users/me", {
+        const response = await fetchClient("/api/users/me", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -65,7 +66,7 @@ export default function SettingsPage() {
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch("/api/users/me", {
+      const response = await fetchClient("/api/users/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +102,7 @@ export default function SettingsPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetch("/api/users/me", {
+      const response = await fetchClient("/api/users/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

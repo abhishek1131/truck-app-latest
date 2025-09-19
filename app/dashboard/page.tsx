@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { fetchClient } from "@/lib/fetchClient";
 
 export default function DashboardPage() {
   const { user, loading, token } = useAuth();
@@ -52,13 +53,12 @@ export default function DashboardPage() {
       if (!user || !token) return;
 
       try {
-        const response = await fetch("/api/dashboard", {
+        const response = await fetchClient("/api/dashboard", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         const data = await response.json();
-
         if (response.ok) {
           setDashboardData(data);
         } else {
@@ -95,7 +95,7 @@ export default function DashboardPage() {
       <div className="p-4 md:p-6 space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0">
+          <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0" onClick={()=> router.push('/trucks')}>
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -111,7 +111,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0" onClick={()=> router.push('/inventory')}>
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -124,7 +124,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0">
+          <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0" onClick={()=> router.push('/restock')}>
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -137,7 +137,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0" onClick={()=> router.push('/order')}>
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -183,19 +183,19 @@ export default function DashboardPage() {
                         {truck.name}
                       </h4>
                       <p className="text-xs md:text-sm text-gray-600">
-                        {truck.items} items • {truck.lowStock} low stock
+                        {truck.items} items
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
-                    {truck.lowStock > 0 && (
+                    {/* {truck.lowStock > 0 && (
                       <Badge
                         variant="destructive"
                         className="bg-red-100 text-red-800 text-xs"
                       >
                         {truck.lowStock} low stock
                       </Badge>
-                    )}
+                    )} */}
                     <Badge
                       className={
                         truck.status === "active"

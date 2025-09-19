@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Edit } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { fetchClient } from "@/lib/fetchClient";
 
 type ButtonSize = "default" | "sm" | "lg" | "icon" | null | undefined;
 
@@ -84,7 +85,7 @@ export function EditBinModal({
   const handleSubmit = async () => {
     try {
       setErrorMessage("");
-      const response = await fetch(
+      const response = await fetchClient(
         `/api/technician/trucks/${truckId}/bins/${bin.id}`,
         {
           method: "PUT",

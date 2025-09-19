@@ -5,101 +5,130 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify JWT token
+    // Get token
     const authHeader = request.headers.get("authorization");
     const token =
       authHeader?.replace("Bearer ", "") ||
       request.cookies.get("access_token")?.value;
 
-    if (!token) {
+    if (!token)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
+    // Verify token
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const userId = decoded.id;
 
-    // Verify user is active
+    // Check active user
     const [userRows] = await pool.query(
       "SELECT role FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData) {
+    if (!userData || userData.role !== "technician") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    // Fetch restock items for assigned trucks
-    const [restockItems] = await pool.query(
+    // Fetch items where total bin quantity < standard_level
+    const [rows] = await pool.query(
       `
       SELECT 
         ti.item_id AS id,
         ii.name AS name,
+        ic.name AS category,
         ti.quantity AS currentStock,
         COALESCE(ii.standard_level, ti.min_quantity) AS standardLevel,
-        GREATEST(COALESCE(ii.standard_level, ti.min_quantity) - ti.quantity, 0) AS suggestedQuantity,
         t.id AS truckId,
         t.truck_number AS truck,
-        ic.name AS category,
+        tb.id AS binId,
+        tb.name AS binName,
+        tb.location AS binLocation,
+        total_quantity.totalQty,
         CASE 
-          WHEN (COALESCE(ii.standard_level, ti.min_quantity) - ti.quantity) >= COALESCE(ii.standard_level, ti.min_quantity) * 0.5 THEN 'high'
-          WHEN (COALESCE(ii.standard_level, ti.min_quantity) - ti.quantity) >= COALESCE(ii.standard_level, ti.min_quantity) * 0.2 THEN 'medium'
+          WHEN (COALESCE(ii.standard_level, ti.min_quantity) - total_quantity.totalQty) >= COALESCE(ii.standard_level, ti.min_quantity) * 0.5 THEN 'high'
+          WHEN (COALESCE(ii.standard_level, ti.min_quantity) - total_quantity.totalQty) >= COALESCE(ii.standard_level, ti.min_quantity) * 0.2 THEN 'medium'
           ELSE 'low'
         END AS priority
       FROM truck_inventory ti
       JOIN inventory_items ii ON ti.item_id = ii.id
       JOIN inventory_categories ic ON ii.category_id = ic.id
       JOIN trucks t ON ti.truck_id = t.id
-      WHERE t.assigned_to = ? AND ti.quantity < COALESCE(ii.standard_level, ti.min_quantity)
-      ORDER BY t.truck_number, priority DESC, ii.name
+      JOIN truck_bins tb ON ti.bin_id = tb.id
+      JOIN (
+        SELECT 
+          ti2.item_id,
+          SUM(ti2.quantity) AS totalQty
+        FROM truck_inventory ti2
+        JOIN trucks t2 ON ti2.truck_id = t2.id
+        WHERE t2.assigned_to = ?
+        GROUP BY ti2.item_id
+      ) total_quantity ON ti.item_id = total_quantity.item_id
+      WHERE t.assigned_to = ? 
+        AND total_quantity.totalQty < COALESCE(ii.standard_level, ti.min_quantity)
+      ORDER BY priority DESC, ii.name
       `,
-      [userId]
+      [userId, userId]
     );
 
-    // Group items by truck
-    const groupedByTruck: Record<string, any> = {};
+    console.log("rows", rows);
+    // Group items by id
+    const restockItems: Record<string, any> = {};
 
-    (restockItems as any[]).forEach((item) => {
-      if (!groupedByTruck[item.truckId]) {
-        groupedByTruck[item.truckId] = {
-          truckId: item.truckId,
-          truck: item.truck,
-          items: [],
+    (rows as any[]).forEach((row) => {
+      if (!restockItems[row.id]) {
+        restockItems[row.id] = {
+          id: row.id,
+          name: row.name,
+          category: row.category,
+          priority: row.priority,
+          totalCurrentStock: row.totalQty, // Use total quantity from all bins
+          totalStandardLevel: row.standardLevel,
+          suggestedQuantity: 0,
+          locations: [],
         };
       }
-      groupedByTruck[item.truckId].items.push({
-        id: item.id,
-        name: item.name,
-        currentStock: item.currentStock,
-        standardLevel: item.standardLevel,
-        suggestedQuantity: item.suggestedQuantity,
-        category: item.category,
-        priority: item.priority,
-      });
+
+      const suggestedQty = Math.max(row.standardLevel - row.currentStock, 0);
+
+      // Only include bins that need restocking
+      if (suggestedQty > 0) {
+        restockItems[row.id].locations.push({
+          truckId: row.truckId,
+          truck: row.truck,
+          binId: row.binId,
+          binName: row.binName,
+          binLocation: row.binLocation,
+          currentStock: row.currentStock,
+          standardLevel: row.standardLevel,
+          suggestedQuantity: suggestedQty,
+        });
+      }
     });
 
-    // Convert to array
-    const response = Object.values(groupedByTruck);
+    // Compute overall suggested quantity per item
+    const filteredItems = Object.values(restockItems)
+      .map((item: any) => ({
+        ...item,
+        suggestedQuantity: Math.max(
+          item.totalStandardLevel - item.totalCurrentStock,
+          0
+        ),
+      }))
+      .filter((item: any) => item.suggestedQuantity > 0); // remove items with 0 suggestedQuantity
 
-    return NextResponse.json({ trucks: response });
+    // Sort by priority
+    const priorityOrder: { [key: string]: number } = { high: 3, medium: 2, low: 1 };
+    filteredItems.sort((a: any, b: any) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+
+    return NextResponse.json({ items: filteredItems });
   } catch (error: any) {
     console.error("Restock fetch error:", error);
-    if (error.code === "ER_BAD_FIELD_ERROR") {
-      return NextResponse.json(
-        { error: `Database schema error: ${error.sqlMessage}` },
-        { status: 500 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 

@@ -11,7 +11,10 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "TruXtoK - Inventory Management",
   description: "Professional truck inventory management system",
-    generator: 'v0.app'
+  generator: 'v0.app',
+  icons: {
+    icon: "/truck.png",
+  },
 }
 
 export default function RootLayout({

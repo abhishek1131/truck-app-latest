@@ -30,22 +30,34 @@ import {
   RotateCcw,
   Download,
   Mail,
+  Truck,
+  Grid3X3,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { fetchClient } from "@/lib/fetchClient";
+
+interface RestockItemLocation {
+  truckId: string;
+  truck: string;
+  binId: string;
+  binName: string;
+  binLocation: string;
+  currentStock: number;
+  suggestedQuantity: number;
+}
 
 interface RestockItem {
+  standardLevel: any;
+  currentStock: any;
   id: string;
   name: string;
-  currentStock: number;
-  standardLevel: number;
+  totalCurrentStock: number;
+  totalStandardLevel: number;
   suggestedQuantity: number;
-  truck: string;
-  truckId: string;
   category: string;
   priority: "high" | "medium" | "low";
-  inventoryItemId?: string;
-  binId?: string;
+  locations: RestockItemLocation[];
 }
 
 interface OrderDetails {
@@ -60,16 +72,9 @@ interface OrderDetails {
   items: RestockItem[];
 }
 
-interface TruckRestock {
-  truckId: string;
-  truck: string;
-  items: RestockItem[];
-}
-
 export default function RestockPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
-  const [trucksRestock, setTrucksRestock] = useState<TruckRestock[]>([]);
   const [restockItems, setRestockItems] = useState<RestockItem[]>([]);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
@@ -78,6 +83,7 @@ export default function RestockPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [technicianName, setTechnicianName] = useState<string>("Unknown");
   const [isDownloading, setIsDownloading] = useState(false);
+  console.log("restockItems", restockItems)
 
   // Fetch technician name on mount
   useEffect(() => {
@@ -85,7 +91,7 @@ export default function RestockPage() {
       if (!user || !token) return;
 
       try {
-        const response = await fetch("/api/users/me", {
+        const response = await fetchClient("/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -120,21 +126,12 @@ export default function RestockPage() {
 
       try {
         setIsLoadingItems(true);
-        const response = await fetch("/api/technician/restock", {
+        const response = await fetchClient("/api/technician/restock", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
         if (response.ok) {
-          const trucks = data.trucks.map((truck: any) => ({
-            truckId: truck.truckId,
-            truck: truck.truck,
-            items: truck.items.map((item: any) => ({
-              ...item,
-              inventoryItemId: item.inventory_item_id,
-              binId: item.bin_id,
-            })),
-          }));
-          setTrucksRestock(trucks);
+          setRestockItems(data.items || []);
         } else {
           setError(data.error || "Failed to fetch restock items");
         }
@@ -151,33 +148,40 @@ export default function RestockPage() {
     }
   }, [user, token, loading, router]);
 
-  const updateQuantity = (truckId: string, itemId: string, quantity: number) => {
-    setTrucksRestock((trucks) =>
-      trucks.map((truck) =>
-        truck.truckId === truckId
+  const updateQuantity = (itemId: string, locationIndex: number, quantity: number) => {
+    setRestockItems((items) =>
+      items.map((item) =>
+        item.id === itemId
           ? {
-              ...truck,
-              items: truck.items.map((item) =>
-                item.id === itemId
-                  ? { ...item, suggestedQuantity: Math.max(0, quantity) }
-                  : item
-              ),
-            }
-          : truck
+            ...item,
+            locations: item.locations.map((location, index) =>
+              index === locationIndex
+                ? { ...location, suggestedQuantity: Math.max(0, quantity) }
+                : location
+            ),
+          }
+          : item
       )
     );
   };
 
-  const handleSubmitRestock = (truck: TruckRestock) => {
-    router.push(`/order?truckId=${truck.truckId}&fromRestock=true`);
+  const handleSubmitRestock = (item: RestockItem, location: RestockItemLocation) => {
+    // Redirect to order page with specific truck and item
+    router.push(`/order?truckId=${location.truckId}&fromRestock=true&itemId=${item.id}`);
   }
+
+  const handleEditItem = ({ item, truckId, bins }: { item: RestockItem; truckId: string; bins: any[] }) => {
+    router.push(
+      `/order?truckId=${truckId}&fromRestock=true&itemId=${item.id}`
+    );
+  };
 
   const handleDownloadInvoice = async () => {
     if (!orderDetails || !token) return;
 
     try {
       setIsDownloading(true);
-      const response = await fetch(`/api/invoice/${orderDetails.id}`, {
+      const response = await fetchClient(`/api/invoice/${orderDetails.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -228,18 +232,17 @@ Total Quantity: ${orderDetails.totalQuantity}
 ITEMS REQUESTED:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${orderDetails.items
-  .map(
-    (item, index) =>
-      `${index + 1}. ${item.name}
+        .map(
+          (item, index) =>
+            `${index + 1}. ${item.name}
    Category: ${item.category}
    Quantity Requested: ${item.suggestedQuantity}
    Current Stock: ${item.currentStock}
-   Standard Level: ${item.standardLevel}
-   Priority: ${item.priority.toUpperCase()}
+   Standard Level: ${item.standardLevel}   
    
 `
-  )
-  .join("")}
+        )
+        .join("")}
 
 Please process this order at your earliest convenience.
 
@@ -264,7 +267,7 @@ ${orderDetails.technician}`;
       setIsDownloading(true);
 
       // First download the PDF
-      const response = await fetch(`/api/invoice/${orderDetails.id}`, {
+      const response = await fetchClient(`/api/invoice/${orderDetails.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -335,13 +338,16 @@ ${orderDetails.technician}`;
     }
   };
 
-  const totalItems = restockItems.filter(
-    (item) => item.suggestedQuantity > 0
-  ).length;
+  // Total unique items that need restock
+  const totalItems = restockItems.filter((item) => item.suggestedQuantity > 0).length;
+
+  // Total suggested quantity across all items
   const totalQuantity = restockItems.reduce(
     (sum, item) => sum + item.suggestedQuantity,
     0
   );
+
+  // Calculate high priority items count
   const highPriorityItems = restockItems.filter(
     (item) => item.priority === "high"
   ).length;
@@ -361,10 +367,10 @@ ${orderDetails.technician}`;
               <p className="text-gray-500">{error}</p>
             </CardContent>
           </Card>
-        ) : trucksRestock.length > 0 ? (
+        ) : restockItems.length > 0 ? (
           <>
             {/* Dashboard Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -377,7 +383,7 @@ ${orderDetails.technician}`;
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0">
+              {/* <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -387,13 +393,13 @@ ${orderDetails.technician}`;
                     <AlertTriangle className="h-8 w-8 opacity-80" />
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm opacity-90">Total Quantity</p>
+                      <p className="text-sm opacity-90">Total Need Quantity</p>
                       <p className="text-2xl font-bold">{totalQuantity}</p>
                     </div>
                     <RefreshCw className="h-8 w-8 opacity-80" />
@@ -405,154 +411,171 @@ ${orderDetails.technician}`;
             {/* Suggested Restock Items */}
             <Card>
               <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-sm md:text-base">
-                      <RefreshCw className="h-5 w-5" />
-                      Suggested Restock Items
-                    </CardTitle>
-                    <CardDescription className="text-xs md:text-sm">
-                      Review and adjust quantities before submitting
-                    </CardDescription>
-                  </div>
-                </div>
+                <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+                  <RefreshCw className="h-5 w-5" />
+                  Items Needing Restock
+                </CardTitle>
+                <CardDescription className="text-xs md:text-sm">
+                  Items that need restocking across all your assigned trucks
+                </CardDescription>
               </CardHeader>
+
               <CardContent>
-                <div className="space-y-4">
-                  {/* Suggested Restock Items - Grouped by Truck */}
-                  {trucksRestock.length > 0 ? (
-                    trucksRestock.map((truck) => {
-                      const totalTruckItems = truck.items.filter((i) => i.suggestedQuantity > 0).length;
+                <div className="space-y-6">
+                  {restockItems.map((item) => {
+                    // Group bins by truck
+                    const trucks = item.locations.reduce((acc, loc) => {
+                      if (!acc[loc.truck]) acc[loc.truck] = [];
+                      acc[loc.truck].push(loc);
+                      return acc;
+                    }, {} as Record<string, typeof item.locations>);
 
-                      return (
-                        <Card key={truck.truckId} className="mb-6">
-                          {/* Truck Header */}
-                          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                            <CardTitle className="text-lg font-semibold">{truck.truck}</CardTitle>
-                            <Button
-                              onClick={() => handleSubmitRestock(truck)}
-                              className="bg-[#E3253D] hover:bg-red-600 flex items-center justify-center"
-                              disabled={totalTruckItems === 0}
+                    return (
+                      <Card
+                        key={item.id}
+                        className="p-4 shadow-sm rounded-xl border border-gray-200"
+                      >
+                        <div className="flex flex-col gap-4">
+                          {/* Item row */}
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            {/* Left side (icon + info) */}
+                            <div className="flex items-start gap-4">
+                              <div className="w-12 h-12 bg-[#10294B] rounded-lg flex items-center justify-center text-white shrink-0">
+                                <Package className="h-6 w-6" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-[#10294B] text-base sm:text-lg">
+                                  {item.name}
+                                </h4>
+                                <p className="text-sm text-gray-600">{item.category}</p>
+                                <div className="flex flex-wrap items-center gap-4 text-sm mt-1">
+                                  <span className="text-gray-500">
+                                    Current: {item.totalCurrentStock}
+                                  </span>
+                                  <span className="text-gray-500">
+                                    Standard: {item.totalStandardLevel}
+                                  </span>
+                                  <span className="text-blue-600 font-semibold">
+                                    Need: {item.suggestedQuantity}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right side (priority) */}
+                            <Badge
+                              className={`w-fit ${item.priority === "high"
+                                ? "bg-red-100 text-red-800"
+                                : item.priority === "medium"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-green-100 text-green-800"
+                                }`}
                             >
-                              <FileText className="h-4 w-4 mr-2" />
-                              Submit Restock Order
-                            </Button>
-                          </CardHeader>
+                              {item.priority} priority
+                            </Badge>
+                          </div>
 
-                          {/* Truck Items */}
-                          <CardContent className="space-y-4">
-                            {truck.items.map((item) => (
-                              <Card
-                                key={item.id}
-                                className="p-4"
-                                onClick={(e) => {
-                                  router.push(`/order?truckId=${truck.truckId}&fromRestock=true&itemId=${item.id}`);
-                                  e.stopPropagation();
-                                }}
-                              >
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                  {/* Left Section */}
-                                  <div className="flex items-start sm:items-center gap-4">
-                                    <div className="w-12 h-12 bg-[#10294B] rounded-lg flex items-center justify-center text-white shrink-0">
-                                      <Package className="h-6 w-6" />
+                          {/* Truck wise bins */}
+                          {/* Truck wise bins */}
+                          <div className="space-y-6">
+                            {Object.entries(trucks).map(([truckName, bins]) => {
+                              // Truck wise quantity
+                              const truckSuggestedQuantity =
+                                item.totalStandardLevel -
+                                bins.reduce((sum, b) => sum + b.currentStock, 0);
+
+                              return (
+                                <div
+                                  key={truckName}
+                                  className="border rounded-lg bg-gray-50 shadow-sm p-4"
+                                >
+                                  {/* Truck name */}
+                                  <h3 className="font-semibold text-purple-700 flex items-center gap-2 mb-4 text-lg">
+                                    <Truck className="h-5 w-5" /> {truckName}
+                                  </h3>
+
+                                  {/* Content grid (2 cols on desktop, 1 col on mobile) */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Left side: Bin details */}
+                                    {/* Left side: Bin details */}
+                                    <div className="space-y-2">
+                                      {bins.map((bin) => (
+                                        <div
+                                          key={bin.binId}
+                                          className="flex items-center gap-3 text-sm bg-white p-2 rounded-md shadow-sm"
+                                        >
+                                          <Grid3X3 className="h-4 w-4 text-green-600" />
+                                          <span className="font-medium text-gray-800">
+                                            {bin.binName}
+                                          </span>
+                                          <span className="text-gray-500">
+                                            (Current:{" "}
+                                            <span className="font-semibold text-gray-900">
+                                              {bin.currentStock}
+                                            </span>
+                                            )
+                                          </span>
+                                        </div>
+                                      ))}
                                     </div>
-                                    <div className="min-w-0">
-                                      <h4 className="font-semibold text-[#10294B] truncate">{item.name}</h4>
-                                      <p className="text-sm text-gray-600 break-words">
-                                        {truck.truck} • {item.category}
-                                      </p>
-                                      <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
-                                        <span className="text-gray-500">Current: {item.currentStock}</span>
-                                        <span className="text-gray-500">Standard: {item.standardLevel}</span>
-                                        <span className="text-blue-600 font-medium">
-                                          Need: {item.standardLevel - item.currentStock}
+
+                                    {/* Right side: Actions */}
+                                    <div className="flex flex-col items-end justify-between gap-3">
+                                      {/* Submit Restock Order */}
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleEditItem({
+                                            item,
+                                            truckId: bins[0].truckId,
+                                            bins,
+                                          })
+                                        }
+                                        className="bg-[#E3253D] hover:bg-red-600 text-white w-full md:w-auto"
+                                      >
+                                        Submit Restock Order
+                                      </Button>
+
+                                      {/* Quantity + Edit */}
+                                      <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                                        <span className="text-sm">
+                                          Quantity:{" "}
+                                          <span className="font-semibold text-lg text-purple-700">
+                                            { item.suggestedQuantity }
+                                          </span>
                                         </span>
+
+                                        <Button
+                                          size="icon"
+                                          variant="outline"
+                                          onClick={() =>
+                                            handleEditItem({
+                                              item,
+                                              truckId: bins[0].truckId,
+                                              bins,
+                                            })
+                                          }
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
                                       </div>
                                     </div>
                                   </div>
-
-                                  {/* Right Section */}
-                                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                                    <Badge
-                                      className={
-                                        item.priority === "high"
-                                          ? "bg-red-100 text-red-800"
-                                          : item.priority === "medium"
-                                          ? "bg-yellow-100 text-yellow-800"
-                                          : "bg-green-100 text-green-800"
-                                      }
-                                    >
-                                      {item.priority} priority
-                                    </Badge>
-                                    <div className="flex items-center gap-2">
-                                      <Label htmlFor={`quantity-${item.id}`} className="text-sm whitespace-nowrap">
-                                        Quantity:
-                                      </Label>
-                                      {editingItem === item.id ? (
-                                        <div className="flex items-center gap-2">
-                                          <Input
-                                            id={`quantity-${item.id}`}
-                                            type="number"
-                                            min="0"
-                                            value={item.suggestedQuantity}
-                                            onChange={(e) =>
-                                              updateQuantity(
-                                                truck.truckId,
-                                                item.id,
-                                                Number.parseInt(e.target.value) || 0
-                                              )
-                                            }
-                                            className="w-20"
-                                          />
-                                          <Button
-                                            size="sm"
-                                            onClick={() => setEditingItem(null)}
-                                            className="bg-green-600 hover:bg-green-700"
-                                          >
-                                            <CheckCircle className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-semibold text-lg min-w-[3rem] text-center">
-                                            {item.suggestedQuantity}
-                                          </span>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={(e) => {
-                                              router.push(`/order?truckId=${truck.truckId}&fromRestock=true&itemId=${item.id}`);
-                                              e.stopPropagation();
-                                            }}
-                                          >
-                                            <Edit className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
                                 </div>
-                              </Card>
-                            ))}
-                          </CardContent>
-                        </Card>
-                      );
-                    })
-                  ) : (
-                    <Card>
-                      <CardContent className="p-8 text-center">
-                        <RotateCcw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Restock Management</h3>
-                        <p className="text-gray-500">No items need restocking at this time.</p>
-                      </CardContent>
-                    </Card>
-                  )}
+                              );
+                            })}
+                          </div>
+
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
 
             {/* Order Summary */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Restock Order Summary</CardTitle>
               </CardHeader>
@@ -568,7 +591,7 @@ ${orderDetails.technician}`;
                       <span className="font-medium">{totalQuantity}</span>
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>High Priority:</span>
                       <span className="font-medium text-red-600">
@@ -585,8 +608,8 @@ ${orderDetails.technician}`;
                         }
                       </span>
                     </div>
-                  </div>
-                  <div className="space-y-2">
+                  </div> */}
+            {/* <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Order Type:</span>
                       <span className="font-medium">Auto Restock</span>
@@ -600,7 +623,7 @@ ${orderDetails.technician}`;
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Order Confirmation Modal */}
             {orderDetails && (
@@ -654,10 +677,10 @@ ${orderDetails.technician}`;
                         {orderDetails.items.map((item, index) => (
                           <div key={index} className="border-b pb-2">
                             <p className="font-medium">{item.name}</p>
-                            <p className="text-sm text-gray-500">
+                            {/* <p className="text-sm text-gray-500">
                               Quantity: {item.suggestedQuantity} • Category:{" "}
                               {item.category} • Priority: {item.priority}
-                            </p>
+                            </p> */}
                           </div>
                         ))}
                       </div>

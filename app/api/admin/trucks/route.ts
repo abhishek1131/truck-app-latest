@@ -90,7 +90,7 @@ export async function GET(req: Request) {
         (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS totalItems,
         (SELECT COUNT(*) FROM truck_inventory ti 
          JOIN inventory_items ii ON ti.item_id = ii.id 
-         WHERE ti.truck_id = t.id AND ti.quantity <= ti.min_quantity) AS lowStockItems,
+         WHERE ti.truck_id = t.id AND ti.quantity < ii.min_quantity) AS lowStockItems,
         t.updated_at AS lastUpdated,
         (SELECT COUNT(*) FROM trucks) AS total_count
       FROM trucks t
@@ -154,20 +154,25 @@ export async function GET(req: Request) {
     }));
 
 
-    // stats calculate
     const [statsResult] = await pool.query<any[]>(`
-  SELECT 
-    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeTrucks,
-    SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS inactiveTrucks,
-    SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceTrucks,
-    (SELECT SUM(ti.quantity) FROM truck_inventory ti) AS totalItems,
-    (SELECT COUNT(*) 
-     FROM truck_inventory ti 
-     JOIN inventory_items ii ON ti.item_id = ii.id 
-     WHERE ti.quantity <= ti.min_quantity) AS totalLowStock
-  FROM trucks;
-`);
-
+      SELECT 
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeTrucks,
+        SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS inactiveTrucks,
+        SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceTrucks,
+        (SELECT SUM(ti.quantity) FROM truck_inventory ti) AS totalItems,
+        (
+          SELECT COUNT(*) 
+          FROM (
+            SELECT ti.item_id, SUM(ti.quantity) as total_quantity, ii.min_quantity
+            FROM truck_inventory ti
+            JOIN inventory_items ii ON ti.item_id = ii.id
+            GROUP BY ti.item_id, ii.min_quantity
+            HAVING SUM(ti.quantity) < ii.min_quantity
+          ) AS low_stock_items
+        ) AS totalLowStock
+      FROM trucks;
+    `);
+    
     const stats = {
       activeTrucks: Number(statsResult[0].activeTrucks) || 0,
       inactiveTrucks: Number(statsResult[0].inactiveTrucks) || 0,

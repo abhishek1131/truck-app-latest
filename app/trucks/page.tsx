@@ -6,10 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Search, MapPin, Package, AlertTriangle } from "lucide-react";
+import { Truck, Search, MapPin, Package, AlertTriangle, Grid3X3 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
+import { fetchClient } from "@/lib/fetchClient";
 
 export default function TrucksPage() {
   const { user, loading, token } = useAuth();
@@ -28,7 +29,7 @@ export default function TrucksPage() {
       if (!user || !token) return;
 
       try {
-        const response = await fetch("/api/technician/trucks", {
+        const response = await fetchClient("/api/technician/trucks", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -69,8 +70,8 @@ export default function TrucksPage() {
     (sum: number, truck: any) => sum + truck.totalItems,
     0
   );
-  const totalLowStock = trucks.reduce(
-    (sum: number, truck: any) => sum + truck.lowStockItems,
+  const totalBins = trucks.reduce(
+    (sum: number, truck: any) => sum + truck.bins,
     0
   );
 
@@ -125,16 +126,16 @@ export default function TrucksPage() {
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Low Stock</p>
+                  <p className="text-sm font-medium text-gray-600">Total Bin</p>
                   <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {totalLowStock}
+                    {totalBins}
                   </p>
                   <p className="text-xs md:text-sm text-gray-500">
-                    Items need restock
+                    Across all trucks
                   </p>
                 </div>
                 <div className="p-2 md:p-3 rounded-lg bg-red-500">
-                  <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                <Grid3X3 className="h-5 w-5 md:h-6 md:w-6 text-white" />
                 </div>
               </div>
             </CardContent>
@@ -145,7 +146,7 @@ export default function TrucksPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">
-                    Active Routes
+                    Active Trucks
                   </p>
                   <p className="text-2xl md:text-3xl font-bold text-gray-900">
                     {activeTrucks}
@@ -215,12 +216,12 @@ export default function TrucksPage() {
                         </p>
                         <p className="text-xs text-gray-500">Bins</p>
                       </div>
-                      <div className="text-center">
+                      {/* <div className="text-center">
                         <p className="text-lg md:text-xl font-bold text-red-600">
                           {truck.lowStockItems}
                         </p>
                         <p className="text-xs text-gray-500">Low Stock</p>
-                      </div>
+                      </div> */}
                     </div>
 
                     <div className="flex flex-col space-y-2">

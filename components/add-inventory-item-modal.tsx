@@ -13,9 +13,10 @@ import { Plus, Package, Info } from "lucide-react"
 
 interface AddInventoryItemModalProps {
   onItemAdded?: (item: any) => void
+  categories?: string[]
 }
 
-export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProps) {
+export function AddInventoryItemModal({ onItemAdded, categories = [] }: AddInventoryItemModalProps) {
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
@@ -24,11 +25,13 @@ export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProp
     notes: "",
     partNumber: "",
     brand: "",
+    cost_price: "",
     lowStockThreshold: "",
     standardLevel: "",
   })
 
-  const categories = [
+  // Fallback categories if none provided
+  const defaultCategories = [
     "Pipes",
     "Fittings",
     "Valves",
@@ -46,6 +49,8 @@ export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProp
     "Other",
   ]
 
+  const availableCategories = categories.length > 0 ? categories : defaultCategories
+
   const units = ["pieces", "feet", "inches", "meters", "boxes", "rolls", "bottles", "tubes", "sets", "pairs"]
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,6 +64,7 @@ export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProp
       description: formData.notes,
       partNumber: formData.partNumber,
       brand: formData.brand,
+      cost_price: Number.parseInt(formData.cost_price) || 0,
       lowStockThreshold: Number.parseInt(formData.lowStockThreshold) || 5,
       standardLevel: Number.parseInt(formData.standardLevel) || 10,
       createdAt: new Date().toISOString(),
@@ -77,6 +83,7 @@ export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProp
       brand: "",
       lowStockThreshold: "",
       standardLevel: "",
+      cost_price: ""
     })
     setOpen(false)
   }
@@ -123,7 +130,7 @@ export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProp
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {availableCategories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
@@ -165,6 +172,18 @@ export function AddInventoryItemModal({ onItemAdded }: AddInventoryItemModalProp
                   placeholder="e.g., Charlotte, Fernco"
                   value={formData.brand}
                   onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cost_price">Cost Price</Label>
+                <Input
+                  id="cost_price"
+                  type="number"
+                  placeholder="0.0"
+                  value={formData.cost_price}
+                  onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
                 />
               </div>
             </div>

@@ -484,15 +484,7 @@ export default function AdminUsersPage() {
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">
-                            Total Orders
-                          </div>
-                          <div className="font-semibold">
-                            {user.assigned_trucks.length ? "N/A" : 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">
+                        <div className="text-xs text-gray-500 mb-1">
                             Assigned Trucks
                           </div>
                           <div className="font-semibold">

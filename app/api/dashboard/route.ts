@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    // if (!userData || userData.role !== "technician") {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
+    if (!userData || userData.role !== "technician") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Get assigned trucks
     const [truckRows] = await pool.query(
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
          (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS total_items,
          (SELECT COUNT(*) FROM truck_inventory ti 
           JOIN inventory_items ii ON ti.item_id = ii.id 
-          WHERE ti.truck_id = t.id AND ti.quantity < ti.min_quantity) AS low_stock
+          WHERE ti.truck_id = t.id AND ti.quantity < ii.min_quantity) AS low_stock
        FROM trucks t
        WHERE t.assigned_to = ? AND t.status = 'active'`,
       [userId]
@@ -71,20 +71,32 @@ export async function GET(request: NextRequest) {
       [userId]
     );
 
-    // Get statistics
+    // Total items (sirf user ke created_by items + assigned trucks)
     const [totalItemsRow] = await pool.query(
-      `SELECT SUM(ti.quantity) AS total_items
-       FROM truck_inventory ti
-       JOIN trucks t ON ti.truck_id = t.id
-       WHERE t.assigned_to = ?`,
-      [userId]
+      `SELECT COALESCE(SUM(ti.quantity), 0) AS total_items
+   FROM truck_inventory ti
+   JOIN trucks t ON ti.truck_id = t.id
+   JOIN inventory_items ii ON ti.item_id = ii.id
+   WHERE t.assigned_to = ? AND ii.created_by = ?`,
+      [userId, userId]
     );
+
+    // Low stock items (sirf user ke created_by items + assigned trucks)
     const [lowStockRow] = await pool.query(
       `SELECT COUNT(*) AS low_stock
-       FROM truck_inventory ti
-       JOIN trucks t ON ti.truck_id = t.id
-       WHERE t.assigned_to = ? AND ti.quantity < ti.min_quantity`,
-      [userId]
+   FROM (
+     SELECT 
+       ii.id AS item_id,
+       SUM(ti.quantity) AS total_quantity,
+       ii.min_quantity
+     FROM truck_inventory ti
+     JOIN inventory_items ii ON ti.item_id = ii.id
+     JOIN trucks t ON ti.truck_id = t.id
+     WHERE t.assigned_to = ? AND ii.created_by = ?
+     GROUP BY ii.id, ii.min_quantity
+     HAVING SUM(ti.quantity) < ii.min_quantity
+   ) AS subquery`,
+      [userId, userId]
     );
     const [totalOrdersRow] = await pool.query(
       `SELECT COUNT(*) AS total_orders

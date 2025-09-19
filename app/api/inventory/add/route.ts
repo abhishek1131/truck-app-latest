@@ -31,18 +31,21 @@ export async function POST(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    // if (!userData || userData.role !== "technician") {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
+    if (!userData || userData.role !== "technician") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const body = await request.json();
     const {
       name,
+      brand,
       category,
       partNumber,
       supplier,
       description,
-      minQuantity,
+      lowStockThreshold,
+      cost_price,
+      unit_price,
       standardLevel,
       unit,
     } = body;
@@ -73,20 +76,24 @@ export async function POST(request: NextRequest) {
 
     const [insertResult] = await connection.query(
       `INSERT INTO inventory_items 
-       (id, part_number, name, description, category_id, unit_price, cost_price, supplier, min_quantity, max_quantity, standard_level, unit, created_at, updated_at)
-       VALUES (UUID(), ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, NOW(), NOW())`,
+       (id, part_number, name,brand, description, category_id, unit_price, cost_price, supplier, min_quantity, max_quantity, standard_level, unit, created_at, updated_at, created_by)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)`,
       [
         partNumber,
         name,
+        brand || "",
         description || "",
         categoryId,
+        unit_price || 0,
+        cost_price || 0,
         supplier || "",
-        minQuantity || 10,
-        standardLevel || minQuantity || 10,
-        standardLevel || minQuantity || 10,
+        lowStockThreshold || 10,
+        standardLevel || lowStockThreshold || 10,
+        standardLevel || lowStockThreshold || 10,
         unit || "pieces",
+        userId,
       ]
-    );
+    );    
 
     const [newItemRows] = await connection.query(
       `SELECT 
@@ -95,10 +102,14 @@ export async function POST(request: NextRequest) {
          ii.name,
          ic.name AS category,
          COALESCE(ii.unit, 'pieces') AS unit,
-         ii.supplier AS brand,
+         ii.brand,
+         ii.supplier,
+         ii.unit_price,
+         ii.cost_price,
          ii.description AS notes,
          COALESCE(ii.standard_level, ii.max_quantity, 10) AS standard_level,
-         ii.min_quantity AS low_stock_threshold
+         ii.min_quantity AS low_stock_threshold,
+         ii.created_by
        FROM inventory_items ii
        JOIN inventory_categories ic ON ii.category_id = ic.id
        WHERE ii.part_number = ?`,
@@ -123,13 +134,17 @@ export async function POST(request: NextRequest) {
         unit: newItem.unit,
         partNumber: newItem.id_for_ui,
         brand: newItem.brand,
+        supplier: newItem.supplier,
+        unitPrice: newItem.unit_price,
+        costPrice: newItem.cost_price,
       },
     });
   } catch (error) {
     if (connection) {
       await connection.rollback();
     }
-    if (error?.code === "ER_DUP_ENTRY") {
+    // Fix: error may not have a 'code' property, so use type assertion or check differently
+    if ((error as any)?.code === "ER_DUP_ENTRY") {
       return NextResponse.json(
         { error: "Part number already exists" },
         { status: 400 }

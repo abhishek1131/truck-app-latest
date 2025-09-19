@@ -83,12 +83,15 @@ CREATE TABLE `inventory_items` (
   `min_quantity` int DEFAULT '0',
   `max_quantity` int DEFAULT '0',
   `standard_level` int DEFAULT NULL,
+  `created_by` char(36) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `part_number` (`part_number`),
   KEY `idx_inventory_items_category_id` (`category_id`),
-  CONSTRAINT `inventory_items_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `inventory_categories` (`id`) ON DELETE SET NULL
+  KEY `idx_inventory_items_created_by` (`created_by`),
+  CONSTRAINT `inventory_items_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `inventory_categories` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `inventory_items_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Create table truck_inventory
@@ -124,6 +127,7 @@ CREATE TABLE `orders` (
   `supply_house_id` varchar(36) DEFAULT NULL,
   `status` enum('pending','confirmed','processing','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
   `requires_approval` BOOLEAN NOT NULL DEFAULT FALSE, 
+  `is_stock_item` BOOLEAN NOT NULL DEFAULT FALSE,
   `priority` enum('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
   `total_amount` decimal(10,2) DEFAULT NULL,
   `tax_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
@@ -256,4 +260,22 @@ CREATE TABLE `credits` (
   CONSTRAINT `credits_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `credits_ibfk_2` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL,
   CONSTRAINT `credits_ibfk_3` FOREIGN KEY (`technician_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `use_parts_job` (
+  `id` CHAR(36) NOT NULL,           
+  `job_name` VARCHAR(255) NOT NULL, 
+  `truck_id` CHAR(36) NOT NULL,     
+  `date` DATE NOT NULL,             
+  `parts_used_count` INT NOT NULL,  
+  `parts` JSON NOT NULL,            
+  `created_by` CHAR(36) NOT NULL,   
+  `status` ENUM('Pending','In Progress','Completed') DEFAULT 'Completed',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_truck` (`truck_id`),
+  KEY `idx_created_by` (`created_by`),
+  CONSTRAINT `fk_use_parts_job_truck` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_use_parts_job_user` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

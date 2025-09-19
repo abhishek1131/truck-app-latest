@@ -16,9 +16,9 @@ export async function GET(request: NextRequest) {
 
     const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
 
-    // if (!userData || userData.role !== "admin") {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    // }
+    if (!userData || userData.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
     const { searchParams } = new URL(request.url)
     const page = Number.parseInt(searchParams.get("page") || "1")

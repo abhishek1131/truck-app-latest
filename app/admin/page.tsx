@@ -380,7 +380,7 @@ export default function AdminDashboardPage() {
         </Card>
 
         {/* Action Cards */}
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           <Link href="/admin/trucks">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
               <CardHeader className="text-center">
@@ -438,7 +438,7 @@ export default function AdminDashboardPage() {
             </Card>
           </Link>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+          {/* <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
             <CardHeader className="text-center">
               <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <PieChart className="h-6 w-6 text-white" />
@@ -451,7 +451,7 @@ export default function AdminDashboardPage() {
                 View Reports
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </Navigation>

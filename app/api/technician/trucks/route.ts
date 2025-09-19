@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    // if (!userData || userData.role !== "technician") {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
+    if (!userData || userData.role !== "technician") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Get technician's assigned trucks with bins and inventory
     const [trucks] = await pool.query(
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
                   'standard_level', ii.standard_level,
                   'unit', COALESCE(ii.unit, 'pieces'),
                   'last_restocked', ti.last_restocked,
-                  'is_low_stock', ti.quantity <= ii.min_quantity
+                  'is_low_stock', ti.quantity < ii.min_quantity
                 )
               )
               FROM truck_inventory ti
@@ -81,7 +81,6 @@ export async function GET(request: NextRequest) {
       `,
       [userId]
     );
-    console.log(trucks);
 
     // Format trucks data
     const formattedTrucks = (trucks as any[]).map((truck) => {

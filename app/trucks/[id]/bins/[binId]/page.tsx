@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { fetchClient } from "@/lib/fetchClient";
 
 export default function BinDetailPage() {
   const params = useParams();
@@ -49,6 +50,7 @@ export default function BinDetailPage() {
   const [binItems, setBinItems] = useState<any[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
 
+  console.log("binItems", binItems);
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
@@ -59,13 +61,14 @@ export default function BinDetailPage() {
     if (!user || !token) return;
 
     try {
-      const response = await fetch(
+      const response = await fetchClient(
         `/api/technician/trucks/${truckId}/bins/${binId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       const data = await response.json();
+      console.log("data", data);
       if (response.ok) {
         const mappedItems = data.inventory.map((item: any) => ({
           id: item.id,
@@ -73,7 +76,9 @@ export default function BinDetailPage() {
           name: item.name,
           category: item.category,
           currentStock: item.current_stock,
+          lowStockThreshold: item.low_stock_threshold,
           standardLevel: item.standard_level,
+          totalQuantity: item.total_quantity,
           unit: item.unit,
           lastRestocked: item.last_restocked,
           isLowStock: item.is_low_stock,
@@ -96,7 +101,7 @@ export default function BinDetailPage() {
 
   async function deleteBin(truckId: string, binId: string) {
     try {
-      const response = await fetch(
+      const response = await fetchClient(
         `/api/technician/trucks/${truckId}/bins?binId=${binId}`,
         {
           method: "DELETE",
@@ -121,7 +126,7 @@ export default function BinDetailPage() {
   const handleItemSelected = async (inventoryItem: any, quantity: number) => {
     try {
       setErrorMessage("");
-      const response = await fetch(
+      const response = await fetchClient(
         `/api/technician/trucks/${truckId}/bins/${binId}`,
         {
           method: "POST",
@@ -154,7 +159,7 @@ export default function BinDetailPage() {
   const handleSaveEdit = async (itemId: string) => {
     try {
       setErrorMessage("");
-      const response = await fetch(
+      const response = await fetchClient(
         `/api/technician/trucks/${truckId}/bins/${binId}`,
         {
           method: "POST",
@@ -189,7 +194,7 @@ export default function BinDetailPage() {
   const handleDeleteItem = async (itemId: string) => {
     try {
       setErrorMessage("");
-      const response = await fetch(
+      const response = await fetchClient(
         `/api/technician/trucks/${truckId}/bins/${binId}?itemId=${itemId}`,
         {
           method: "DELETE",
@@ -231,7 +236,15 @@ export default function BinDetailPage() {
   const isAddDisabled = totalItems >= maxCapacity;
   const categories = [...new Set(binItems.map((item: any) => item.category))];
   const lowStockCount = lowStockItems.length;
-  const lastUpdated = binItems.length > 0 ? binItems[0].lastRestocked : "Never";
+  const lastUpdated = binItems.length > 0
+    ? new Date(binItems[0].lastRestocked).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+    : "Never";
 
   return (
     <Navigation
@@ -411,7 +424,7 @@ export default function BinDetailPage() {
         </Card>
 
         {/* Low Stock Alert */}
-        {lowStockItems.length > 0 && (
+        {/* {lowStockItems.length > 0 && (
           <Card className="border-red-200 bg-red-50">
             <CardHeader>
               <CardTitle className="text-red-800 flex items-center">
@@ -437,30 +450,27 @@ export default function BinDetailPage() {
               </div>
             </CardContent>
           </Card>
-        )}
+        )} */}
 
         {/* Items List */}
         <div className="grid gap-4">
           {filteredItems.map((item: any) => (
             <Card
               key={item.id}
-              className={`hover:shadow-lg transition-shadow ${
-                item.isLowStock ? "border-red-200" : ""
-              }`}
+              className={`hover:shadow-lg transition-shadow ${item.isLowStock ? "border-red-200" : ""
+                }`}
             >
               <CardContent className="p-4 md:p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {/* Left: Icon + Info */}
                   <div className="flex items-center space-x-4 min-w-0">
                     <div
-                      className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center shrink-0 ${
-                        item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
-                      }`}
+                      className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center shrink-0 ${item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
+                        }`}
                     >
                       <Package
-                        className={`h-6 w-6 md:h-8 md:w-8 ${
-                          item.isLowStock ? "text-red-600" : "text-white"
-                        }`}
+                        className={`h-6 w-6 md:h-8 md:w-8 ${item.isLowStock ? "text-red-600" : "text-white"
+                          }`}
                       />
                     </div>
                     <div className="min-w-0">
@@ -476,13 +486,19 @@ export default function BinDetailPage() {
                         </Badge>
                         {item.isLowStock && (
                           <Badge variant="destructive" className="text-xs">
-                            Below Standard
+                            Below Low Stock Threshold
                           </Badge>
                         )}
                       </div>
                       <p className="text-xs text-gray-400 mt-1 truncate">
                         Last restocked{" "}
-                        {new Date(item.lastRestocked).toLocaleString()}
+                        {new Date(item.lastRestocked).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </p>
                     </div>
                   </div>
@@ -490,6 +506,7 @@ export default function BinDetailPage() {
                   {/* Right: Stock + Actions */}
                   <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-6 w-full md:w-auto">
                     <div className="flex space-x-6 w-full md:w-auto justify-between md:justify-start">
+                      {/* Current */}
                       <div className="text-center">
                         {editingItem === item.id ? (
                           <div className="flex items-center space-x-2">
@@ -497,9 +514,7 @@ export default function BinDetailPage() {
                               type="number"
                               value={editQuantity}
                               onChange={(e) =>
-                                setEditQuantity(
-                                  Number.parseInt(e.target.value) || 0
-                                )
+                                setEditQuantity(Number.parseInt(e.target.value) || 0)
                               }
                               className="w-16 h-8 text-center"
                               min="0"
@@ -523,11 +538,8 @@ export default function BinDetailPage() {
                         ) : (
                           <>
                             <p
-                              className={`text-lg md:text-xl font-bold ${
-                                item.isLowStock
-                                  ? "text-red-600"
-                                  : "text-gray-900"
-                              }`}
+                              className={`text-lg md:text-xl font-bold ${item.isLowStock ? "text-red-600" : "text-gray-900"
+                                }`}
                             >
                               {item.currentStock}
                             </p>
@@ -535,14 +547,33 @@ export default function BinDetailPage() {
                           </>
                         )}
                       </div>
+
+                      {/* Low Stock Threshold (NEW) */}
+                      <div className="text-center">
+                        <p className="text-lg md:text-xl font-bold text-orange-600">
+                          {item.lowStockThreshold || 0}
+                        </p>
+                        <p className="text-xs text-gray-500">Low Threshold</p>
+                      </div>
+
+                      {/* Standard */}
                       <div className="text-center">
                         <p className="text-lg md:text-xl font-bold text-blue-600">
                           {item.standardLevel}
                         </p>
                         <p className="text-xs text-gray-500">Standard</p>
                       </div>
+
+                      {/* Total */}
+                      <div className="text-center">
+                        <p className="text-lg md:text-xl font-bold text-green-600">
+                          {item.totalQuantity || 0}
+                        </p>
+                        <p className="text-xs text-gray-500">Total</p>
+                      </div>
                     </div>
 
+                    {/* Action buttons */}
                     {editingItem !== item.id && (
                       <div className="flex space-x-2">
                         <Button
@@ -563,24 +594,25 @@ export default function BinDetailPage() {
                       </div>
                     )}
                   </div>
+
+
                 </div>
 
                 {/* Stock Level Progress Bar */}
                 <div className="mt-4">
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Stock Level vs Standard</span>
+                    <span>Total Stock Level vs Low Stock Threshold</span>
                     <span>
-                      {item.currentStock} / {item.standardLevel} {item.unit}
+                      {item.totalQuantity} / {item.lowStockThreshold} {item.unit}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        item.isLowStock ? "bg-red-500" : "bg-green-500"
-                      }`}
+                      className={`h-2 rounded-full transition-all duration-300 ${item.isLowStock ? "bg-red-500" : "bg-green-500"
+                        }`}
                       style={{
                         width: `${Math.min(
-                          (item.currentStock / item.standardLevel) * 100,
+                          (item.totalQuantity / item.lowStockThreshold) * 100,
                           100
                         )}%`,
                       }}

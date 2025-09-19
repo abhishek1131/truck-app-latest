@@ -86,9 +86,9 @@ export async function GET(request: NextRequest) {
     `;
     const queryParams: any[] = [userId];
 
-    if (status != "all") {
-      query +=
-        queryParams.push(status, status);
+    if (status && status !== "all") {
+      query += " AND o.status = ?";
+      queryParams.push(status);
     }
 
     if (truck) {
@@ -113,9 +113,9 @@ export async function GET(request: NextRequest) {
     `;
     const countParams: any[] = [userId];
 
-    if (status != "all") {
-      countQuery +=
-        countParams.push(status, status);
+    if (status && status !== "all") {
+      countQuery += " AND o.status = ?";
+      countParams.push(status);
     }
 
     if (truck) {
@@ -210,6 +210,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 export async function POST(request: NextRequest) {
   let connection;
   try {
@@ -571,7 +572,7 @@ export async function POST(request: NextRequest) {
     } catch (activityError: any) {
       console.error("Failed to log activity:", activityError);
     }
-    
+
     return NextResponse.json({
       message: "Order created successfully",
       order: newOrder,

@@ -57,11 +57,42 @@ interface Truck {
 
 interface Order {
   id: string;
+  orderId: string;
   date: string;
-  items: number;
-  cost: number;
-  status: "completed" | "shipped" | "pending";
-  truck_id: string;
+  truckId: string;
+  truckName: string;
+  technician: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role: string;
+  };
+  items: Array<{
+    id: string;
+    inventoryItemId: string;
+    inventoryItem: {
+      id: string;
+      name: string;
+      unit: string;
+      category: string;
+      supplier: string;
+      description: string;
+      part_number: string;
+      standard_level: number;
+      low_stock_threshold: number;
+    };
+    requestedQuantity: number;
+    truckId: string;
+    truckName: string;
+    binId: string | null;
+    binName: string | null;
+    currentStock: number | null;
+    reason: string;
+  }>;
+  totalItems: number;
+  status: "completed" | "shipped" | "pending" | "processing";
 }
 
 const statusConfig = {
@@ -70,8 +101,9 @@ const statusConfig = {
   pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending" },
   suspended: { color: "bg-gray-100 text-gray-800", label: "Suspended" },
   maintenance: { color: "bg-yellow-100 text-yellow-800", label: "Maintenance" },
-  completed: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-  shipped: { color: "bg-purple-100 text-purple-800", icon: Package },
+  completed: { color: "bg-green-100 text-green-800", label: "Completed", icon: CheckCircle },
+  shipped: { color: "bg-purple-100 text-purple-800", label: "Shipped", icon: Package },
+  processing: { color: "bg-blue-100 text-blue-800", label: "Processing", icon: Clock },
 };
 
 const tabs = [
@@ -104,18 +136,21 @@ export function UserDetailsModal({
         setTrucks(
           user.assigned_trucks.map((truck) => ({
             ...truck,
-            status: truck.status || "active",
-            location: truck.location || "Unknown",
+            status: "active" as const,
+            location: "Unknown",
           }))
         );
 
-        // Fetch orders (assuming /api/orders endpoint exists)
-        const orderResponse = await fetch(`/api/orders?user_id=${user.id}`, {
+        // Fetch orders from /api/orders/previous endpoint
+        const orderResponse = await fetch(`/api/orders/previous?page=1&limit=50&userId=${user.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const orderResult = await orderResponse.json();
-        if (orderResult.success && orderResult.data) {
-          setOrders(orderResult.data);
+        const orderResult = await orderResponse.json();        
+        console.log("API Response:", orderResult);
+        
+        // Handle the /api/orders/previous response structure
+        if (orderResult.previousOrders) {
+          setOrders(orderResult.previousOrders);
         } else {
           setError(orderResult.error || "Failed to fetch orders.");
         }
@@ -131,15 +166,15 @@ export function UserDetailsModal({
       fetchData();
     }
   }, [isOpen, user.id, token, user.assigned_trucks]);
-
+console.log("orders",orders);
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto sm:max-w-[90%] sm:max-h-[85vh]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-[#10294B]">
-            User Details - {user.first_name} {user.last_name}
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto sm:max-w-[90%] sm:max-h-[85vh] p-0 sm:p-6">
+        <DialogHeader className="px-4 sm:px-0 pt-4 sm:pt-0">
+          <DialogTitle className="text-lg sm:text-xl font-bold text-[#10294B]">
+            <span className="truncate">User Details - {user.first_name} {user.last_name}</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Complete information about this user
           </DialogDescription>
         </DialogHeader>
@@ -150,24 +185,24 @@ export function UserDetailsModal({
           </Alert>
         )} */}
 
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-gray-50 rounded-lg">
-            <div className="w-16 h-16 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-xl">
+        <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-xl">
               {user.first_name[0]}
               {user.last_name[0]}
             </div>
-            <div className="flex-1 text-center sm:text-left">
-              <h3 className="text-xl font-semibold text-[#10294B]">
+            <div className="flex-1 text-center sm:text-left min-w-0">
+              <h3 className="text-lg sm:text-xl font-semibold text-[#10294B] truncate">
                 {user.first_name} {user.last_name}
               </h3>
-              <div className="flex flex-col sm:flex-row items-center gap-2 text-sm text-gray-500 mt-1">
-                <span className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  {user.email}
+              <div className="flex flex-col sm:flex-row items-center gap-2 text-xs sm:text-sm text-gray-500 mt-1">
+                <span className="flex items-center gap-1 truncate">
+                  <Mail className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{user.email}</span>
                 </span>
                 {user.phone && (
                   <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
+                    <Phone className="h-3 w-3 flex-shrink-0" />
                     {user.phone}
                   </span>
                 )}
@@ -175,13 +210,11 @@ export function UserDetailsModal({
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Badge
-                className={
-                  statusConfig[user.status as keyof typeof statusConfig]?.color
-                }
+                className={`${statusConfig[user.status as keyof typeof statusConfig]?.color} text-xs`}
               >
                 {statusConfig[user.status as keyof typeof statusConfig]?.label}
               </Badge>
-              <Badge variant="outline">{user.role}</Badge>
+              <Badge variant="outline" className="text-xs">{user.role}</Badge>
             </div>
           </div>
 
@@ -191,7 +224,7 @@ export function UserDetailsModal({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                     activeTab === tab.id
                       ? "border-[#E3253D] text-[#E3253D]"
                       : "border-transparent text-gray-500 hover:text-gray-700"
@@ -279,18 +312,16 @@ export function UserDetailsModal({
                         </div>
                         <div>
                           <span className="text-sm font-medium text-gray-600">
-                            Total Value:
+                            Total Items:
                           </span>
                           {orders.length > 0 ? (
                             <p className="font-semibold text-2xl text-purple-600">
-                              $
                               {orders
-                                ?.reduce((sum, order) => sum + order.cost, 0)
-                                ?.toFixed(2)}
+                                ?.reduce((sum, order) => sum + order.totalItems, 0)}
                             </p>
                           ) : (
                             <p className="font-semibold text-2xl text-purple-600">
-                              $0.00
+                              0
                             </p>
                           )}
                         </div>
@@ -359,57 +390,136 @@ export function UserDetailsModal({
                         Order History ({orders.length})
                       </h3>
                     </div>
-                    {orders.length > 1 &&
+                    {orders.length > 0 &&
                       orders?.map((order) => {
-                        const StatusIcon =
-                          statusConfig[order.status as keyof typeof statusConfig]
-                            ?.icon || Clock;
+                        const statusInfo = statusConfig[order.status as keyof typeof statusConfig];
+                        const StatusIcon = (statusInfo as any)?.icon || Clock;
                         return (
                           <Card key={order.id} className="border-0 shadow-md">
                             <CardContent className="p-3 sm:p-4">
-                              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <Package className="h-5 w-5 text-green-600" />
-                                  </div>
-                                  <div>
-                                    <h4 className="font-semibold">
-                                      Order #{order.id}
-                                    </h4>
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-sm text-gray-500">
-                                      <span className="flex items-center gap-1">
-                                        <Calendar className="h-3 w-3" />
-                                        {new Date(
-                                          order.date
-                                        ).toLocaleDateString()}
-                                      </span>
-                                      <span className="flex items-center gap-1">
-                                        <Truck className="h-3 w-3" />
-                                        {order.truck_id}
-                                      </span>
+                              {/* Mobile Layout */}
+                              <div className="block sm:hidden space-y-3">
+                                {/* Header Row */}
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <Package className="h-4 w-4 text-green-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-sm truncate">
+                                        {order.orderId}
+                                      </h4>
+                                      <p className="text-xs text-gray-600 truncate">
+                                        {order.items[0]?.inventoryItem?.name || 'Order Items'}
+                                      </p>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2 sm:mt-0">
-                                  <div className="text-right">
-                                    <p className="font-semibold">
-                                      ${order.cost.toFixed(2)}
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                      {order.items} items
-                                    </p>
-                                  </div>
-                                  <Badge
-                                    className={
-                                      statusConfig[
-                                        order.status as keyof typeof statusConfig
-                                      ]?.color
-                                    }
-                                  >
+                                  <Badge className={`${statusInfo?.color} text-xs`}>
                                     {StatusIcon && (
                                       <StatusIcon className="h-3 w-3 mr-1" />
                                     )}
-                                    {order.status}
+                                    {statusInfo?.label || order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                  </Badge>
+                                </div>
+
+                                {/* Details Row */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                                      {new Date(order.date).toLocaleDateString()}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Truck className="h-3 w-3 flex-shrink-0" />
+                                      {order.truckName}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex flex-wrap gap-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        {order.technician.firstName} {order.technician.lastName}
+                                      </Badge>
+                                      {order.items[0]?.inventoryItem?.category && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {order.items[0].inventoryItem.category}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-semibold text-sm">
+                                        {order.totalItems} items
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {order.items[0]?.requestedQuantity || 0} {order.items[0]?.inventoryItem?.unit || 'units'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {order.items[0]?.reason && (
+                                    <div className="bg-gray-50 rounded p-2">
+                                      <p className="text-xs text-gray-600">
+                                        <span className="font-medium">Reason:</span> {order.items[0].reason}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Desktop Layout */}
+                              <div className="hidden sm:flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <Package className="h-5 w-5 text-green-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-base">
+                                      {order.orderId}
+                                    </h4>
+                                    <p className="text-sm text-gray-600 truncate">
+                                      {order.items[0]?.inventoryItem?.name || 'Order Items'}
+                                    </p>
+                                    <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                                        {new Date(order.date).toLocaleDateString()}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Truck className="h-3 w-3 flex-shrink-0" />
+                                        {order.truckName}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {order.technician.firstName} {order.technician.lastName}
+                                      </Badge>
+                                      {order.items[0]?.inventoryItem?.category && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {order.items[0].inventoryItem.category}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-2">
+                                  <div className="text-right">
+                                    <p className="font-semibold text-base">
+                                      {order.totalItems} items
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      {order.items[0]?.requestedQuantity || 0} {order.items[0]?.inventoryItem?.unit || 'units'}
+                                    </p>
+                                    {order.items[0]?.reason && (
+                                      <p className="text-xs text-gray-600 truncate max-w-[200px]">
+                                        {order.items[0].reason}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <Badge className={statusInfo?.color}>
+                                    {StatusIcon && (
+                                      <StatusIcon className="h-3 w-3 mr-1" />
+                                    )}
+                                    {statusInfo?.label || order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                   </Badge>
                                 </div>
                               </div>

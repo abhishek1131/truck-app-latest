@@ -207,8 +207,13 @@ export function Header({ title, subtitle }: HeaderProps) {
 
             {/* Keep display name on large screens */}
             <div className="hidden lg:block">
-              <p className="text-sm font-semibold text-[#10294B]">{displayName}</p>
-              <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+              <Link
+                href="/settings"
+                className="hidden lg:block cursor-pointer"
+              >
+                <p className="text-sm font-semibold text-[#10294B]">{displayName}</p>
+                <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+              </Link>
             </div>
           </div>
         </div>

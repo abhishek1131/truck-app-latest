@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
+import { sendLowStockEmailOneItem } from "@/lib/email/low-stock";
 
 export async function GET(
   request: NextRequest,
@@ -127,9 +128,24 @@ export async function GET(
             'category', COALESCE(ic.name, ''),
             'current_stock', COALESCE(ti.quantity, 0),
             'standard_level', COALESCE(ii.standard_level, 0),
+            'low_stock_threshold', COALESCE(ii.min_quantity, 0),
             'unit', COALESCE(ii.unit, 'pieces'),
             'last_restocked', ti.last_restocked,
-            'is_low_stock', CASE WHEN ti.quantity IS NULL THEN FALSE ELSE ti.quantity < COALESCE(ii.min_quantity, 0) END
+            'total_quantity', (
+      SELECT COALESCE(SUM(ti2.quantity), 0)
+      FROM truck_inventory ti2
+      WHERE ti2.item_id = ti.item_id
+    ),
+      'is_low_stock', (
+    CASE 
+      WHEN (
+        SELECT COALESCE(SUM(ti2.quantity), 0)
+        FROM truck_inventory ti2
+        WHERE ti2.item_id = ti.item_id
+      ) < COALESCE(ii.min_quantity, 0) 
+      THEN TRUE ELSE FALSE 
+    END
+  )
           )
         ) AS inventory
       FROM truck_bins tb
@@ -393,8 +409,8 @@ export async function POST(
         `Inserted new inventory item: id=${newId}, item_id=${inventory_item_id}, quantity=${quantity}`
       );
     }
-
     await connection.commit();
+    sendLowStockEmailOneItem(inventory_item_id);
     console.log(`Successfully added/updated item in bin: binId=${binId}`);
 
     return NextResponse.json({ message: "Item added to bin successfully" });

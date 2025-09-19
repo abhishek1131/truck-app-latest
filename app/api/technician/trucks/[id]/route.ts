@@ -67,6 +67,7 @@ export async function GET(
             'location', tb.location,
             'section', tb.section,
             'binType', tb.binType,
+            'max_capacity', tb.max_capacity,
             'description', tb.description,
             'updated_at', tb.updated_at,
             'inventory', (
@@ -148,7 +149,7 @@ export async function GET(
             : 0)
         );
       }, 0),
-      bins: bins.length,
+      bins: bins.length,      
       lastUpdated: new Date(truck.updated_at).toLocaleString(),
       binsData: bins.map((bin: any) => ({
         id: bin.id,
@@ -164,6 +165,7 @@ export async function GET(
               0
             )
           : 0,
+        binCapacity: bin.max_capacity,
         lowStockItems: bin.inventory
           ? bin.inventory.filter((item: any) => item.is_low_stock).length
           : 0,

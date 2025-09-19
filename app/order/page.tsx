@@ -28,6 +28,7 @@ import {
   Truck,
   AlertTriangle,
   Mail,
+  Eye,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -39,6 +40,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PreviousOrderDetailsModal } from "@/components/previous-order-details-modal";
+import toast from "react-hot-toast";
+import { fetchClient } from "@/lib/fetchClient";
 
 interface InventoryItem {
   id: string;
@@ -46,6 +50,7 @@ interface InventoryItem {
   category: string;
   unit: string;
   partNumber: string;
+  part_number: string; // For compatibility with modal
   brand: string;
   standardLevel: number;
   lowStockThreshold: number;
@@ -59,6 +64,28 @@ interface TruckBinItem {
   currentQuantity: number;
   binId: string;
   binName: string;
+}
+
+interface RestockItemLocation {
+  truckId: string;
+  truck: string;
+  binId: string;
+  binName: string;
+  binLocation: string;
+  currentStock: number;
+  suggestedQuantity: number;
+}
+
+interface RestockItem {
+  id: string;
+  name: string;
+  currentStock: number;
+  totalCurrentStock: number;
+  standardLevel: number;
+  suggestedQuantity: number;
+  category: string;
+  priority: "high" | "medium" | "low";
+  locations: RestockItemLocation[];
 }
 
 interface OrderItem {
@@ -76,14 +103,25 @@ interface OrderItem {
   priority?: "high" | "medium" | "low";
 }
 
+interface Technician {
+  id: string
+  firstName: string
+  lastName?: string
+  email: string
+  phone?: string
+  role: string
+}
+
 interface PreviousOrder {
   id: string;
   orderId: string;
   date: string;
   truckId: string;
   truckName: string;
+  isStockItem: boolean;
   items: OrderItem[];
   totalItems: number;
+  technician: Technician;
   status: string;
   supplyHouseId?: string;
 }
@@ -130,13 +168,22 @@ export default function OrderPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [technicianName, setTechnicianName] = useState<string>("Unknown");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<PreviousOrder | null>(null);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
+  console.log("previousOrders", previousOrders);
   useEffect(() => {
     const fetchTechnicianName = async () => {
       if (!user || !token) return;
 
       try {
-        const response = await fetch("/api/users/me", {
+        const response = await fetchClient("/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -167,40 +214,25 @@ export default function OrderPage() {
 
     const fetchRestockItems = async () => {
       try {
-        const response = await fetch("/api/technician/restock", {
+        const response = await fetchClient("/api/technician/restock", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
         if (response.ok) {
-          // Validate API response
-          if (!data.trucks || !Array.isArray(data.trucks)) {
-            throw new Error("Invalid API response: trucks data is missing or not an array");
+          if (!data.items || !Array.isArray(data.items)) {
+            throw new Error("Invalid API response: items data is missing or not an array");
           }
 
-          // Flatten items from all trucks with defensive check for items
-          const allItems = data.trucks.flatMap((truck: any) => {
-            if (!truck.items || !Array.isArray(truck.items)) {
-              console.warn(`No items found for truck: ${truck.truckId}`);
-              return [];
-            }
-            return truck.items.map((item: any) => ({
-              ...item,
-              inventoryItemId: item.id,
-              truckId: truck.truckId,
-              truck: truck.truck,
-            }));
-          });
+          let filteredItems = data.items;
 
-          // Filter items based on truckId and itemId
-          let filteredItems = allItems;
           if (truckId) {
-            filteredItems = filteredItems.filter(
-              (item: any) => item.truckId === truckId
+            filteredItems = filteredItems.filter((item: RestockItem) =>
+              item.locations.some((location) => location.truckId === truckId)
             );
           }
           if (itemId) {
             filteredItems = filteredItems.filter(
-              (item: any) => item.id === itemId
+              (item: RestockItem) => item.id === itemId
             );
           }
 
@@ -214,7 +246,14 @@ export default function OrderPage() {
             return;
           }
 
-          const truckIds = [...new Set(filteredItems.map((item: any) => item.truckId))];
+          const truckIds = [
+            ...new Set(
+              filteredItems.flatMap((item: RestockItem) =>
+                item.locations.map((location) => location.truckId)
+              )
+            ),
+          ];
+
           if (truckIds.length > 1 && !truckId) {
             setNeedsTruckSelection(true);
             setError("Multiple trucks detected. Please select a truck.");
@@ -222,7 +261,7 @@ export default function OrderPage() {
             return;
           }
 
-          const inferredTruckId = truckId || filteredItems[0]?.truckId;
+          const inferredTruckId = truckId || truckIds[0];
           if (!inferredTruckId) {
             setError("No truck information available for restock items.");
             setIsLoadingRestock(false);
@@ -236,35 +275,48 @@ export default function OrderPage() {
             return;
           }
 
-          setSelectedTruck(inferredTruckId);
+          setSelectedTruck(inferredTruckId as string);
 
-          const prefilledOrderItems: OrderItem[] = filteredItems
-            .filter((item: any) => item.truckId === inferredTruckId)
-            .map((item: any) => ({
-              id: Date.now().toString() + Math.random(),
-              inventoryItemId: item.id,
-              inventoryItem: {
-                id: item.id,
-                name: item.name,
-                category: item.category,
-                unit: "unit",
-                partNumber: "",
-                brand: "",
-                standardLevel: item.standardLevel,
-                lowStockThreshold: Math.round(item.standardLevel * 0.2),
-                notes: "",
-                unitPrice: 0,
-              },
-              requestedQuantity: item.suggestedQuantity,
-              truckId: inferredTruckId,
-              truckName: item.truck,
-              binId: undefined, // No binId in new API response
-              binName: "General",
-              currentStock: item.currentStock,
-              reason: `Restock: ${item.name} (Priority: ${item.priority})`,
-              unitPrice: 0,
-              priority: item.priority,
-            }));
+          // ✅ Deduplicate order items by inventoryItemId
+          const orderItemsMap = new Map<string, OrderItem>();
+
+          filteredItems.forEach((item: RestockItem) => {
+            item.locations
+              .filter((location) => location.truckId === inferredTruckId)
+              .forEach((location) => {
+                if (!orderItemsMap.has(item.id)) {
+                  orderItemsMap.set(item.id, {
+                    id: Date.now().toString() + Math.random(),
+                    inventoryItemId: item.id,
+                    inventoryItem: {
+                      id: item.id,
+                      name: item.name,
+                      category: item.category,
+                      unit: "unit",
+                      partNumber: "",
+                      part_number: "",
+                      brand: "",
+                      standardLevel: item.standardLevel,
+                      lowStockThreshold: Math.round(item.standardLevel * 0.2),
+                      notes: "",
+                      unitPrice: 0,
+                    },
+                    requestedQuantity: item.suggestedQuantity,
+                    truckId: location.truckId,
+                    truckName: location.truck,
+                    binId: location.binId,
+                    binName: location.binName,
+                    currentStock: item.totalCurrentStock,
+                    reason: `Restock: ${item.name} (Priority: ${item.priority})`,
+                    unitPrice: 0,
+                    priority: item.priority,
+                  });
+                }
+              });
+          });
+
+          const prefilledOrderItems = Array.from(orderItemsMap.values());
+
           setOrderItems(prefilledOrderItems);
           console.log("Restock data:", data);
         } else {
@@ -272,7 +324,10 @@ export default function OrderPage() {
         }
       } catch (err) {
         console.error("Error fetching restock items:", err);
-        setError("Failed to load restock items: " + (err.message || "Unknown error"));
+        setError(
+          "Failed to load restock items: " +
+          (err instanceof Error ? err.message : "Unknown error")
+        );
       } finally {
         setIsLoadingRestock(false);
       }
@@ -292,7 +347,7 @@ export default function OrderPage() {
 
     // Fetch trucks
     try {
-      const trucksResponse = await fetch("/api/orders/trucks", {
+      const trucksResponse = await fetchClient("/api/orders/trucks", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const trucksData = await trucksResponse.json();
@@ -315,14 +370,57 @@ export default function OrderPage() {
     fetchData();
   }, [user, token, loading, router]);
 
-  const fetchPreviousOrder = async () => {
+  const handleStockItem = async (order: any) => {
     try {
-      const ordersResponse = await fetch("/api/orders/previous", {
+      // Build API request body from order
+      const requestBody = {
+        order_id: order.id,
+        truck_id: order.truckId,
+        items: order.items.map((item: any) => ({
+          id: item.inventoryItemId,         // item_id (from inventory)
+          name: item.inventoryItem.name,    // item name
+          count: item.requestedQuantity     // quantity to add
+        }))
+      };
+  
+      const response = await fetchClient("/api/orders/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      const data = await response.json();
+      fetchPreviousOrder();
+      if (data.success) {
+        toast.success(`Stock updated successfully for order ${order.orderId}`);
+      } else {
+        toast.error(`Failed: ${data.error || "Something went wrong"}`);
+      }
+    } catch (error) {
+      console.error("Stock Item Error:", error);
+      toast.error("Error updating stock");
+    }
+  };
+
+  const fetchPreviousOrder = async (page: number = 1) => {
+    if (!token) return;
+
+    setIsLoadingOrders(true);
+    try {
+      const ordersResponse = await fetchClient(`/api/orders/previous?page=${page}&limit=10`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const ordersData = await ordersResponse.json();
       if (ordersResponse.ok) {
         setPreviousOrders(ordersData.previousOrders);
+        setCurrentPage(ordersData.pagination.currentPage);
+        setTotalPages(ordersData.pagination.totalPages);
+        setTotalOrders(ordersData.pagination.totalOrders);
+        setHasNextPage(ordersData.pagination.hasNextPage);
+        setHasPreviousPage(ordersData.pagination.hasPreviousPage);
       } else {
         console.error("Failed to fetch previous orders:", ordersData.error, {
           status: ordersResponse.status,
@@ -330,6 +428,8 @@ export default function OrderPage() {
       }
     } catch (error) {
       console.error("Error fetching previous orders:", error);
+    } finally {
+      setIsLoadingOrders(false);
     }
   };
 
@@ -338,7 +438,7 @@ export default function OrderPage() {
       if (!selectedTruck || !token) return;
 
       try {
-        const inventoryResponse = await fetch(
+        const inventoryResponse = await fetchClient(
           `/api/orders/inventory?truck_id=${selectedTruck}`,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -387,8 +487,8 @@ export default function OrderPage() {
       currentStock: truckBinItem?.currentQuantity ?? 0,
       reason:
         truckBinItem?.currentQuantity &&
-        truckBinItem.inventoryItem &&
-        truckBinItem.currentQuantity <=
+          truckBinItem.inventoryItem &&
+          truckBinItem.currentQuantity <=
           truckBinItem.inventoryItem.lowStockThreshold
           ? "Low stock - below threshold"
           : "Additional stock needed",
@@ -445,14 +545,13 @@ export default function OrderPage() {
         urgency = itemsToSubmit.some((item) => item.priority === "high")
           ? "high"
           : itemsToSubmit.some((item) => item.priority === "medium")
-          ? "medium"
-          : "low";
-        notes = `Restock order for ${
-          itemsToSubmit.length
-        } items, total quantity: ${itemsToSubmit.reduce(
-          (sum, item) => sum + item.requestedQuantity,
-          0
-        )}`;
+            ? "medium"
+            : "low";
+        notes = `Restock order for ${itemsToSubmit.length
+          } items, total quantity: ${itemsToSubmit.reduce(
+            (sum, item) => sum + item.requestedQuantity,
+            0
+          )}`;
       }
 
       const orderData = {
@@ -465,7 +564,6 @@ export default function OrderPage() {
         items: itemsToSubmit.map((item) => ({
           inventory_item_id: item.inventoryItemId,
           inventory_item_name: item.inventoryItem.name,
-          bin_id: item.binId,
           quantity: item.requestedQuantity,
           unit_price: item.unitPrice,
           reason: item.reason,
@@ -477,7 +575,7 @@ export default function OrderPage() {
         technician: technicianName,
       };
 
-      const response = await fetch("/api/orders", {
+      const response = await fetchClient("/api/orders", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -516,7 +614,7 @@ export default function OrderPage() {
       }, 500);
     } catch (error) {
       console.error("Error submitting order:", error);
-      setError(error.message || "Failed to submit order. Please try again.");
+      setError(error instanceof Error ? error.message : "Failed to submit order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -527,7 +625,7 @@ export default function OrderPage() {
 
     try {
       setIsDownloading(true);
-      const response = await fetch(`/api/invoice/${orderDetails.id}`, {
+      const response = await fetchClient(`/api/invoice/${orderDetails.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -558,7 +656,7 @@ export default function OrderPage() {
 
     try {
       setIsDownloading(true);
-      const response = await fetch(`/api/invoice/${orderDetails.id}`, {
+      const response = await fetchClient(`/api/invoice/${orderDetails.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -596,18 +694,17 @@ Total Quantity: ${orderDetails.totalQuantity}
 ITEMS REQUESTED:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${orderDetails.items
-  .map(
-    (item, index) =>
-      `${index + 1}. ${item.inventoryItem.name}
+            .map(
+              (item, index) =>
+                `${index + 1}. ${item.inventoryItem.name}
    Category: ${item.inventoryItem.category}
    Quantity Requested: ${item.requestedQuantity}
    Current Stock: ${item.currentStock ?? "N/A"}
    Standard Level: ${item.inventoryItem.standardLevel}
-   Priority: ${item.priority?.toUpperCase() ?? "Manual"}
    
 `
-  )
-  .join("")}
+            )
+            .join("")}
 
 Please process this order at your earliest convenience.
 
@@ -675,18 +772,17 @@ Total Quantity: ${orderDetails.totalQuantity}
 ITEMS REQUESTED:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${orderDetails.items
-  .map(
-    (item, index) =>
-      `${index + 1}. ${item.inventoryItem.name}
+          .map(
+            (item, index) =>
+              `${index + 1}. ${item.inventoryItem.name}
    Category: ${item.inventoryItem.category}
    Quantity Requested: ${item.requestedQuantity}
    Current Stock: ${item.currentStock ?? "N/A"}
    Standard Level: ${item.inventoryItem.standardLevel}
-   Priority: ${item.priority?.toUpperCase() ?? "Manual"}
    
 `
-  )
-  .join("")}
+          )
+          .join("")}
 
 Please process this order at your earliest convenience.
 
@@ -717,8 +813,7 @@ ${orderDetails.technician}`;
     orderData.items.forEach((item: OrderItem, index: number) => {
       doc.setFontSize(10);
       doc.text(
-        `${index + 1}. ${item.inventoryItem.name} (${
-          item.inventoryItem.partNumber
+        `${index + 1}. ${item.inventoryItem.name} (${item.inventoryItem.partNumber || item.inventoryItem.part_number
         })`,
         20,
         y
@@ -766,7 +861,7 @@ ${orderDetails.technician}`;
         new Date(order.date).toLocaleDateString(),
         order.truckName,
         item.inventoryItem.name,
-        item.inventoryItem.partNumber,
+        item.inventoryItem.partNumber || item.inventoryItem.part_number,
         item.requestedQuantity.toString(),
         item.inventoryItem.unit,
         item.binName || "General",
@@ -793,6 +888,25 @@ ${orderDetails.technician}`;
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Pagination handlers
+  const handlePreviousPage = () => {
+    if (hasPreviousPage && currentPage > 1) {
+      fetchPreviousOrder(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (hasNextPage && currentPage < totalPages) {
+      fetchPreviousOrder(currentPage + 1);
+    }
+  };
+
+  const handlePageClick = (page: number) => {
+    if (page !== currentPage && page >= 1 && page <= totalPages) {
+      fetchPreviousOrder(page);
+    }
   };
 
   const totalItems = orderItems.reduce(
@@ -1042,7 +1156,7 @@ ${orderDetails.technician}`;
                         truckBinItem &&
                         truckBinItem.inventoryItem &&
                         truckBinItem.currentQuantity <=
-                          truckBinItem.inventoryItem.lowStockThreshold;
+                        truckBinItem.inventoryItem.lowStockThreshold;
 
                       return (
                         <div
@@ -1065,7 +1179,7 @@ ${orderDetails.technician}`;
                               )}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {item.partNumber} • {item.brand}
+                              {item.partNumber || item.part_number}
                               {isInTruck && (
                                 <span className="ml-2 text-blue-600">
                                   • In {truckBinItem!.binName}:{" "}
@@ -1111,7 +1225,7 @@ ${orderDetails.technician}`;
                             <span className="font-medium">
                               {item.inventoryItem.name}
                             </span>
-                            {item.priority && (
+                            {/* {item.priority && (
                               <Badge
                                 className={
                                   item.priority === "high"
@@ -1128,16 +1242,16 @@ ${orderDetails.technician}`;
                               <Badge variant="outline" className="text-xs">
                                 Manual
                               </Badge>
-                            )}
+                            )} */}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {item.inventoryItem.partNumber} •{" "}
+                            {item.inventoryItem.partNumber || item.inventoryItem.part_number}
                             {item.inventoryItem.brand}
                           </div>
                           {item.binName && (
                             <div className="text-sm text-blue-600 flex items-center gap-1 mt-1">
                               <Grid3X3 className="h-3 w-3" />
-                              {item.binName} • Current:{" "}
+                              {item.inventoryItem.category} • Current:{" "}
                               {item.currentStock ?? "N/A"}{" "}
                               {item.inventoryItem.unit}
                             </div>
@@ -1280,11 +1394,11 @@ ${orderDetails.technician}`;
                     {orderDetails.items.map((item, index) => (
                       <div key={index} className="border-b pb-2">
                         <p className="font-medium">{item.inventoryItem.name}</p>
-                        <p className="text-sm text-gray-500">
+                        {/* <p className="text-sm text-gray-500">
                           Quantity: {item.requestedQuantity} • Category:{" "}
                           {item.inventoryItem.category} • Priority:{" "}
                           {item.priority?.toUpperCase() ?? "Manual"}
-                        </p>
+                        </p> */}
                       </div>
                     ))}
                   </div>
@@ -1335,6 +1449,11 @@ ${orderDetails.technician}`;
               <CardTitle className="flex items-center space-x-2">
                 <Clock className="h-5 w-5" />
                 <span>Previous Orders</span>
+                {totalOrders > 0 && (
+                  <Badge variant="outline" className="ml-2">
+                    {totalOrders} total
+                  </Badge>
+                )}
               </CardTitle>
               <Button onClick={downloadCSV} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
@@ -1343,7 +1462,11 @@ ${orderDetails.technician}`;
             </div>
           </CardHeader>
           <CardContent>
-            {previousOrders.length > 0 ? (
+            {isLoadingOrders ? (
+              <div className="text-center py-8 text-gray-500">
+                Loading orders...
+              </div>
+            ) : previousOrders.length > 0 ? (
               <div className="space-y-4">
                 {previousOrders.map((order) => (
                   <div key={order.id} className="border rounded-lg p-4">
@@ -1372,6 +1495,45 @@ ${orderDetails.technician}`;
                           {order.status.charAt(0).toUpperCase() +
                             order.status.slice(1)}
                         </Badge>
+                        
+                        <div className="flex items-center mt-3 md:mt-0 md:ml-4 space-x-2">
+  {!order.isStockItem && (
+    <div className="relative group">
+      <Button
+        size="sm"
+        disabled={order.status.toLowerCase() !== "confirmed"}
+        className={`cursor-pointer ${
+          order.status.toLowerCase() === "confirmed"
+            ? "bg-green-500 hover:bg-green-600 text-white"
+            : "bg-gray-300 text-gray-600 cursor-not-allowed"
+        }`}
+        onClick={() =>
+          order.status.toLowerCase() === "confirmed" && handleStockItem(order)
+        }
+      >
+        <Package className="h-3 w-3 mr-1" />
+        Stock Item
+      </Button>
+
+      {/* Tooltip message when disabled */}
+      {order.status.toLowerCase() !== "confirmed" && (
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block bg-black text-white text-xs rounded-md px-2 py-1 whitespace-nowrap shadow-lg">
+          Your order needs to be confirmed before adding to stock.
+        </div>
+      )}
+    </div>
+  )}
+
+  <Button
+    variant="outline"
+    size="sm"
+    className="bg-transparent cursor-pointer"
+    onClick={() => setSelectedOrderForDetails(order)}
+  >
+    <Eye className="h-3 w-3 mr-1" />
+    View Details
+  </Button>
+</div>
                       </div>
                     </div>
                     <div className="text-sm text-gray-600">
@@ -1385,6 +1547,60 @@ ${orderDetails.technician}`;
                     </div>
                   </div>
                 ))}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={!hasPreviousPage || isLoadingOrders}
+                      >
+                        Previous
+                      </Button>
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={currentPage === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageClick(pageNum)}
+                              disabled={isLoadingOrders}
+                              className="w-8 h-8 p-0"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={!hasNextPage || isLoadingOrders}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
@@ -1393,6 +1609,14 @@ ${orderDetails.technician}`;
             )}
           </CardContent>
         </Card>
+        {/* Order Details Modal */}
+        {selectedOrderForDetails && (
+          <PreviousOrderDetailsModal
+            order={selectedOrderForDetails}
+            isOpen={!!selectedOrderForDetails}
+            onClose={() => setSelectedOrderForDetails(null)}
+          />
+        )}
       </div>
     </Navigation>
   );

@@ -549,7 +549,7 @@ export default function AdminTrucksPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-3 border-t border-gray-100">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t border-gray-100">
                         <div>
                           <div className="text-xs text-gray-500 mb-1">
                             Total Items
@@ -563,19 +563,6 @@ export default function AdminTrucksPage() {
                             Storage Bins
                           </div>
                           <div className="font-semibold">{truck.bins}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">
-                            Low Stock
-                          </div>
-                          <div
-                            className={`font-semibold ${truck.lowStockItems > 0
-                              ? "text-red-600"
-                              : "text-green-600"
-                              }`}
-                          >
-                            {truck.lowStockItems}
-                          </div>
                         </div>
                         <div>
                           <div className="text-xs text-gray-500 mb-1">

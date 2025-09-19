@@ -33,6 +33,7 @@ interface ContactTechnicianModalProps {
     phone?: string;
   };
   orderId?: string;
+  role?: "Technician" | "Admin";
 }
 
 export function ContactTechnicianModal({
@@ -40,6 +41,7 @@ export function ContactTechnicianModal({
   onClose,
   technician,
   orderId,
+  role = "Technician",
 }: ContactTechnicianModalProps) {
   const [subject, setSubject] = useState(
     orderId ? `Regarding Order #${orderId}` : ""
@@ -107,7 +109,7 @@ Best regards`;
             <strong>Email Opened!</strong>
           </div>
           <div style="margin-top: 8px; font-size: 14px; line-height: 1.4;">
-            Gmail has opened in a new tab with your message ready to send to ${technician.name}.
+            Gmail has opened in a new tab with your message ready to send to ${role} ${technician.name}.
           </div>
         `;
 
@@ -189,7 +191,7 @@ Best regards`;
         <DialogHeader className="flex-shrink-0 px-4 py-3 border-b">
           <DialogTitle className="text-xl text-[#10294B] flex items-center gap-2">
             <User className="h-5 w-5" />
-            Contact Technician
+            Contact {role}
           </DialogTitle>
           <DialogDescription className="text-sm">
             Send an email to {technician.name}
@@ -205,7 +207,7 @@ Best regards`;
             <Card>
               <CardHeader className="pb-2 pt-3">
                 <CardTitle className="text-base">
-                  Technician Information
+                  {role} Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-1">

@@ -48,6 +48,22 @@ export async function GET(req: Request) {
       );
     }
 
+    const userId = decoded.id;
+
+    // ✅ Verify role from DB
+    const [userRows] = await pool.query(
+      "SELECT role FROM users WHERE id = ? AND status = 'active'",
+      [userId]
+    );
+    const userData = (userRows as any[])[0];
+
+    if (!userData || !["technician", "admin"].includes(userData.role)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden", code: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
     const isAdmin = decoded.role === "admin";
 
     // Revised query to ensure all technician-related activities are included
