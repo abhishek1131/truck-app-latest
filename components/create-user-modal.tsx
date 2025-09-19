@@ -57,14 +57,14 @@ export function CreateUserModal({
     phone: "",
     password: "",
     confirmPassword: "",
-    role: "technician" as "technician" | "admin" | "manager",
+    role: "technician" as "technician" | "admin" | "admin",
     status: "active" as "active" | "inactive" | "pending" | "suspended",
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const roles = [
-    // { value: "manager", label: "Manager" },
+    { value: "admin", label: "Administrator" },
     { value: "technician", label: "Technician" },
   ];
 

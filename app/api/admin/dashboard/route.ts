@@ -9,6 +9,8 @@ interface DashboardResponse {
     stats: {
       totalTechnicians: number;
       activeTechnicians: number;
+      totalTrucks: number;
+      totalItems: number;
       totalOrders: number;
       pendingOrders: number;
       totalRevenue: number;
@@ -78,26 +80,14 @@ export async function GET(req: Request) {
     }
 
     // Fetch stats
-    const [technicianStats] = await pool.query<
-      {
-        totalTechnicians: number;
-        activeTechnicians: number;
-      }[]
-    >(
+    const [technicianStats] = await pool.query(
       `SELECT 
         COUNT(*) as totalTechnicians,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as activeTechnicians
       FROM users WHERE role = 'technician'`
     );
 
-    const [orderStats] = await pool.query<
-      {
-        totalOrders: number;
-        pendingOrders: number;
-        totalRevenue: number;
-        monthlyRevenue: number;
-      }[]
-    >(
+    const [orderStats] = await pool.query(
       `SELECT 
         COUNT(*) as totalOrders,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
@@ -106,28 +96,23 @@ export async function GET(req: Request) {
       FROM orders`
     );
 
-    const [creditStats] = await pool.query<
-      {
-        totalCredits: number;
-        pendingRedemptions: number;
-      }[]
-    >(
+    const [creditStats] = await pool.query(
       `SELECT 
         SUM(amount) as totalCredits,
         SUM(CASE WHEN status = 'pending_redemption' THEN 1 ELSE 0 END) as pendingRedemptions
       FROM credits`
     );
 
+    const [truckStats] = await pool.query(
+      `SELECT COUNT(*) as totalTrucks FROM trucks`
+    );
+
+    const [itemStats] = await pool.query(
+      `SELECT COUNT(*) as totalItems FROM inventory_items`
+    );
+
     // Fetch recent activities (limit to 5, ordered by created_at)
-    const [recentActivity] = await pool.query<
-      {
-        id: string;
-        type: "order" | "technician" | "redemption" | "supply_house";
-        message: string;
-        status: "new" | "success" | "pending" | "info";
-        created_at: Date;
-      }[]
-    >(
+    const [recentActivity] = await pool.query(
       `SELECT id, type, message, status, created_at 
       FROM activities 
       ORDER BY created_at DESC 
@@ -135,7 +120,7 @@ export async function GET(req: Request) {
     );
 
     // Calculate relative time for activities
-    const recentActivityFormatted = recentActivity.map((activity) => {
+    const recentActivityFormatted = (recentActivity as any[]).map((activity: any) => {
       const now = new Date();
       const diffMs = now.getTime() - activity.created_at.getTime();
       const diffMins = Math.floor(diffMs / 1000 / 60);
@@ -160,12 +145,7 @@ export async function GET(req: Request) {
 
     // Fetch top performers (limit to 5)
 // Fetch top performers (limit to 5)
-const [topPerformers] = await pool.query<{
-  name: string;
-  orders: number;
-  credits: number | null;
-  efficiency: number;
-}[]>(
+const [topPerformers] = await pool.query(
   `SELECT 
     CONCAT(u.first_name, ' ', u.last_name) as name,
     COUNT(o.id) as orders,
@@ -190,18 +170,20 @@ const [topPerformers] = await pool.query<{
       success: true,
       data: {
         stats: {
-          totalTechnicians: technicianStats[0]?.totalTechnicians || 0,
-          activeTechnicians: technicianStats[0]?.activeTechnicians || 0,
-          totalOrders: orderStats[0]?.totalOrders || 0,
-          pendingOrders: orderStats[0]?.pendingOrders || 0,
-          totalRevenue: Number(orderStats[0]?.totalRevenue) || 0,
-          monthlyRevenue: Number(orderStats[0]?.monthlyRevenue) || 0,
-          totalCredits: Number(creditStats[0]?.totalCredits) || 0,
-          pendingRedemptions: creditStats[0]?.pendingRedemptions || 0,
+          totalTechnicians: (technicianStats as any[])[0]?.totalTechnicians || 0,
+          activeTechnicians: (technicianStats as any[])[0]?.activeTechnicians || 0,
+          totalTrucks: (truckStats as any[])[0]?.totalTrucks || 0,
+          totalItems: (itemStats as any[])[0]?.totalItems || 0,
+          totalOrders: (orderStats as any[])[0]?.totalOrders || 0,
+          pendingOrders: (orderStats as any[])[0]?.pendingOrders || 0,
+          totalRevenue: Number((orderStats as any[])[0]?.totalRevenue) || 0,
+          monthlyRevenue: Number((orderStats as any[])[0]?.monthlyRevenue) || 0,
+          totalCredits: Number((creditStats as any[])[0]?.totalCredits) || 0,
+          pendingRedemptions: (creditStats as any[])[0]?.pendingRedemptions || 0,
         },
         recentActivity: recentActivityFormatted,
         // Format response
-        topPerformers: topPerformers.map((p) => ({
+        topPerformers: (topPerformers as any[]).map((p: any) => ({
           name: p.name,
           orders: p.orders,
           credits: Number((p.credits ?? 0)),

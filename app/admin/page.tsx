@@ -26,6 +26,7 @@ import {
   Settings,
   Truck,
   UserCheck,
+  Package,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -33,6 +34,8 @@ import Link from "next/link";
 
 interface Stats {
   totalTechnicians: number;
+  totalTrucks: number;
+  totalItems: number;
   activeTechnicians: number;
   totalOrders: number;
   pendingOrders: number;
@@ -189,44 +192,89 @@ export default function AdminDashboardPage() {
           <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium opacity-90">
-                Total Revenue
+                Total Trucks
               </CardTitle>
-              <DollarSign className="h-4 w-4 opacity-90" />
+              <Truck className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${stats.totalRevenue.toLocaleString()}
+                {stats.totalTrucks.toLocaleString()} 
               </div>
-              <p className="text-xs opacity-75">
-                <span className="text-green-300">
-                  +${stats.monthlyRevenue.toLocaleString()} this month
-                </span>
-              </p>
+
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium opacity-90">
-                Credits Issued
+                Total Items
               </CardTitle>
-              <TrendingUp className="h-4 w-4 opacity-90" />
+              <Package className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${stats.totalCredits.toLocaleString()}
+                {stats.totalItems.toLocaleString()}
               </div>
-              <p className="text-xs opacity-75">
-                <span className="text-yellow-300">
-                  {stats.pendingRedemptions} pending redemptions
-                </span>
-              </p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Recent Activity */}
+        {/* Recent Activity - Full Width */}
+        <Card className="w-full border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-[#E3253D]" />
+              Recent Activity
+            </CardTitle>
+            <CardDescription>
+              Latest platform activities and updates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 sm:space-y-4">
+              {recentActivity.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      activity.status === "success"
+                        ? "bg-green-100"
+                        : activity.status === "pending"
+                        ? "bg-yellow-100"
+                        : activity.status === "new"
+                        ? "bg-blue-100"
+                        : "bg-gray-100"
+                    }`}
+                  >
+                    {activity.status === "success" && (
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                    )}
+                    {activity.status === "pending" && (
+                      <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                    )}
+                    {activity.status === "new" && (
+                      <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                    )}
+                    {activity.status === "info" && (
+                      <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm sm:text-base font-medium text-gray-900 break-words">
+                      {activity.message}
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1">{activity.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Stats - Commented Out */}
+        {/* <div className="grid lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -280,7 +328,6 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
           <Card className="border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -319,7 +366,7 @@ export default function AdminDashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
 
         {/* Top Performers */}
         <Card className="border-0 shadow-lg">
@@ -352,7 +399,7 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-6 flex-wrap justify-end">
+                  {/* <div className="flex items-center space-x-6 flex-wrap justify-end">
                     <div className="text-right sm:m-0">
                       <div className="text-sm font-medium text-green-600">
                         ${performer.credits.toFixed(2)}
@@ -372,7 +419,7 @@ export default function AdminDashboardPage() {
                     >
                       {performer.efficiency}% efficiency
                     </Badge>
-                  </div>
+                  </div> */}
                 </div>
               ))}
             </div>
