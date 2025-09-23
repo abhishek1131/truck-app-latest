@@ -464,7 +464,7 @@ ${new Date().toLocaleString()}
         onClose={() => setShowContactSupport(false)}
         technician={{
           name: process.env.NEXT_PUBLIC_ADMIN_NAME || "TruxTok Admin",
-          email: process.env.NEXT_PUBLIC_ADMIN_EMAIL || "support@truxtok.com",
+          email: process.env.NEXT_PUBLIC_ADMIN_EMAIL || "truxtok@mailinator.com",
           phone: process.env.NEXT_PUBLIC_ADMIN_PHONE || "",
         }}
         orderId={order.orderId}

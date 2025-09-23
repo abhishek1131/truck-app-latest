@@ -51,7 +51,7 @@ export function ContactTechnicianModal({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     if (!subject || !message || !technician.email) {
       setError(
         "Please fill in all required fields and ensure technician email is available"
@@ -76,16 +76,23 @@ This message was sent through the TruxTok system.
 
 Best regards`;
 
-      // Encode email components
-      const encodedRecipient = encodeURIComponent(technician.email);
-      const encodedSubject = encodeURIComponent(subject);
-      const encodedBody = encodeURIComponent(emailBody);
+      // Send email using the API
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: technician.email,
+          subject: subject,
+          text: emailBody,
+          html: emailBody.replace(/\n/g, '<br>'),
+        }),
+      });
 
-      // Create Gmail URL
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodedRecipient}&su=${encodedSubject}&body=${encodedBody}`;
-
-      // Open Gmail in new tab
-      window.open(gmailUrl, "_blank");
+      if (!response.ok) {
+        throw new Error("Failed to send email");
+      }
 
       // Show success notification
       const showNotification = () => {
@@ -94,7 +101,7 @@ Best regards`;
           position: fixed;
           top: 20px;
           right: 20px;
-          background: #10294B;
+          background: #22c55e;
           color: white;
           padding: 16px;
           border-radius: 8px;
@@ -105,11 +112,11 @@ Best regards`;
         `;
         notification.innerHTML = `
           <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
-            <strong>Email Opened!</strong>
+            <div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>
+            <strong>Email Sent!</strong>
           </div>
           <div style="margin-top: 8px; font-size: 14px; line-height: 1.4;">
-            Gmail has opened in a new tab with your message ready to send to ${role} ${technician.name}.
+            Your message has been sent to ${technician.name} successfully.
           </div>
         `;
 
@@ -126,15 +133,13 @@ Best regards`;
       showNotification();
 
       // Reset form and close modal
-      setTimeout(() => {
-        setSubject(orderId ? `Regarding Order #${orderId}` : "");
-        setMessage("");
-        setPriority("normal");
-        onClose();
-      }, 500);
+      setSubject(orderId ? `Regarding Order #${orderId}` : "");
+      setMessage("");
+      setPriority("normal");
+      onClose();
     } catch (err) {
-      console.error("Error opening email:", err);
-      setError("Failed to open email client. Please try again.");
+      console.error("Error sending email:", err);
+      setError("Failed to send email. Please try again.");
     } finally {
       setIsSending(false);
     }
@@ -346,7 +351,7 @@ Best regards`;
             disabled={!subject || !message || isSending || !technician.email}
           >
             <Send className="h-3 w-3 mr-1" />
-            {isSending ? "Opening..." : "Open in Gmail"}
+            {isSending ? "Sending..." : "Send Email"}
           </Button>
         </div>
       </DialogContent>

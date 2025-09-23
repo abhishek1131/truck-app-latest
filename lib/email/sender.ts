@@ -19,12 +19,6 @@ interface EmailOptions {
 export async function sendEmail(options: EmailOptions) {
   try {
     const { to, subject, ejsTemplate, templateData, html, text } = options;
-    console.log("to", to);
-    console.log("subject", subject);
-    console.log("ejsTemplate", ejsTemplate);
-    console.log("templateData", templateData);
-    console.log("html", html);
-    console.log("text", text);
     // Create email transporter
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,

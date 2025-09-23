@@ -105,6 +105,14 @@ export async function GET(request: NextRequest) {
       [userId]
     );
 
+    // Get total active trucks count
+    const [activeTrucksRow] = await pool.query(
+      `SELECT COUNT(*) AS active_trucks
+       FROM trucks
+       WHERE assigned_to = ? AND status = 'active'`,
+      [userId]
+    );
+
     // Format trucks
     const trucks = (truckRows as any[]).map((truck) => ({
       id: truck.id, // Use truck_number as ID for UI consistency
@@ -129,12 +137,14 @@ export async function GET(request: NextRequest) {
     const totalItems = (totalItemsRow as any[])[0].total_items || 0;
     const totalLowStock = (lowStockRow as any[])[0].low_stock || 0;
     const totalOrders = (totalOrdersRow as any[])[0].total_orders || 0;
+    const activeTrucks = (activeTrucksRow as any[])[0].active_trucks || 0;
 
     const dashboard = {
       trucks,
       recentOrders,
       stats: {
         totalTrucks: trucks.length,
+        activeTrucks,
         totalItems,
         totalLowStock,
         totalOrders,

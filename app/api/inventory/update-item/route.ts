@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest) {
         unit || "pieces",
         partNumber || null,
         brand || null,
-        cost_price || null,
+        cost_price || 0,
         notes || null,
         id,
       ]
@@ -131,9 +131,27 @@ export async function PUT(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("Update item error:", error);
+    if (error?.code === "ER_DUP_ENTRY") {
+      const errorMessage = error?.sqlMessage || "";
+      if (errorMessage.includes("name_UNIQUE")) {
+        return NextResponse.json(
+          { error: "Item name already exists" },
+          { status: 400 }
+        );
+      } else if (errorMessage.includes("part_number")) {
+        return NextResponse.json(
+          { error: "Part number already exists" },
+          { status: 400 }
+        );
+      } else {
+        return NextResponse.json(
+          { error: "Duplicate entry found" },
+          { status: 400 }
+        );
+      }
+    }
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

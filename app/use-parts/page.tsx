@@ -53,7 +53,7 @@ interface UsedPart {
   sku: string
   currentStock: number
   count: number
-  binLocation: string,
+  // binLocation: string,
   unit_price?: number,
   cost_price?: number,
 }
@@ -89,6 +89,86 @@ export default function UsePartsPage() {
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [totalPages, setTotalPages] = useState(1)
   const [totalJob, setTotalJob] = useState(0)
+  const [quickAddItem, setQuickAddItem] = useState("")
+  const [isAddingItem, setIsAddingItem] = useState(false)
+  const [partsSearchTerm, setPartsSearchTerm] = useState("")
+
+  // Filter available items based on search term
+  const filteredAvailableItems = availableItems.filter(item =>
+    item.name.toLowerCase().includes(partsSearchTerm.toLowerCase())
+  )
+
+  // Quick Add Item function
+  const handleQuickAddItem = async () => {
+    if (!quickAddItem.trim()) {
+      toast.error("Please enter an item name");
+      return;
+    }
+
+    setIsAddingItem(true);
+    try {
+      const response = await fetch("/api/inventory/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: quickAddItem.trim(),
+          category: "",
+          unit: "",
+          description: "",
+          partNumber: "",
+          brand: "",
+          cost_price: 0,
+          lowStockThreshold: 0,
+          standardLevel: 0,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success("Item added successfully!");
+        setQuickAddItem("");
+        
+        // Add the new item to usedParts with default quantity of 1
+        const newItem: UsedPart = {
+          id: data.item.id,
+          name: quickAddItem.trim(),
+          sku: "",
+          count: 1,
+          unit_price: data.item.unitPrice || 0,
+          cost_price: data.item.costPrice || 0,
+          currentStock: 0
+        };
+        setUsedParts([...usedParts, newItem]);
+        
+        // Scroll to the "Parts Used on This Job" section
+        setTimeout(() => {
+          const partsSection = document.querySelector('[data-section="parts-used"]');
+          if (partsSection) {
+            partsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+        
+        // Refresh available items
+        if (selectedTruck) {
+          fetch(`/api/use-parts/${selectedTruck}`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(res => res.json())
+          .then(data => setAvailableItems(data.items || []))
+          .catch(err => console.error(err))
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || "Failed to add item");
+      }
+    } catch (error) {
+      console.error("Error adding item:", error);
+      toast.error("Failed to add item");
+    } finally {
+      setIsAddingItem(false);
+    }
+  };
 
   // ✅ Fetch jobs from API based on filters and pagination
   const fetchJobs = async (page: number = 1) => {
@@ -148,8 +228,16 @@ export default function UsePartsPage() {
     if (existingPart) {
       setUsedParts(usedParts.map(p => p.id === item.id ? { ...p, count: p.count + 1 } : p))
     } else {
-      setUsedParts([...usedParts, { id: item.id, name: item.name, sku: item.sku || "", count: 1, unit_price:item.unit_price, cost_price: item.cost_price, currentStock: item.currentStock, binLocation: item.bins.map(b => b.name).join(", ") }])
+      setUsedParts([...usedParts, { id: item.id, name: item.name, sku: item.sku || "", count: 1, unit_price:item.unit_price, cost_price: item.cost_price, currentStock: item.currentStock }])
     }
+    
+    // Scroll to the "Parts Used on This Job" section
+    setTimeout(() => {
+      const partsSection = document.querySelector('[data-section="parts-used"]');
+      if (partsSection) {
+        partsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   }
 
   const updatePartQuantity = (id: string, change: number) => {
@@ -277,14 +365,14 @@ export default function UsePartsPage() {
       x += colWidths[2]
   
       // Bin location (wrap)
-      const bin = p.binLocation || "-"
-      const binLines = doc.splitTextToSize(bin, colWidths[3] - 4)
+      // const bin = p.binLocation || "-"
+      // const binLines = doc.splitTextToSize(bin, colWidths[3] - 4)
       // make row height = max of nameHeight and binLines height
-      const binHeight = binLines.length * 12
-      const rowHeight = Math.max(nameHeight, binHeight, 12)
-      doc.text(binLines, x + 2, y)
+      // const binHeight = binLines.length * 12
+      // const rowHeight = Math.max(nameHeight, binHeight, 12)
+      // doc.text(binLines, x + 2, y)
   
-      y += rowHeight + 8
+      // y += rowHeight + 8
     })
   
     // Footer timestamp
@@ -323,12 +411,9 @@ export default function UsePartsPage() {
                 <p>
                   <strong>Job:</strong> {jobName}
                 </p>
-                <p>
                   <p>
                     <strong>Truck:</strong> {trucks.find((t) => t.id === selectedTruck)?.name}
                   </p>
-
-                </p>
                 <p>
                   <strong>Date:</strong> {new Date().toLocaleDateString()}
                 </p>
@@ -407,6 +492,32 @@ export default function UsePartsPage() {
                     />
                   </div>
                 </div>
+
+                {/* Quick Add Item */}
+                <div className="border-t pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="quickAdd">Quick Add Item</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="quickAdd"
+                        placeholder="Enter item name to add quickly"
+                        value={quickAddItem}
+                        onChange={(e) => setQuickAddItem(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleQuickAddItem()}
+                      />
+                      <Button 
+                        onClick={handleQuickAddItem}
+                        disabled={isAddingItem || !quickAddItem.trim()}
+                        size="sm"
+                      >
+                        {isAddingItem ? "Adding..." : "Add"}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Add a new item to your inventory quickly. You can edit details later.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -430,8 +541,22 @@ export default function UsePartsPage() {
                         Please go to the <span className="font-medium text-blue-600">Trucks</span> section and add items first.
                       </div>
                     ) : (
-                      <div className="grid gap-3">
-                        {availableItems.map((item) => {
+                      <>
+                        {/* Search Bar */}
+                        <div className="mb-4">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Input
+                              placeholder="Search parts by name..."
+                              value={partsSearchTerm}
+                              onChange={(e) => setPartsSearchTerm(e.target.value)}
+                              className="pl-10"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3">
+                          {filteredAvailableItems.map((item) => {
                           const warning = getStockWarning(item)
                           const usedQuantity =
                             usedParts.find((part) => part.id === item.id)?.count || 0
@@ -447,7 +572,7 @@ export default function UsePartsPage() {
                                   {item.sku && <Badge variant="outline">{item.sku}</Badge>}
                                 </div>
                                 <p className="text-sm text-gray-600">
-                                  Stock: {item.currentStock - usedQuantity}
+                                  Stock: {(item.currentStock - usedQuantity) > 0 ? (item.currentStock - usedQuantity) : 0}
                                   {usedQuantity > 0 && (
                                     <span className="text-blue-600"> ({usedQuantity} used)</span>
                                   )}
@@ -464,7 +589,7 @@ export default function UsePartsPage() {
 
                               <Button
                                 onClick={() => addPartToJob(item)}
-                                disabled={item.currentStock - usedQuantity <= 0}
+                                // disabled={item.currentStock - usedQuantity <= 0}
                                 size="sm"
                               >
                                 Use
@@ -472,7 +597,15 @@ export default function UsePartsPage() {
                             </div>
                           )
                         })}
-                      </div>
+                        </div>
+
+                        {/* No search results message */}
+                        {filteredAvailableItems.length === 0 && partsSearchTerm && (
+                          <div className="p-4 text-center text-gray-600 border rounded-lg bg-gray-50">
+                            No parts found matching "{partsSearchTerm}"
+                          </div>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -480,7 +613,7 @@ export default function UsePartsPage() {
 
                 {/* Used Parts */}
                 {usedParts.length > 0 && (
-                  <Card>
+                  <Card data-section="parts-used">
                     <CardHeader>
                       <CardTitle>Parts Used on This Job</CardTitle>
                       <CardDescription>Adjust quantities or remove parts as needed</CardDescription>
@@ -494,7 +627,7 @@ export default function UsePartsPage() {
                           >
                             <div className="flex-1">
                               <h4 className="font-medium">{part.name}</h4>
-                              <p className="text-sm text-gray-600">{part.binLocation}</p>
+                              {/* <p className="text-sm text-gray-600">{part.binLocation}</p> */}
                             </div>
 
                             <div className="flex items-center gap-2">
@@ -510,7 +643,7 @@ export default function UsePartsPage() {
                               </span>
                               <Button
                                 variant="outline"
-                                disabled={part.currentStock - part.count <= 0}
+                                // disabled={part.currentStock - part.count <= 0}
                                 size="sm"
                                 onClick={() => updatePartQuantity(part.id, 1)}
                               >
@@ -656,7 +789,7 @@ export default function UsePartsPage() {
                         <div className="text-sm">
                           <strong>Parts Used:</strong>{" "}
                           {job.parts.map((part, index) => (
-                            <span key={part.id}>
+                            <span key={`${part.id || part.name}-${index}`}>
                               {part.name} ({part.count}x)
                               {index < job.parts.length - 1 ? ", " : ""}
                             </span>

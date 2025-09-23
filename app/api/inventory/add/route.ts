@@ -145,10 +145,25 @@ export async function POST(request: NextRequest) {
     }
     // Fix: error may not have a 'code' property, so use type assertion or check differently
     if ((error as any)?.code === "ER_DUP_ENTRY") {
-      return NextResponse.json(
-        { error: "Part number already exists" },
-        { status: 400 }
-      );
+      const errorMessage = (error as any)?.sqlMessage || "";
+      
+      // Check which field has the duplicate entry
+      if (errorMessage.includes("name_UNIQUE")) {
+        return NextResponse.json(
+          { error: "Item name already exists" },
+          { status: 400 }
+        );
+      } else if (errorMessage.includes("part_number")) {
+        return NextResponse.json(
+          { error: "Part number already exists" },
+          { status: 400 }
+        );
+      } else {
+        return NextResponse.json(
+          { error: "Duplicate entry found" },
+          { status: 400 }
+        );
+      }
     }
     return NextResponse.json(
       { error: "Internal server error" },

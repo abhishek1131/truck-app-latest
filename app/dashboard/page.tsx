@@ -36,6 +36,7 @@ export default function DashboardPage() {
       totalItems: 0,
       totalLowStock: 0,
       totalOrders: 0,
+      activeTrucks: 0,
     },
   });
 
@@ -85,7 +86,7 @@ export default function DashboardPage() {
   }
 
   const { trucks, recentOrders, stats } = dashboardData;
-  const { totalTrucks, totalItems, totalLowStock, totalOrders } = stats;
+  const { totalTrucks, totalItems, totalLowStock, totalOrders, activeTrucks } = stats;
 
   return (
     <Navigation
@@ -102,8 +103,7 @@ export default function DashboardPage() {
                   <p className="text-sm opacity-90">My Trucks</p>
                   <p className="text-2xl font-bold">{totalTrucks}</p>
                   <p className="text-xs opacity-75">
-                    {trucks.filter((t: any) => t.status === "active").length}{" "}
-                    active
+                    {activeTrucks } active
                   </p>
                 </div>
                 <Truck className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
@@ -143,7 +143,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm opacity-90">Orders</p>
                   <p className="text-2xl font-bold">{totalOrders}</p>
-                  <p className="text-xs opacity-75">This week</p>
+                  <p className="text-xs opacity-75">Total order</p>
                 </div>
                 <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               </div>

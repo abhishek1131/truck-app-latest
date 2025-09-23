@@ -27,46 +27,49 @@ export async function GET(
 
     const userId = decoded.id;
 
-    // Check truck access
-    const [truckRows] = await pool.query(
-      "SELECT assigned_to FROM trucks WHERE id = ?",
-      [truckId]
-    );
-    const truck = (truckRows as any[])[0];
-
-    if (!truck || truck.assigned_to !== userId) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
-    }
-
-    // Fetch items with bins
+    // Fetch all inventory items created by the current user with current stock
     const [rows] = await pool.query(
       `SELECT 
          ii.id AS item_id,
          ii.name AS item_name,
-         SUM(ti.quantity) AS currentStock,
-         MIN(ti.min_quantity) AS minThreshold,
+         ii.part_number,
+         ii.brand,
+         ii.description,
+         ii.unit_price,
+         ii.cost_price,
+         ii.unit,
+         ii.min_quantity AS minThreshold,
          ii.standard_level AS standardLevel,
-         JSON_ARRAYAGG(
-            JSON_OBJECT(
-                'id', tb.id,
-                'name', tb.name
-            )
-         ) AS bins
-       FROM truck_inventory ti
-       JOIN inventory_items ii ON ti.item_id = ii.id
-       JOIN truck_bins tb ON ti.bin_id = tb.id
-       WHERE ti.truck_id = ?
-       GROUP BY ii.id, ii.name`,
-      [truckId]
+         ic.name AS category,
+         ii.created_at,
+         ii.updated_at,
+         COALESCE(SUM(ti.quantity), 0) AS currentStock
+       FROM inventory_items ii
+       LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
+       LEFT JOIN truck_inventory ti ON ii.id = ti.item_id
+       WHERE ii.created_by = ?
+       GROUP BY ii.id, ii.name, ii.part_number, ii.brand, ii.description, 
+                ii.unit_price, ii.cost_price, ii.unit, ii.min_quantity, 
+                ii.standard_level, ic.name, ii.created_at, ii.updated_at
+       ORDER BY ii.created_at DESC`,
+      [userId]
     );
 
     const items = (rows as any[]).map((row) => ({
       id: row.item_id,
       name: row.item_name,
-      currentStock: row.currentStock,
+      partNumber: row.part_number,
+      brand: row.brand,
+      description: row.description,
+      unitPrice: row.unit_price,
+      costPrice: row.cost_price,
+      unit: row.unit,
       minThreshold: row.minThreshold,
       standardLevel: row.standardLevel,
-      bins: row.bins,
+      category: row.category,
+      currentStock: row.currentStock,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     }));
 
     return NextResponse.json({ success: true, items });

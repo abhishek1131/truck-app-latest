@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔑 Step 2: Update stock bin by bin
+    // 🔑 Step 2: Check stock availability and update accordingly
     for (const p of parts) {
       const [bins] = await connection.query(
         `SELECT id, quantity 
@@ -59,15 +59,34 @@ export async function POST(request: NextRequest) {
       );
 
       if ((bins as any[]).length === 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { success: false, error: `Item not found in truck inventory: ${p.name}` },
-          { status: 404 }
-        );
+        // Item not found in truck inventory - continue without updating truck_inventory
+        console.log(`Item not found in truck inventory: ${p.name}`);
+        continue;
       }
 
       let remaining = p.count;
+      let totalAvailable = 0;
 
+      // Calculate total available stock
+      for (const bin of bins as any[]) {
+        totalAvailable += bin.quantity;
+      }
+
+      if (totalAvailable < p.count) {
+        // Not enough stock - set all quantities to 0
+        for (const bin of bins as any[]) {
+          await connection.query(
+            `UPDATE truck_inventory 
+             SET quantity = 0, last_restocked = NOW() 
+             WHERE id = ?`,
+            [bin.id]
+          );
+        }
+        console.log(`Not enough stock for item ${p.name} - setting all quantities to 0`);
+        continue;
+      }
+
+      // Normal stock deduction
       for (const bin of bins as any[]) {
         if (remaining <= 0) break;
 
@@ -83,14 +102,7 @@ export async function POST(request: NextRequest) {
 
         remaining -= deduct;
       }
-
-      if (remaining > 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { success: false, error: `Not enough stock for item ${p.name}` },
-          { status: 400 }
-        );
-      }
+      
       sendLowStockEmailOneItem(p.id);
     }
 
@@ -198,7 +210,6 @@ export async function GET(request: NextRequest) {
     );
     const total = (countRows as any[])[0].total;
     const totalPages = Math.ceil(total / limit);
-
     // ✅ Fetch jobs with pagination
     const [jobs] = await pool.query(
       `SELECT 

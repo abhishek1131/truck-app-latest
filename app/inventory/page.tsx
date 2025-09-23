@@ -252,6 +252,7 @@ export default function InventoryPage() {
                     <p className="text-2xl font-bold">{totalItems}</p>
                     <p className="text-xs opacity-75">{stats.assignedItem} Assigned Items</p>
                   </div>
+                  <Package className="h-8 w-8 opacity-80" />
                 </div>
               </CardContent>
             </Card>
@@ -341,8 +342,8 @@ export default function InventoryPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category: string) => (
-                      <SelectItem key={category} value={category}>
+                    {categories.map((category: string, index: number) => (
+                      <SelectItem key={`${category}-${index}`} value={category}>
                         {category}
                       </SelectItem>
                     ))}
@@ -364,9 +365,9 @@ export default function InventoryPage() {
                 </CardContent>
               </Card>
             ) : (
-              filteredItems.map((item: any) => (
+              filteredItems.map((item: any, index: number) => (
                 <Card
-                  key={item.id}
+                  key={`${item.id || 'item'}-${index}`}
                   className="hover:shadow-lg transition-shadow"
                 >
                   <CardContent className="p-4 sm:p-6">
