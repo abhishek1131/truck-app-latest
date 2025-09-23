@@ -53,20 +53,27 @@ interface UsedPart {
   sku: string
   currentStock: number
   count: number
-  // binLocation: string,
-  unit_price?: number,
-  cost_price?: number,
+  binLocation: string
+  unit_price?: number
+  cost_price?: number
 }
 
 interface CompletedJob {
   id: string
   job_name: string
   date: string
-  truck: Truck
+  truck: {
+    id: string
+    name: string
+    license_plate?: string
+    location?: string
+  }
   truck_name?: string
   license_plate?: string
   parts: UsedPart[]
   parts_used_count: number
+  technician?: string
+  created_by_name?: string
   status: string
 }
 
@@ -92,6 +99,13 @@ export default function UsePartsPage() {
   const [quickAddItem, setQuickAddItem] = useState("")
   const [isAddingItem, setIsAddingItem] = useState(false)
   const [partsSearchTerm, setPartsSearchTerm] = useState("")
+
+  
+  // Helper function to check if a part already exists in usedParts
+  const findExistingPart = (id: string, name: string) => {
+    // First check by ID, then by name if ID doesn't match
+    return usedParts.find(p => p.id === id || p.name.toLowerCase() === name.toLowerCase())
+  }
 
   // Filter available items based on search term
   const filteredAvailableItems = availableItems.filter(item =>
@@ -131,17 +145,57 @@ export default function UsePartsPage() {
         toast.success("Item added successfully!");
         setQuickAddItem("");
         
-        // Add the new item to usedParts with default quantity of 1
-        const newItem: UsedPart = {
-          id: data.item.id,
-          name: quickAddItem.trim(),
-          sku: "",
-          count: 1,
-          unit_price: data.item.unitPrice || 0,
-          cost_price: data.item.costPrice || 0,
-          currentStock: 0
-        };
-        setUsedParts([...usedParts, newItem]);
+        // Generate a unique ID if the API doesn't provide one
+        const itemId = data.item?.id || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Add the new item to availableItems so it appears in Available Parts section (if not already there)
+        const existingAvailableItem = availableItems.find(item => item.id === itemId || item.name.toLowerCase() === quickAddItem.trim().toLowerCase());
+        if (!existingAvailableItem) {
+          const newInventoryItem: InventoryItem = {
+            id: itemId,
+            name: quickAddItem.trim(),
+            sku: data.item?.sku || "",
+            currentStock: data.item?.currentStock || 0,
+            minThreshold: 0,
+            standardLevel: 0,
+            bins: [],
+            unit_price: data.item?.unitPrice || 0,
+            cost_price: data.item?.costPrice || 0
+          };
+          setAvailableItems([...availableItems, newInventoryItem]);
+        }
+
+        // Check if item already exists in usedParts to prevent duplicates
+        const existingPart = findExistingPart(itemId, quickAddItem.trim());
+        
+        if (!existingPart) {
+          // Add the new item to usedParts with default quantity of 1
+          const newItem: UsedPart = {
+            id: itemId,
+            name: quickAddItem.trim(),
+            sku: data.item?.sku || "",
+            count: 1,
+            unit_price: data.item?.unitPrice || 0,
+            cost_price: data.item?.costPrice || 0,
+            currentStock: data.item?.currentStock || 0,
+            binLocation: ""
+          };
+
+          setUsedParts(prevUsedParts => {
+            const newArray = [...prevUsedParts, newItem];
+            return newArray;
+          });
+        } else {
+          // If item already exists, just increment the count
+          setUsedParts(prevUsedParts => {
+            const updatedUsedParts = prevUsedParts.map(p => 
+              p.id === itemId 
+                ? { ...p, count: p.count + 1 } 
+                : p
+            );
+            return updatedUsedParts;
+          });
+        }
         
         // Scroll to the "Parts Used on This Job" section
         setTimeout(() => {
@@ -224,11 +278,28 @@ export default function UsePartsPage() {
   }, [searchTerm, dateFrom, dateTo, selectedTruckFilter, currentPage])
 
   const addPartToJob = (item: InventoryItem) => {
-    const existingPart = usedParts.find(p => p.id === item.id)
+    // Check for existing part by ID or name to prevent duplicates
+    const existingPart = findExistingPart(item.id, item.name);
+    
     if (existingPart) {
-      setUsedParts(usedParts.map(p => p.id === item.id ? { ...p, count: p.count + 1 } : p))
+      // If item already exists, just increment the count
+      setUsedParts(usedParts.map(p => 
+        (p.id === item.id || p.name.toLowerCase() === item.name.toLowerCase())
+          ? { ...p, count: p.count + 1 } 
+          : p
+      ))
     } else {
-      setUsedParts([...usedParts, { id: item.id, name: item.name, sku: item.sku || "", count: 1, unit_price:item.unit_price, cost_price: item.cost_price, currentStock: item.currentStock }])
+      // Add new item to usedParts
+      setUsedParts([...usedParts, { 
+        id: item.id, 
+        name: item.name, 
+        sku: item.sku || "", 
+        count: 1, 
+        unit_price: item.unit_price, 
+        cost_price: item.cost_price, 
+        currentStock: item.currentStock,
+        binLocation: ""
+      }])
     }
     
     // Scroll to the "Parts Used on This Job" section
@@ -249,7 +320,7 @@ export default function UsePartsPage() {
   }
 
   const getStockWarning = (item: InventoryItem) => {
-    const usedQuantity = usedParts.find(p => p.id === item.id)?.count || 0
+    const usedQuantity = usedParts.find(p => p.id === item.id || p.name.toLowerCase() === item.name.toLowerCase())?.count || 0
     const remainingStock = item.currentStock - usedQuantity
     if (remainingStock < 0) return { type: "error", message: "Insufficient stock!" }
     if (remainingStock <= item.standardLevel) return { type: "warning", message: "Will trigger restock" }
@@ -267,7 +338,21 @@ export default function UsePartsPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        const newJob: CompletedJob = { id: data.id, job_name: jobName, date: new Date().toISOString(), truck: trucks.find(t => t.id === selectedTruck)!, parts: usedParts, parts_used_count: usedParts.length, status: "Completed" }
+        const selectedTruckData = trucks.find(t => t.id === selectedTruck)!
+        const newJob: CompletedJob = { 
+          id: data.id, 
+          job_name: jobName, 
+          date: new Date().toISOString(), 
+          truck: {
+            id: selectedTruckData.id,
+            name: selectedTruckData.name,
+            location: selectedTruckData.location
+          },
+          truck_name: selectedTruckData.name,
+          parts: usedParts, 
+          parts_used_count: usedParts.length, 
+          status: "Completed" 
+        }
         setCompletedJobs([newJob, ...completedJobs])
         setJobCompleted(true)
         fetchJobs(currentPage)
@@ -559,7 +644,7 @@ export default function UsePartsPage() {
                           {filteredAvailableItems.map((item) => {
                           const warning = getStockWarning(item)
                           const usedQuantity =
-                            usedParts.find((part) => part.id === item.id)?.count || 0
+                            usedParts.find((part) => part.id === item.id || part.name.toLowerCase() === item.name.toLowerCase())?.count || 0
 
                           return (
                             <div
