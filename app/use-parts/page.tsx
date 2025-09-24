@@ -504,34 +504,6 @@ export default function UsePartsPage() {
                   </div>
                 </div>
 
-                {/* Quick Add Item */}
-                <div className="border-t pt-4">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="quickAdd">Quick Add Item</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="quickAdd"
-                          placeholder="Search existing parts or enter new item name"
-                          value={quickAddItem}
-                          onChange={(e) => setQuickAddItem(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && handleQuickAddItem()}
-                        />
-                        <Button 
-                          onClick={handleQuickAddItem}
-                          disabled={isAddingItem || !quickAddItem.trim()}
-                          size="sm"
-                        >
-                          {isAddingItem ? "Adding..." : "Add"}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Search for existing parts or add a new item to your inventory quickly.
-                      </p>
-                    </div>
-
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
@@ -549,6 +521,33 @@ export default function UsePartsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {/* Quick Add Item */}
+                    <div className="mb-6">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          {/* <Label htmlFor="quickAdd">Quick Add Item</Label> */}
+                          <div className="flex gap-2">
+                            <Input
+                              id="quickAdd"
+                              placeholder="Search existing parts or enter new item name"
+                              value={quickAddItem}
+                              onChange={(e) => setQuickAddItem(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && handleQuickAddItem()}
+                            />
+                            <Button 
+                              onClick={handleQuickAddItem}
+                              disabled={isAddingItem || !quickAddItem.trim()}
+                              size="sm"
+                            >
+                              {isAddingItem ? "Adding..." : "Add"}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                          Search for existing parts or add a new item to the job and your inventory quickly.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                     {availableItems.length === 0 ? (
                       <div className="p-4 text-center text-gray-600 border rounded-lg bg-gray-50">
                         No parts are currently available for this truck.
