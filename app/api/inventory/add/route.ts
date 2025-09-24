@@ -112,17 +112,16 @@ export async function POST(request: NextRequest) {
          ii.created_by
        FROM inventory_items ii
        JOIN inventory_categories ic ON ii.category_id = ic.id
-       WHERE ii.part_number = ?`,
-      [partNumber]
+       WHERE ii.name = ?`,
+      [name]
     );
 
     await connection.commit();
 
-    const newItem = (newItemRows as any[])[0];
-
+    const newItem = (newItemRows as any[])[0];    
     return NextResponse.json({
       item: {
-        id: newItem.id_for_ui,
+        id: newItem.id,
         name: newItem.name,
         category: newItem.category,
         totalQuantity: 0,

@@ -62,18 +62,11 @@ interface CompletedJob {
   id: string
   job_name: string
   date: string
-  truck: {
-    id: string
-    name: string
-    license_plate?: string
-    location?: string
-  }
+  truck: Truck
   truck_name?: string
   license_plate?: string
   parts: UsedPart[]
   parts_used_count: number
-  technician?: string
-  created_by_name?: string
   status: string
 }
 
@@ -98,19 +91,14 @@ export default function UsePartsPage() {
   const [totalJob, setTotalJob] = useState(0)
   const [quickAddItem, setQuickAddItem] = useState("")
   const [isAddingItem, setIsAddingItem] = useState(false)
-  const [partsSearchTerm, setPartsSearchTerm] = useState("")
 
-  
-  // Helper function to check if a part already exists in usedParts
-  const findExistingPart = (id: string, name: string) => {
-    // First check by ID, then by name if ID doesn't match
-    return usedParts.find(p => p.id === id || p.name.toLowerCase() === name.toLowerCase())
-  }
-
-  // Filter available items based on search term
-  const filteredAvailableItems = availableItems.filter(item =>
-    item.name.toLowerCase().includes(partsSearchTerm.toLowerCase())
-  )
+  console.log("usedParts", usedParts)
+  // Filter available items based on quickAddItem search
+  const filteredAvailableItems = quickAddItem.trim() 
+    ? availableItems.filter(item => 
+        item.name.toLowerCase().includes(quickAddItem.toLowerCase())
+      )
+    : availableItems
 
   // Quick Add Item function
   const handleQuickAddItem = async () => {
@@ -142,60 +130,23 @@ export default function UsePartsPage() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log("API Response:", data);
         toast.success("Item added successfully!");
         setQuickAddItem("");
         
-        // Generate a unique ID if the API doesn't provide one
-        const itemId = data.item?.id || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Add the new item to availableItems so it appears in Available Parts section (if not already there)
-        const existingAvailableItem = availableItems.find(item => item.id === itemId || item.name.toLowerCase() === quickAddItem.trim().toLowerCase());
-        if (!existingAvailableItem) {
-          const newInventoryItem: InventoryItem = {
-            id: itemId,
-            name: quickAddItem.trim(),
-            sku: data.item?.sku || "",
-            currentStock: data.item?.currentStock || 0,
-            minThreshold: 0,
-            standardLevel: 0,
-            bins: [],
-            unit_price: data.item?.unitPrice || 0,
-            cost_price: data.item?.costPrice || 0
-          };
-          setAvailableItems([...availableItems, newInventoryItem]);
-        }
-
-        // Check if item already exists in usedParts to prevent duplicates
-        const existingPart = findExistingPart(itemId, quickAddItem.trim());
-        
-        if (!existingPart) {
-          // Add the new item to usedParts with default quantity of 1
-          const newItem: UsedPart = {
-            id: itemId,
-            name: quickAddItem.trim(),
-            sku: data.item?.sku || "",
-            count: 1,
-            unit_price: data.item?.unitPrice || 0,
-            cost_price: data.item?.costPrice || 0,
-            currentStock: data.item?.currentStock || 0,
-            binLocation: ""
-          };
-
-          setUsedParts(prevUsedParts => {
-            const newArray = [...prevUsedParts, newItem];
-            return newArray;
-          });
-        } else {
-          // If item already exists, just increment the count
-          setUsedParts(prevUsedParts => {
-            const updatedUsedParts = prevUsedParts.map(p => 
-              p.id === itemId 
-                ? { ...p, count: p.count + 1 } 
-                : p
-            );
-            return updatedUsedParts;
-          });
-        }
+        // Add the new item to usedParts with default quantity of 1
+        const newItem: UsedPart = {
+          id: data.item.id || data.id || "",
+          name: quickAddItem.trim(),
+          sku: "",
+          count: 1,
+          unit_price: data.item.unitPrice || 0,
+          cost_price: data.item.costPrice || 0,
+          currentStock: 0,
+          binLocation: ""
+        };
+        console.log("Creating new item:", newItem);
+        setUsedParts([...usedParts, newItem]);
         
         // Scroll to the "Parts Used on This Job" section
         setTimeout(() => {
@@ -205,7 +156,7 @@ export default function UsePartsPage() {
           }
         }, 100);
         
-        // Refresh available items
+        // Refresh available items to include the new item
         if (selectedTruck) {
           fetch(`/api/use-parts/${selectedTruck}`, { headers: { Authorization: `Bearer ${token}` } })
           .then(res => res.json())
@@ -278,28 +229,17 @@ export default function UsePartsPage() {
   }, [searchTerm, dateFrom, dateTo, selectedTruckFilter, currentPage])
 
   const addPartToJob = (item: InventoryItem) => {
-    // Check for existing part by ID or name to prevent duplicates
-    const existingPart = findExistingPart(item.id, item.name);
+    console.log("Adding part to job:", item);
+    console.log("Current usedParts:", usedParts);
+    const existingPart = usedParts.find(p => p.id === item.id)
+    console.log("Existing part found:", existingPart);
     
     if (existingPart) {
-      // If item already exists, just increment the count
-      setUsedParts(usedParts.map(p => 
-        (p.id === item.id || p.name.toLowerCase() === item.name.toLowerCase())
-          ? { ...p, count: p.count + 1 } 
-          : p
-      ))
+      console.log("Updating existing part quantity");
+      setUsedParts(usedParts.map(p => p.id === item.id ? { ...p, count: p.count + 1 } : p))
     } else {
-      // Add new item to usedParts
-      setUsedParts([...usedParts, { 
-        id: item.id, 
-        name: item.name, 
-        sku: item.sku || "", 
-        count: 1, 
-        unit_price: item.unit_price, 
-        cost_price: item.cost_price, 
-        currentStock: item.currentStock,
-        binLocation: ""
-      }])
+      console.log("Adding new part to job");
+      setUsedParts([...usedParts, { id: item.id, name: item.name, sku: item.sku || "", count: 1, unit_price:item.unit_price, cost_price: item.cost_price, currentStock: item.currentStock, binLocation: "" }])
     }
     
     // Scroll to the "Parts Used on This Job" section
@@ -320,7 +260,7 @@ export default function UsePartsPage() {
   }
 
   const getStockWarning = (item: InventoryItem) => {
-    const usedQuantity = usedParts.find(p => p.id === item.id || p.name.toLowerCase() === item.name.toLowerCase())?.count || 0
+    const usedQuantity = usedParts.find(p => p.id === item.id)?.count || 0
     const remainingStock = item.currentStock - usedQuantity
     if (remainingStock < 0) return { type: "error", message: "Insufficient stock!" }
     if (remainingStock <= item.standardLevel) return { type: "warning", message: "Will trigger restock" }
@@ -338,21 +278,7 @@ export default function UsePartsPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        const selectedTruckData = trucks.find(t => t.id === selectedTruck)!
-        const newJob: CompletedJob = { 
-          id: data.id, 
-          job_name: jobName, 
-          date: new Date().toISOString(), 
-          truck: {
-            id: selectedTruckData.id,
-            name: selectedTruckData.name,
-            location: selectedTruckData.location
-          },
-          truck_name: selectedTruckData.name,
-          parts: usedParts, 
-          parts_used_count: usedParts.length, 
-          status: "Completed" 
-        }
+        const newJob: CompletedJob = { id: data.id, job_name: jobName, date: new Date().toISOString(), truck: trucks.find(t => t.id === selectedTruck)!, parts: usedParts, parts_used_count: usedParts.length, status: "Completed" }
         setCompletedJobs([newJob, ...completedJobs])
         setJobCompleted(true)
         fetchJobs(currentPage)
@@ -580,27 +506,30 @@ export default function UsePartsPage() {
 
                 {/* Quick Add Item */}
                 <div className="border-t pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quickAdd">Quick Add Item</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="quickAdd"
-                        placeholder="Enter item name to add quickly"
-                        value={quickAddItem}
-                        onChange={(e) => setQuickAddItem(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleQuickAddItem()}
-                      />
-                      <Button 
-                        onClick={handleQuickAddItem}
-                        disabled={isAddingItem || !quickAddItem.trim()}
-                        size="sm"
-                      >
-                        {isAddingItem ? "Adding..." : "Add"}
-                      </Button>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="quickAdd">Quick Add Item</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="quickAdd"
+                          placeholder="Search existing parts or enter new item name"
+                          value={quickAddItem}
+                          onChange={(e) => setQuickAddItem(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleQuickAddItem()}
+                        />
+                        <Button 
+                          onClick={handleQuickAddItem}
+                          disabled={isAddingItem || !quickAddItem.trim()}
+                          size="sm"
+                        >
+                          {isAddingItem ? "Adding..." : "Add"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Search for existing parts or add a new item to your inventory quickly.
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Add a new item to your inventory quickly. You can edit details later.
-                    </p>
+
                   </div>
                 </div>
               </CardContent>
@@ -610,14 +539,15 @@ export default function UsePartsPage() {
               <>
                 {/* Available Parts */}
                 <Card>
-                  {availableItems.length === 0 ? (
-                    <></>
-                  ) : (
-                    <CardHeader>
-                      <CardTitle>Available Parts</CardTitle>
-                      <CardDescription>Click "Use" to add parts to this job</CardDescription>
-                    </CardHeader>
-                  )}
+                  <CardHeader>
+                    <CardTitle>Available Parts</CardTitle>
+                    <CardDescription>
+                      Click "Use" to add parts to this job
+                      {quickAddItem.trim() && (
+                        <span className="text-blue-600"> • Showing results for "{quickAddItem}"</span>
+                      )}
+                    </CardDescription>
+                  </CardHeader>
                   <CardContent>
                     {availableItems.length === 0 ? (
                       <div className="p-4 text-center text-gray-600 border rounded-lg bg-gray-50">
@@ -627,24 +557,11 @@ export default function UsePartsPage() {
                       </div>
                     ) : (
                       <>
-                        {/* Search Bar */}
-                        <div className="mb-4">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                            <Input
-                              placeholder="Search parts by name..."
-                              value={partsSearchTerm}
-                              onChange={(e) => setPartsSearchTerm(e.target.value)}
-                              className="pl-10"
-                            />
-                          </div>
-                        </div>
-
                         <div className="grid gap-3">
                           {filteredAvailableItems.map((item) => {
                           const warning = getStockWarning(item)
                           const usedQuantity =
-                            usedParts.find((part) => part.id === item.id || part.name.toLowerCase() === item.name.toLowerCase())?.count || 0
+                            usedParts.find((part) => part.id === item.id)?.count || 0
 
                           return (
                             <div
@@ -674,7 +591,7 @@ export default function UsePartsPage() {
 
                               <Button
                                 onClick={() => addPartToJob(item)}
-                                // disabled={item.currentStock - usedQuantity <= 0}
+                                disabled={!jobName}
                                 size="sm"
                               >
                                 Use
@@ -685,9 +602,9 @@ export default function UsePartsPage() {
                         </div>
 
                         {/* No search results message */}
-                        {filteredAvailableItems.length === 0 && partsSearchTerm && (
+                        {filteredAvailableItems.length === 0 && quickAddItem.trim() && (
                           <div className="p-4 text-center text-gray-600 border rounded-lg bg-gray-50">
-                            No parts found matching "{partsSearchTerm}"
+                            No parts found matching "{quickAddItem}"
                           </div>
                         )}
                       </>
@@ -862,7 +779,7 @@ export default function UsePartsPage() {
                               <FileText className="h-3 w-3 mr-1" />
                               PDF
                             </Button>
-                            <CompletedJobDetailsModal key={job.id} job={job}>
+                            <CompletedJobDetailsModal key={job.id} job={job as any}>
                               <Button variant="outline" size="sm">
                                 <Eye className="h-3 w-3 mr-1" />
                                 View Details
