@@ -39,20 +39,24 @@ export async function PUT(request: NextRequest) {
       );
 
       // Before UPDATE
-      let categoryId: string | null = null;
-      if (body.category) {
-        const [catRows] = await pool.query(
-          `SELECT id FROM inventory_categories WHERE name = ?`,
-          [body.category]
-        );
-        if ((catRows as any[]).length > 0) {
-          categoryId = (catRows as any[])[0].id;
-        } else {
-          // Optional: create category if it doesn't exist
-          // or return error
-          return NextResponse.json({ error: "Invalid category" }, { status: 400 });
-        }
-      }
+    const [categoryRows] = await pool.query(
+      "SELECT id FROM inventory_categories WHERE name = ?",
+      [category]
+    );
+    let categoryId = (categoryRows as any[])[0]?.id;
+
+    // If category doesn't exist, create it
+    if (!categoryId) {
+      const [insertCategory] = await pool.query(
+        "INSERT INTO inventory_categories (id, name, created_at) VALUES (UUID(), ?, NOW())",
+        [category]
+      );
+      const [newCategory] = await pool.query(
+        "SELECT id FROM inventory_categories WHERE name = ?",
+        [category]
+      );
+      categoryId = (newCategory as any[])[0].id;
+    }
 
     // Update editable fields (except name)
     const [result] = await pool.query(
@@ -131,6 +135,7 @@ export async function PUT(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    console.log("update-item error", error);
     if (error?.code === "ER_DUP_ENTRY") {
       const errorMessage = error?.sqlMessage || "";
       if (errorMessage.includes("name_UNIQUE")) {

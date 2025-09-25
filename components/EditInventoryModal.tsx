@@ -72,6 +72,33 @@ export function EditInventoryItemModal({
     standardLevel: "",
   });
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Handle mobile input focus
+  const handleMobileInputFocus = (inputId: string) => {
+    if (isMobile) {
+      setTimeout(() => {
+        const input = document.getElementById(inputId);
+        if (input) {
+          input.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      }, 300); // Delay to allow keyboard to open
+    }
+  };
 
   // Fetch full item details when modal opens
   useEffect(() => {
@@ -140,7 +167,7 @@ export function EditInventoryItemModal({
           <Pencil className="h-4 w-4 mr-1" /> Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto pb-20 md:pb-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
@@ -151,7 +178,7 @@ export function EditInventoryItemModal({
         {loading ? (
           <p className="p-4 text-center">Loading item details...</p>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className={`space-y-6 ${isMobile ? 'pb-32' : ''}`}>
             {/* Basic Information */}
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-gray-900 border-b pb-2">
@@ -263,7 +290,7 @@ export function EditInventoryItemModal({
             </div>
 
             {/* Inventory Levels */}
-            <div className="space-y-4">
+            <div className={`space-y-4 ${isMobile ? 'bg-gray-50 p-4 rounded-lg' : ''}`}>
               <h4 className="text-sm font-semibold text-gray-900 border-b pb-2">
                 Inventory Levels
               </h4>
@@ -300,7 +327,9 @@ export function EditInventoryItemModal({
                         standardLevel: e.target.value,
                       })
                     }
+                    onFocus={() => handleMobileInputFocus('standardLevel')}
                     required
+                    className="text-base" // Prevents zoom on iOS
                   />
                 </div>
                 <div className="space-y-2">
@@ -317,7 +346,9 @@ export function EditInventoryItemModal({
                         lowStockThreshold: e.target.value,
                       })
                     }
+                    onFocus={() => handleMobileInputFocus('lowStockThreshold')}
                     required
+                    className="text-base" // Prevents zoom on iOS
                   />
                 </div>
               </div>

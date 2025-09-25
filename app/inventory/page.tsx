@@ -197,6 +197,7 @@ export default function InventoryPage() {
 
       const data = await response.json();
       if (response.ok) {
+        setErrorMessage("");
         fetchInventory(currentPage, searchTerm, categoryFilter);
       } else {
         setErrorMessage(data.error || "Failed to add item");
