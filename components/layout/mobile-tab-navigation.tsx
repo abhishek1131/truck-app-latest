@@ -16,9 +16,9 @@ const technicianNavigation = [
 ]
 
 const adminNavigation = [
-  { name: "Admin Dashboard", href: "/admin", icon: Shield },
-  { name: "Fleet Management", href: "/admin/trucks", icon: Truck },
-  { name: "User Management", href: "/admin/users", icon: Users },
+  { name: "Dashboard", href: "/admin", icon: Shield },
+  { name: "Fleet", href: "/admin/trucks", icon: Truck },
+  { name: "Users", href: "/admin/users", icon: Users },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ]
@@ -29,9 +29,12 @@ export function MobileTabNavigation() {
   const navigation =
     user?.role === "admin" ? adminNavigation : technicianNavigation;
 
+  // Dynamic grid columns based on navigation items count
+  const gridCols = navigation.length === 5 ? "grid-cols-5" : "grid-cols-6";
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
-      <div className="grid grid-cols-6 h-20">
+      <div className={`grid ${gridCols} h-20`}>
         {navigation.map((item) => {
           const isActive =
             item.href === "/admin"
@@ -42,21 +45,25 @@ export function MobileTabNavigation() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center space-y-1 transition-colors duration-200",
+                "flex flex-col items-center justify-center space-y-1 transition-colors duration-200 px-1",
                 isActive ? "text-[#E3253D]" : "text-gray-500 active:text-gray-700",
               )}
             >
               <div className={cn("p-1 rounded-lg transition-all duration-200", isActive && "bg-[#E3253D]/10")}>
                 <item.icon
-                  className={cn("h-6 w-6 transition-all duration-200", isActive ? "text-[#E3253D]" : "text-gray-500")}
+                  className={cn("h-5 w-5 transition-all duration-200", isActive ? "text-[#E3253D]" : "text-gray-500")}
                 />
               </div>
               <span
                 className={cn(
-                  "text-[0.6rem] font-medium transition-colors duration-200 text-center", // Reduced font size to 0.6rem
+                  "text-[0.55rem] font-medium transition-colors duration-200 text-center leading-tight",
                   isActive ? "text-[#E3253D]" : "text-gray-500",
                 )}
-                style={{ maxWidth: "100%", padding: "0 2px" }} // Kept maxWidth and padding
+                style={{ 
+                  maxWidth: "100%", 
+                  wordBreak: "break-word",
+                  lineHeight: "1.1"
+                }}
               >
                 {item.name}
               </span>

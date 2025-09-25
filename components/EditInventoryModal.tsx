@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, Pencil, Info } from "lucide-react";
 import { useAuth } from "./auth-provider";
 import { fetchClient } from "@/lib/fetchClient";
@@ -20,6 +21,38 @@ interface EditInventoryItemModalProps {
   item: any; // minimal item info (contains internalId)
   onItemUpdated?: (updatedItem: any) => void;
 }
+
+// Categories and units data
+const categories = [
+  "Pipes",
+  "Fittings", 
+  "Valves",
+  "Tools",
+  "Hardware",
+  "Electrical",
+  "Gaskets & Seals",
+  "Adhesives",
+  "Fasteners",
+  "Safety Equipment",
+  "Measuring Tools",
+  "Cleaning Supplies",
+  "HVAC",
+  "Plumbing",
+  "Other",
+];
+
+const units = [
+  "pieces",
+  "feet", 
+  "inches",
+  "meters",
+  "boxes",
+  "rolls",
+  "bottles",
+  "tubes",
+  "sets",
+  "pairs"
+];
 
 export function EditInventoryItemModal({
   item,
@@ -140,25 +173,43 @@ export function EditInventoryItemModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="category">Category *</Label>
-                  <Input
-                    id="category"
+                  <Select
                     value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, category: value })
                     }
-                    required
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="unit">Unit *</Label>
-                  <Input
-                    id="unit"
+                  <Select
                     value={formData.unit}
-                    onChange={(e) =>
-                      setFormData({ ...formData, unit: e.target.value })
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, unit: value })
                     }
-                    required
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -254,7 +305,7 @@ export function EditInventoryItemModal({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lowStockThreshold">
-                    Low Stock Alert Level *
+                    LowStock Alert Level*
                   </Label>
                   <Input
                     id="lowStockThreshold"
