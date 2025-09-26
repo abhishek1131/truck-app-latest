@@ -330,16 +330,42 @@ export function UserDetailsModal({
                 )}
 
                 {activeTab === "trucks" && (
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-[#10294B]">
+                      <h3 className="text-base md:text-lg font-semibold text-[#10294B]">
                         Assigned Trucks ({trucks.length})
                       </h3>
                     </div>
                     {trucks.map((truck) => (
                       <Card key={truck.id} className="border-0 shadow-md">
-                        <CardContent className="p-3 sm:p-4">
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <CardContent className="p-3 md:p-4">
+                          {/* Mobile Layout */}
+                          <div className="block md:hidden space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Truck className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-sm truncate">
+                                  {truck.make} {truck.model}
+                                </h4>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {truck.truck_number}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${statusConfig[truck.status as keyof typeof statusConfig]?.color} text-xs`}
+                              >
+                                {statusConfig[truck.status as keyof typeof statusConfig]?.label}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">{truck.id}</Badge>
+                            </div>
+                          </div>
+
+                          {/* Desktop Layout */}
+                          <div className="hidden md:flex md:items-center md:justify-between md:gap-3">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                                 <Truck className="h-5 w-5 text-blue-600" />
@@ -353,7 +379,7 @@ export function UserDetailsModal({
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                            <div className="flex items-center gap-2">
                               <Badge
                                 className={
                                   statusConfig[
@@ -374,9 +400,9 @@ export function UserDetailsModal({
                       </Card>
                     ))}
                     {trucks.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <Truck className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>No trucks assigned to this user</p>
+                      <div className="text-center py-6 md:py-8 text-gray-500">
+                        <Truck className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm md:text-base">No trucks assigned to this user</p>
                       </div>
                     )}
                   </div>

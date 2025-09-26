@@ -167,10 +167,10 @@ export function EditInventoryItemModal({
           <Pencil className="h-4 w-4 mr-1" /> Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto pb-20 md:pb-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
+      <DialogContent className="w-[95vw] sm:w-[90vw] md:max-w-[600px] h-[90vh] sm:h-[85vh] md:max-h-[90vh] overflow-y-auto p-0 sm:p-6">
+        <DialogHeader className="px-3 sm:px-0 pt-3 sm:pt-0 flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Package className="h-4 w-4 sm:h-5 sm:w-5" />
             Edit Inventory Item
           </DialogTitle>
         </DialogHeader>
@@ -178,7 +178,7 @@ export function EditInventoryItemModal({
         {loading ? (
           <p className="p-4 text-center">Loading item details...</p>
         ) : (
-          <form onSubmit={handleSubmit} className={`space-y-6 ${isMobile ? 'pb-32' : ''}`}>
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 px-3 sm:px-0 flex-1 overflow-y-auto">
             {/* Basic Information */}
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-gray-900 border-b pb-2">
@@ -197,7 +197,7 @@ export function EditInventoryItemModal({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="category">Category *</Label>
                   <Select
@@ -240,7 +240,7 @@ export function EditInventoryItemModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="partNumber">Part Number</Label>
                   <Input
@@ -263,7 +263,7 @@ export function EditInventoryItemModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cost_price">Cost Price</Label>
                   <Input
@@ -314,57 +314,112 @@ export function EditInventoryItemModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="standardLevel">Standard Level *</Label>
-                  <Input
-                    id="standardLevel"
-                    type="number"
-                    value={formData.standardLevel}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        standardLevel: e.target.value,
-                      })
-                    }
-                    onFocus={() => handleMobileInputFocus('standardLevel')}
-                    required
-                    className="text-base" // Prevents zoom on iOS
-                  />
+              {/* Mobile Layout */}
+              <div className="block md:hidden space-y-4">
+                <div className="bg-white border rounded-lg p-4 shadow-sm">
+                  <div className="space-y-2">
+                    <Label htmlFor="standardLevel" className="text-sm font-medium text-gray-700">
+                      Standard Level *
+                    </Label>
+                    <Input
+                      id="standardLevel"
+                      type="number"
+                      placeholder="20"
+                      value={formData.standardLevel}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          standardLevel: e.target.value,
+                        })
+                      }
+                      onFocus={() => handleMobileInputFocus('standardLevel')}
+                      required
+                      className="text-base"
+                    />
+                    <p className="text-xs text-gray-500">Ideal quantity to maintain</p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lowStockThreshold">
-                    LowStock Alert Level*
-                  </Label>
-                  <Input
-                    id="lowStockThreshold"
-                    type="number"
-                    value={formData.lowStockThreshold}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        lowStockThreshold: e.target.value,
-                      })
-                    }
-                    onFocus={() => handleMobileInputFocus('lowStockThreshold')}
-                    required
-                    className="text-base" // Prevents zoom on iOS
-                  />
+                
+                <div className="bg-white border rounded-lg p-4 shadow-sm">
+                  <div className="space-y-2">
+                    <Label htmlFor="lowStockThreshold" className="text-sm font-medium text-gray-700">
+                      Low Stock Alert Level *
+                    </Label>
+                    <Input
+                      id="lowStockThreshold"
+                      type="number"
+                      placeholder="5"
+                      value={formData.lowStockThreshold}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          lowStockThreshold: e.target.value,
+                        })
+                      }
+                      onFocus={() => handleMobileInputFocus('lowStockThreshold')}
+                      required
+                      className="text-base"
+                    />
+                    <p className="text-xs text-gray-500">Minimum before urgent restock</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden md:block">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="standardLevel">Standard Level *</Label>
+                    <Input
+                      id="standardLevel"
+                      type="number"
+                      value={formData.standardLevel}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          standardLevel: e.target.value,
+                        })
+                      }
+                      onFocus={() => handleMobileInputFocus('standardLevel')}
+                      required
+                      className="text-base"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lowStockThreshold">
+                      LowStock Alert Level*
+                    </Label>
+                    <Input
+                      id="lowStockThreshold"
+                      type="number"
+                      value={formData.lowStockThreshold}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          lowStockThreshold: e.target.value,
+                        })
+                      }
+                      onFocus={() => handleMobileInputFocus('lowStockThreshold')}
+                      required
+                      className="text-base"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
+                className="w-full sm:w-auto order-2 sm:order-1"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-[#10294B] hover:bg-[#10294B]/90"
+                className="bg-[#10294B] hover:bg-[#10294B]/90 w-full sm:w-auto order-1 sm:order-2"
               >
                 Save Changes
               </Button>

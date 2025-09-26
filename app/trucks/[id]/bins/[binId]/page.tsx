@@ -526,26 +526,25 @@ export default function BinDetailPage() {
                             onChange={(e) =>
                               setEditQuantity(Number.parseInt(e.target.value) || 0)
                             }
-                            className="w-full h-8 text-center text-sm"
+                            className="w-full h-10 text-center text-base"
                             min="0"
+                            placeholder="Enter quantity"
                           />
-                          <div className="flex space-x-1">
+                          <div className="flex gap-2">
                             <Button
                               size="sm"
                               onClick={() => handleSaveEdit(item.id)}
-                              className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700"
+                              className="flex-1 h-9 text-sm bg-green-600 hover:bg-green-700"
                             >
-                              <Check className="h-3 w-3 mr-1" />
-                              Save
+                              <Check className="h-4 w-4 mr-1" />                              
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={handleCancelEdit}
-                              className="flex-1 h-7 text-xs"
+                              className="flex-1 h-9 text-sm"
                             >
-                              <X className="h-3 w-3 mr-1" />
-                              Cancel
+                              <X className="h-4 w-4 mr-1" />                              
                             </Button>
                           </div>
                         </div>

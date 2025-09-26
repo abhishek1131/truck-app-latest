@@ -193,11 +193,11 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
       }}
     >
       <DialogContent
-        className="flex flex-col overflow-hidden max-w-[95vw] sm:max-w-[1200px] min-w-[320px] h-[90vh] sm:h-[90vh]"
+        className="flex flex-col overflow-hidden p-0 max-w-[95vw] sm:max-w-[1200px] min-w-[320px] h-[90vh] sm:h-[90vh]"
       >
         <DialogHeader className="flex-shrink-0 px-4 py-3 sm:px-6 sm:py-4">
-          <DialogTitle className="text-xl sm:text-xl text-[#10294B]">
-            Order #{order.order_number}
+          <DialogTitle className="text-xl text-[#10294B]">
+            Order <span className="block sm:inline">#{order.order_number}</span>
           </DialogTitle>
           <DialogDescription className="text-sm sm:text-sm">
             Full order breakdown with all items and bin locations
@@ -252,9 +252,8 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                           </div>
                           <div className="flex flex-col gap-1.5">
                             <Badge
-                              className={`text-xs sm:text-xs ${
-                                statusConfig[status as keyof typeof statusConfig]?.color
-                              }`}
+                              className={`text-xs sm:text-xs ${statusConfig[status as keyof typeof statusConfig]?.color
+                                }`}
                             >
                               {status.charAt(0).toUpperCase() + status.slice(1)}
                             </Badge>

@@ -220,109 +220,190 @@ ${new Date().toLocaleString()}
   }
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-0 sm:p-6">
-        <DialogHeader className="px-4 sm:px-0 pt-4 sm:pt-0">
-          <DialogTitle className="text-lg sm:text-xl font-bold text-[#10294B] flex items-center gap-2">
-            <Package className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="truncate">Order Details - {order.orderId}</span>
+      <DialogContent className="w-[95vw] sm:w-[90vw] md:max-w-4xl h-[95vh] sm:h-[90vh] md:max-h-[85vh] overflow-y-auto p-0 sm:p-6">
+        <DialogHeader className="px-3 sm:px-0 pt-3 sm:pt-0 flex-shrink-0">
+          <DialogTitle className="text-base sm:text-xl font-bold text-[#10294B] flex flex-col items-start sm:items-center gap-1">
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="truncate">Order Details</span>
+            </div>
+            <span className="truncate">#{order.orderId}</span>
           </DialogTitle>
-          <DialogDescription className="text-sm">Complete order information and breakdown</DialogDescription>
+          <DialogDescription className="text-xs sm:text-sm">Complete order information and breakdown</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
+        <div className="space-y-3 sm:space-y-6 px-3 sm:px-0 flex-1 overflow-y-auto">
           {/* Order Header */}
           <Card className="mx-0">
-            <CardHeader className="pb-3 px-4 sm:px-6">
-              <div className="flex flex-col space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className={`${statusConfig[order.status.toLowerCase() as keyof typeof statusConfig]?.color} text-xs`}>
-                      <StatusIcon className="h-3 w-3 mr-1" />
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </Badge>
-                    {/* <Badge
-                      className={`${urgencyConfig[(order.urgency?.toLowerCase() || "normal") as keyof typeof urgencyConfig]?.color} text-xs`}
-                    >
-                      {(order.urgency || "Normal").toUpperCase()} Priority
-                    </Badge> */}
-                  </div>
+            <CardHeader className="pb-2 px-3 sm:px-6">
+              {/* Mobile Layout */}
+              <div className="block md:hidden space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <Badge className={`${statusConfig[order.status.toLowerCase() as keyof typeof statusConfig]?.color} text-xs`}>
+                    <StatusIcon className="h-3 w-3 mr-1" />
+                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                  </Badge>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="space-y-1 text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar className="h-4 w-4 flex-shrink-0" />
+                    <Calendar className="h-3 w-3 flex-shrink-0" />
                     <span className="truncate">Ordered: {new Date(order.date).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
-                    <Truck className="h-4 w-4 flex-shrink-0" />
+                    <Truck className="h-3 w-3 flex-shrink-0" />
                     <span className="truncate">Truck: {order.truckName}</span>
                   </div>
                 </div>
               </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden md:block">
+                <div className="flex flex-col space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className={`${statusConfig[order.status.toLowerCase() as keyof typeof statusConfig]?.color} text-xs`}>
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Calendar className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">Ordered: {new Date(order.date).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Truck className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">Truck: {order.truckName}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="pt-0 px-4 sm:px-6">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <Package className="h-5 w-5 sm:h-6 sm:w-6 text-[#10294B] mx-auto mb-1" />
-                  <div className="text-base sm:text-lg font-bold text-[#10294B]">{order.totalItems}</div>
-                  <p className="text-xs text-gray-600">Total Items</p>
+            <CardContent className="pt-0 px-3 sm:px-6">
+              {/* Mobile Layout */}
+              <div className="block md:hidden">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-center p-2 bg-blue-50 rounded-lg">
+                    <Package className="h-4 w-4 text-[#10294B] mx-auto mb-1" />
+                    <div className="text-sm font-bold text-[#10294B]">{order.totalItems}</div>
+                    <p className="text-xs text-gray-600">Total Items</p>
+                  </div>
+                  <div className="text-center p-2 bg-green-50 rounded-lg">
+                    <DollarSign className="h-4 w-4 text-green-600 mx-auto mb-1" />
+                    <div className="text-sm font-bold text-green-600">${orderValue.toFixed(2)}</div>
+                    <p className="text-xs text-gray-600">Order Value</p>
+                  </div>
+                  <div className="text-center p-2 bg-purple-50 rounded-lg">
+                    <DollarSign className="h-4 w-4 text-purple-600 mx-auto mb-1" />
+                    <div className="text-sm font-bold text-purple-600">${commission.toFixed(2)}</div>
+                    <p className="text-xs text-gray-600">Commission</p>
+                  </div>
+                  <div className="text-center p-2 bg-red-50 rounded-lg">
+                    <DollarSign className="h-4 w-4 text-[#E3253D] mx-auto mb-1" />
+                    <div className="text-sm font-bold text-[#E3253D]">${creditEarned.toFixed(2)}</div>
+                    <p className="text-xs text-gray-600">Credit Earned</p>
+                  </div>
                 </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 mx-auto mb-1" />
-                  <div className="text-base sm:text-lg font-bold text-green-600">${orderValue.toFixed(2)}</div>
-                  <p className="text-xs text-gray-600">Order Value</p>
-                </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 mx-auto mb-1" />
-                  <div className="text-base sm:text-lg font-bold text-purple-600">${commission.toFixed(2)}</div>
-                  <p className="text-xs text-gray-600">Commission</p>
-                </div>
-                <div className="text-center p-3 bg-red-50 rounded-lg">
-                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-[#E3253D] mx-auto mb-1" />
-                  <div className="text-base sm:text-lg font-bold text-[#E3253D]">${creditEarned.toFixed(2)}</div>
-                  <p className="text-xs text-gray-600">Credit Earned</p>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden md:block">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <Package className="h-5 w-5 sm:h-6 sm:w-6 text-[#10294B] mx-auto mb-1" />
+                    <div className="text-base sm:text-lg font-bold text-[#10294B]">{order.totalItems}</div>
+                    <p className="text-xs text-gray-600">Total Items</p>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 mx-auto mb-1" />
+                    <div className="text-base sm:text-lg font-bold text-green-600">${orderValue.toFixed(2)}</div>
+                    <p className="text-xs text-gray-600">Order Value</p>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-lg">
+                    <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 mx-auto mb-1" />
+                    <div className="text-base sm:text-lg font-bold text-purple-600">${commission.toFixed(2)}</div>
+                    <p className="text-xs text-gray-600">Commission</p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 rounded-lg">
+                    <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-[#E3253D] mx-auto mb-1" />
+                    <div className="text-base sm:text-lg font-bold text-[#E3253D]">${creditEarned.toFixed(2)}</div>
+                    <p className="text-xs text-gray-600">Credit Earned</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {!order.isStockItem ? ('') : 
-          (<div className="mx-0">
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm font-medium px-4 py-3 rounded-lg">
-              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-              The item from this order has been successfully updated in your inventory.
-            </div>
-          </div>)}
+          {!order.isStockItem ? ('') :
+            (<div className="mx-0">
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 sm:py-3 rounded-lg">
+                <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm">The item from this order has been successfully updated in your inventory.</span>
+              </div>
+            </div>)}
 
           {/* Technician Information */}
           <Card className="mx-0">
-            <CardHeader className="pb-3 px-4 sm:px-6">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <User className="h-4 w-4" />
+            <CardHeader className="pb-2 px-3 sm:px-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-lg">
+                <User className="h-3 w-3 sm:h-4 sm:w-4" />
                 Technician Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 sm:px-6">
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
-                <div className="w-12 h-12 sm:w-10 sm:h-10 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                  {order.technician.firstName
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+            <CardContent className="px-3 sm:px-6">
+              {/* Mobile Layout */}
+              <div className="block md:hidden space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    {order.technician.firstName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">{order.technician.firstName + " " + order.technician.lastName}</h3>
+                    <p className="text-gray-600 text-xs">{order.technician.role} Specialist</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm sm:text-base truncate">{order.technician.firstName + " " + order.technician.lastName}</h3>
-                  <p className="text-gray-600 text-xs sm:text-sm">{order.technician.role} Specialist</p>
-                  <div className="grid grid-cols-1 gap-1 mt-2">
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Mail className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{order.technician.email}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Mail className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{order.technician.email}</span>
+                  </div>
+                  {order.technician.phone && (
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Phone className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{order.technician.phone}</span>
                     </div>
-                    {order.technician.phone && (
+                  )}
+                </div>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden md:block">
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
+                  <div className="w-12 h-12 sm:w-10 sm:h-10 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    {order.technician.firstName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm sm:text-base truncate">{order.technician.firstName + " " + order.technician.lastName}</h3>
+                    <p className="text-gray-600 text-xs sm:text-sm">{order.technician.role} Specialist</p>
+                    <div className="grid grid-cols-1 gap-1 mt-2">
                       <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Phone className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{order.technician.phone}</span>
+                        <Mail className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{order.technician.email}</span>
                       </div>
-                    )}
+                      {order.technician.phone && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Phone className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{order.technician.phone}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -331,31 +412,40 @@ ${new Date().toLocaleString()}
 
           {/* Items Breakdown */}
           <Card className="mx-0">
-            <CardHeader className="px-4 sm:px-6">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-lg">
+                <Package className="h-3 w-3 sm:h-5 sm:w-5" />
                 Items Ordered ({order.items.length} items)
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 sm:px-6">
+            <CardContent className="px-3 sm:px-6">
               <div className="space-y-3 sm:space-y-4">
                 {order.items.map((item, index) => {
                   const unitCost = item.unitCost || 25
                   const totalCost = item.totalCost || item.requestedQuantity * unitCost
 
                   return (
-                    <div key={item.id} className="border rounded-lg p-3 sm:p-4 bg-gray-50">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                            <span className="font-semibold text-[#10294B] text-sm sm:text-base">
-                              {index + 1}. {item.inventoryItem.name}
-                            </span>
-                            <Badge variant="outline" className="text-xs w-fit">
-                              {item.inventoryItem.category}
-                            </Badge>
+                    <div key={item.id} className="border rounded-lg p-3 bg-gray-50">
+                      {/* Mobile Layout */}
+                      <div className="block md:hidden space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col gap-1 mb-2">
+                              <span className="font-semibold text-[#10294B] text-sm truncate">
+                                {index + 1}. {item.inventoryItem.name}
+                              </span>
+                              <Badge variant="outline" className="text-xs w-fit">
+                                {item.inventoryItem.category}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600 mb-2 space-y-1">
+                          <div className="text-right flex-shrink-0 ml-2">
+                            <div className="text-sm font-bold text-[#10294B]">${totalCost.toFixed(2)}</div>
+                            <div className="text-xs text-gray-500">{item.requestedQuantity} {item.inventoryItem.unit}</div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-xs text-gray-600 space-y-1">
                             <div>
                               <span className="font-medium">Part #:</span> {item.inventoryItem.part_number}
                             </div>
@@ -364,21 +454,56 @@ ${new Date().toLocaleString()}
                             </div>
                           </div>
                           {item.binName && (
-                            <div className="flex items-center gap-1 text-xs sm:text-sm text-blue-600 mb-2">
+                            <div className="flex items-center gap-1 text-xs text-blue-600">
                               <Grid3X3 className="h-3 w-3 flex-shrink-0" />
                               <span className="truncate">
                                 Bin: {item.binName} • Stock: {item.currentStock || "N/A"}
                               </span>
                             </div>
                           )}
-                          <div className="text-xs sm:text-sm text-gray-700">
+                          <div className="text-xs text-gray-700">
                             <span className="font-medium">Reason:</span> {item.reason}
                           </div>
                         </div>
-                        <div className="text-right sm:text-right flex-shrink-0">
-                          <div className="text-base sm:text-lg font-bold text-[#10294B]">${totalCost.toFixed(2)}</div>
-                          <div className="text-xs sm:text-sm text-gray-500">
-                            {item.requestedQuantity} {item.inventoryItem.unit} × ${unitCost.toFixed(2)}
+                      </div>
+
+                      {/* Desktop Layout */}
+                      <div className="hidden md:block">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                              <span className="font-semibold text-[#10294B] text-sm sm:text-base">
+                                {index + 1}. {item.inventoryItem.name}
+                              </span>
+                              <Badge variant="outline" className="text-xs w-fit">
+                                {item.inventoryItem.category}
+                              </Badge>
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600 mb-2 space-y-1">
+                              <div>
+                                <span className="font-medium">Part #:</span> {item.inventoryItem.part_number}
+                              </div>
+                              <div>
+                                <span className="font-medium">Unit:</span> {item.inventoryItem.unit}
+                              </div>
+                            </div>
+                            {item.binName && (
+                              <div className="flex items-center gap-1 text-xs sm:text-sm text-blue-600 mb-2">
+                                <Grid3X3 className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">
+                                  Bin: {item.binName} • Stock: {item.currentStock || "N/A"}
+                                </span>
+                              </div>
+                            )}
+                            <div className="text-xs sm:text-sm text-gray-700">
+                              <span className="font-medium">Reason:</span> {item.reason}
+                            </div>
+                          </div>
+                          <div className="text-right sm:text-right flex-shrink-0">
+                            <div className="text-base sm:text-lg font-bold text-[#10294B]">${totalCost.toFixed(2)}</div>
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              {item.requestedQuantity} {item.inventoryItem.unit} × ${unitCost.toFixed(2)}
+                            </div>
                           </div>
                         </div>
                       </div>

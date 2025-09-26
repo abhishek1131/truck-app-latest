@@ -383,7 +383,7 @@ export default function InventoryPage() {
                             {item.name}
                           </h3>
                           <p className="text-gray-600 text-sm sm:text-base truncate">
-                            ID: {item.id}
+                            {item.id}
                           </p>
                           <p className="text-gray-500 text-sm sm:text-base truncate">
                             {item.notes}
@@ -415,9 +415,11 @@ export default function InventoryPage() {
 
                       {/* Right section */}
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 md:mt-0 w-full md:w-auto">
+                      {item.category && (
                         <Badge variant="outline" className="bg-blue-50 text-blue-700">
                           {item.category}
                         </Badge>
+                      )}
                         {item.assigned && Number(item.totalQuantity) < item.lowStockThreshold && (
                           <Badge className="bg-red-100 text-red-800">Low Stock</Badge>
                         )}

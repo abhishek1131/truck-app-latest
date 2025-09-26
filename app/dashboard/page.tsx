@@ -223,58 +223,103 @@ export default function DashboardPage() {
 
           {/* Recent Orders */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <ShoppingCart className="h-5 w-5 text-[#E3253D]" />
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                    <ShoppingCart className="h-4 w-4 md:h-5 md:w-5 text-[#E3253D]" />
                     Recent Orders
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-xs md:text-sm">
                     Your latest inventory orders
                   </CardDescription>
                 </div>
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="text-xs md:text-sm flex-shrink-0">
                   <Link href="/orders">View All</Link>
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 md:space-y-4">
               {recentOrders.map((order: any) => (
                 <div
                   key={order.id}
-                  className="flex items-center justify-between p-3 md:p-4 border rounded-lg"
+                  className="border rounded-lg p-3 md:p-4"
                 >
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-[#10294B] text-sm md:text-base">
-                        Order {order.id}
-                      </h4>
-                      <Badge variant="outline" className="text-xs">
-                        {order.type}
-                      </Badge>
+                  {/* Mobile Layout */}
+                  <div className="block md:hidden space-y-3">
+                    {/* Header Row */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-[#10294B] text-sm truncate">
+                          Order {order.id}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {order.type}
+                          </Badge>
+                          <Badge
+                            className={
+                              order.status === "completed"
+                                ? "bg-green-100 text-green-800 text-xs"
+                                : "bg-yellow-100 text-yellow-800 text-xs"
+                            }
+                          >
+                            {order.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-semibold text-green-600">
+                          +${order.commission}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs md:text-sm text-gray-600">
-                      {order.items} items • {order.truck}
-                    </p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                      <Calendar className="h-3 w-3" />
-                      {order.date}
-                    </p>
+                    
+                    {/* Details Row */}
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-600">
+                        {order.items} items • {order.truck}
+                      </p>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                        {order.date}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <Badge
-                      className={
-                        order.status === "completed"
-                          ? "bg-green-100 text-green-800 mb-2 text-xs"
-                          : "bg-yellow-100 text-yellow-800 mb-2 text-xs"
-                      }
-                    >
-                      {order.status}
-                    </Badge>
-                    <p className="text-sm font-semibold text-green-600">
-                      +${order.commission}
-                    </p>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden md:flex md:items-center md:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold text-[#10294B] text-base">
+                          Order {order.id}
+                        </h4>
+                        <Badge variant="outline" className="text-xs">
+                          {order.type}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {order.items} items • {order.truck}
+                      </p>
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                        <Calendar className="h-3 w-3" />
+                        {order.date}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge
+                        className={
+                          order.status === "completed"
+                            ? "bg-green-100 text-green-800 mb-2 text-xs"
+                            : "bg-yellow-100 text-yellow-800 mb-2 text-xs"
+                        }
+                      >
+                        {order.status}
+                      </Badge>
+                      <p className="text-sm font-semibold text-green-600">
+                        +${order.commission}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}

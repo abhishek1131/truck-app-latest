@@ -124,9 +124,13 @@ export function Header({ title, subtitle }: HeaderProps) {
             />
           </div> */}
 
-          <Link href="/settings" className="md:hidden">
-            <Button variant="ghost" size="sm" className="p-2 h-8 w-8">
-              <Settings className="h-4 w-4" />
+          <Link href="/settings">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-2 h-8 w-8 md:h-auto md:w-auto md:px-3 cursor-pointer"
+            >
+              <Settings className="h-4 w-4 md:mr-2" />
             </Button>
           </Link>
 
