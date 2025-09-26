@@ -719,29 +719,67 @@ export default function AdminOrdersPage() {
 
         {/* Pagination */}
         {orders.length > 0 && (
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-sm text-gray-600">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-              {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
-              of {pagination.total} orders
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-4">
+            {/* Mobile Layout */}
+            <div className="block sm:hidden">
+              {/* Page Info */}
+              <div className="text-center mb-3">
+                <div className="text-sm font-medium text-gray-700">
+                  Page {pagination.page} of {pagination.pages}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {pagination.total} total orders
+                </div>
+              </div>
+              
+              {/* Pagination Buttons */}
+              <div className="flex items-center justify-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === 1 || isLoading}
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  className="text-xs px-3"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === pagination.pages || isLoading}
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  className="text-xs px-3"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pagination.page === 1 || isLoading}
-                onClick={() => handlePageChange(pagination.page - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pagination.page === pagination.pages || isLoading}
-                onClick={() => handlePageChange(pagination.page + 1)}
-              >
-                Next
-              </Button>
+
+            {/* Desktop Layout */}
+            <div className="hidden sm:flex sm:justify-between sm:items-center w-full">
+              <div className="text-sm text-gray-600">
+                Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+                of {pagination.total} orders
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === 1 || isLoading}
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === pagination.pages || isLoading}
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
         )}

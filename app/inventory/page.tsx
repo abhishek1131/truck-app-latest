@@ -452,28 +452,41 @@ export default function InventoryPage() {
             {/* Pagination Controls */}
             {totalPages > 1 && !isLoading && (
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
+                <CardContent className="p-3 md:p-4">
+                  {/* Mobile Layout */}
+                  <div className="block md:hidden">
+                    {/* Page Info */}
+                    <div className="text-center mb-4">
+                      <div className="text-sm font-medium text-gray-700">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {totalItems} total items
+                      </div>
+                    </div>
+                    
+                    {/* Pagination Buttons */}
+                    <div className="flex items-center justify-center space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handlePreviousPage}
                         disabled={!hasPreviousPage || isLoading}
+                        className="text-xs px-3"
                       >
                         Previous
                       </Button>
                       <div className="flex items-center space-x-1">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                           let pageNum;
-                          if (totalPages <= 5) {
+                          if (totalPages <= 3) {
                             pageNum = i + 1;
-                          } else if (currentPage <= 3) {
+                          } else if (currentPage <= 2) {
                             pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
+                          } else if (currentPage >= totalPages - 1) {
+                            pageNum = totalPages - 2 + i;
                           } else {
-                            pageNum = currentPage - 2 + i;
+                            pageNum = currentPage - 1 + i;
                           }
 
                           return (
@@ -483,7 +496,7 @@ export default function InventoryPage() {
                               size="sm"
                               onClick={() => handlePageClick(pageNum)}
                               disabled={isLoading}
-                              className="w-8 h-8 p-0"
+                              className="w-8 h-8 p-0 text-xs"
                             >
                               {pageNum}
                             </Button>
@@ -495,12 +508,64 @@ export default function InventoryPage() {
                         size="sm"
                         onClick={handleNextPage}
                         disabled={!hasNextPage || isLoading}
+                        className="text-xs px-3"
                       >
                         Next
                       </Button>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      Page {currentPage} of {totalPages} • {totalItems} total items
+                  </div>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden md:block">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePreviousPage}
+                          disabled={!hasPreviousPage || isLoading}
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center space-x-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={currentPage === pageNum ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handlePageClick(pageNum)}
+                                disabled={isLoading}
+                                className="w-8 h-8 p-0"
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNextPage}
+                          disabled={!hasNextPage || isLoading}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Page {currentPage} of {totalPages} • {totalItems} total items
+                      </div>
                     </div>
                   </div>
                 </CardContent>

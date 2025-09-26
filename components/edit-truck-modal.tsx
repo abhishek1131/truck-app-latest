@@ -46,16 +46,16 @@ export function EditTruckDialog({
   });
 
   const truckModels = [
-    "Ford Transit 150",
-    "Ford Transit 250",
-    "Ford Transit 350",
-    "Chevrolet Express 2500",
-    "Chevrolet Express 3500",
-    "Ram ProMaster 1500",
-    "Ram ProMaster 2500",
-    "Ram ProMaster 3500",
-    "Mercedes Sprinter 2500",
-    "Mercedes Sprinter 3500",
+    "Transit 150",
+    "Transit 250",
+    "Transit 350",
+    "Express 2500",
+    "Express 3500",
+    "ProMaster 1500",
+    "ProMaster 2500",
+    "ProMaster 3500",
+    "Sprinter 2500",
+    "Sprinter 3500",
   ];
 
   const locations = [
@@ -69,6 +69,7 @@ export function EditTruckDialog({
     "Unassigned",
   ];
 
+  console.log("truck", truck)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -209,10 +210,9 @@ export function EditTruckDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Available">Available</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Maintenance">Maintenance</SelectItem>
-                  <SelectItem value="Out of Service">Out of Service</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -8,6 +8,7 @@ interface TruckDetailResponse {
   data?: {
     id: string;
     truck_number: string;
+    description: string;
     make: string;
     model: string;
     year: number;
@@ -44,9 +45,12 @@ interface TruckDetailResponse {
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params before using
+    const { id } = await params;
+    
     // Verify JWT token
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -91,7 +95,7 @@ export async function GET(
     const [truckRows] = await pool.query(
       `
       SELECT 
-        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.vin, t.status, t.location, t.mileage,t.order_approval,
+        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.description, t.vin, t.status, t.location, t.mileage,t.order_approval,
         u.id AS technician_id, u.first_name, u.last_name, u.email,
         (SELECT COUNT(*) FROM truck_bins tb WHERE tb.truck_id = t.id) AS bins,
         (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS totalItems,
@@ -103,17 +107,17 @@ export async function GET(
       LEFT JOIN users u ON t.assigned_to = u.id
       WHERE t.id = ?
       `,
-      [params.id]
+      [id]
     );
 
-    if (!truckRows.length) {
+    if (!(truckRows as any[]).length) {
       return NextResponse.json(
         { success: false, error: "Truck not found", code: "NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    const truck = truckRows[0];
+    const truck = (truckRows as any[])[0];
 
     const [orders] = await pool.query(
       `
@@ -121,8 +125,8 @@ export async function GET(
       FROM orders
       WHERE truck_id = ?
       `,
-      [params.id]
-    );
+      [id]
+    ) as any[];
 
     const [bins] = await pool.query(
       `
@@ -130,8 +134,8 @@ export async function GET(
       FROM truck_bins
       WHERE truck_id = ?
       `,
-      [params.id]
-    );
+      [id]
+    ) as any[];
 
     const [inventory] = await pool.query(
       `
@@ -144,8 +148,8 @@ export async function GET(
       JOIN truck_bins tb ON ti.bin_id = tb.id
       WHERE ti.truck_id = ?
       `,
-      [params.id]
-    );
+      [id]
+    ) as any[];
 
     const response: TruckDetailResponse = {
       success: true,
@@ -156,6 +160,7 @@ export async function GET(
         model: truck.model,
         year: truck.year,
         license_plate: truck.license_plate,
+        description: truck.description,
         vin: truck.vin,
         status: truck.status,
         location: truck.location,
@@ -193,9 +198,12 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params before using
+    const { id } = await params;
+    
     // Verify JWT token
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -237,7 +245,7 @@ export async function PUT(
       );
     }
 
-    const body = await req.json();
+    const body = await req.json();    
     const {
       truck_number,
       make,
@@ -247,16 +255,37 @@ export async function PUT(
       vin,
       location,
       status,
+      name,
+      description,
       assigned_to,
+      assigned_technician,
       mileage,
       order_approval
     } = body;
+
+    // Handle assigned_technician field - use assigned_technician.id if available, otherwise use assigned_to
+    const assignedToId = assigned_technician?.id || assigned_to;
+
+    // Validate status value to match database enum
+    const validStatuses = ['active', 'maintenance', 'inactive'];
+    const normalizedStatus = status?.toLowerCase();
+    if (normalizedStatus && !validStatuses.includes(normalizedStatus)) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`, 
+          code: "INVALID_STATUS" 
+        },
+        { status: 400 }
+      );
+    }
 
     const [result] = await pool.query(
       `
       UPDATE trucks
       SET 
-        truck_number = ?,
+        truck_number = ?,        
+        description = ?,
         make = ?,
         model = ?,
         year = ?,
@@ -271,22 +300,23 @@ export async function PUT(
       WHERE id = ?
       `,
       [
-        truck_number,
+        name || truck_number,
+        description,
         make,
         model,
         year,
         license_plate,
         vin,
         location,
-        status,
-        assigned_to || null,
+        normalizedStatus || 'active',
+        assignedToId || null,
         mileage,
         order_approval === undefined ? false : order_approval,
-        params.id,
+        id,
       ]
     );
 
-    if (result.affectedRows === 0) {
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         { success: false, error: "Truck not found", code: "NOT_FOUND" },
         { status: 404 }
@@ -302,12 +332,12 @@ export async function PUT(
       LEFT JOIN users u ON t.assigned_to = u.id
       WHERE t.id = ?
       `,
-      [params.id]
+      [id]
     );
 
     return NextResponse.json({
       success: true,
-      data: updatedTruck[0],
+      data: (updatedTruck as any[])[0],
     });
   } catch (error) {
     console.error("Update truck error:", error);
@@ -320,9 +350,12 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params before using
+    const { id } = await params;
+    
     // Verify JWT token
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -369,10 +402,10 @@ export async function DELETE(
       DELETE FROM trucks
       WHERE id = ?
       `,
-      [params.id]
+      [id]
     );
 
-    if (result.affectedRows === 0) {
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         { success: false, error: "Truck not found", code: "NOT_FOUND" },
         { status: 404 }

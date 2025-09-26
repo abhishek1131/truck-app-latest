@@ -166,7 +166,6 @@ export function UserDetailsModal({
       fetchData();
     }
   }, [isOpen, user.id, token, user.assigned_trucks]);
-console.log("orders",orders);
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto sm:max-w-[90%] sm:max-h-[85vh] p-0 sm:p-6">
@@ -384,9 +383,9 @@ console.log("orders",orders);
                 )}
 
                 {activeTab === "orders" && (
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-[#10294B]">
+                      <h3 className="text-base md:text-lg font-semibold text-[#10294B]">
                         Order History ({orders.length})
                       </h3>
                     </div>
@@ -396,14 +395,14 @@ console.log("orders",orders);
                         const StatusIcon = (statusInfo as any)?.icon || Clock;
                         return (
                           <Card key={order.id} className="border-0 shadow-md">
-                            <CardContent className="p-3 sm:p-4">
+                            <CardContent className="p-3 md:p-4">
                               {/* Mobile Layout */}
-                              <div className="block sm:hidden space-y-3">
+                              <div className="block md:hidden space-y-3">
                                 {/* Header Row */}
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-start gap-2 flex-1 min-w-0">
-                                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                      <Package className="h-4 w-4 text-green-600" />
+                                    <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <Package className="h-3 w-3 text-green-600" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <h4 className="font-semibold text-sm truncate">
@@ -414,37 +413,44 @@ console.log("orders",orders);
                                       </p>
                                     </div>
                                   </div>
-                                  <Badge className={`${statusInfo?.color} text-xs`}>
-                                    {StatusIcon && (
+                                  <Badge className={`${statusInfo?.color} text-xs px-2 py-1`}>
+                                    {/* {StatusIcon && (
                                       <StatusIcon className="h-3 w-3 mr-1" />
                                     )}
-                                    {statusInfo?.label || order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                    <span className="hidden xs:inline">
+                                      {statusInfo?.label || order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                    </span> */}
+                                    <span className="xs:hidden">
+                                      {order.status}
+                                    </span>
                                   </Badge>
                                 </div>
 
                                 {/* Details Row */}
                                 <div className="space-y-2">
-                                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                                    <span className="flex items-center gap-1">
+                                  <div className="flex flex-col gap-2 text-xs text-gray-500">
+                                    <div className="flex items-center gap-2">
                                       <Calendar className="h-3 w-3 flex-shrink-0" />
-                                      {new Date(order.date).toLocaleDateString()}
-                                    </span>
-                                    <span className="flex items-center gap-1">
+                                      <span>{new Date(order.date).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
                                       <Truck className="h-3 w-3 flex-shrink-0" />
-                                      {order.truckName}
-                                    </span>
+                                      <span className="truncate">{order.truckName}</span>
+                                    </div>
                                   </div>
                                   
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex flex-wrap gap-1">
-                                      <Badge variant="outline" className="text-xs">
-                                        {order.technician.firstName} {order.technician.lastName}
-                                      </Badge>
-                                      {order.items[0]?.inventoryItem?.category && (
-                                        <Badge variant="outline" className="text-xs">
-                                          {order.items[0].inventoryItem.category}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap gap-1">
+                                        <Badge variant="outline" className="text-xs px-2 py-1">
+                                          {order.technician.firstName} {order.technician.lastName}
                                         </Badge>
-                                      )}
+                                        {order.items[0]?.inventoryItem?.category && (
+                                          <Badge variant="outline" className="text-xs px-2 py-1">
+                                            {order.items[0].inventoryItem.category}
+                                          </Badge>
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="text-right">
                                       <p className="font-semibold text-sm">
@@ -458,7 +464,7 @@ console.log("orders",orders);
 
                                   {order.items[0]?.reason && (
                                     <div className="bg-gray-50 rounded p-2">
-                                      <p className="text-xs text-gray-600">
+                                      <p className="text-xs text-gray-600 line-clamp-2">
                                         <span className="font-medium">Reason:</span> {order.items[0].reason}
                                       </p>
                                     </div>
@@ -467,7 +473,7 @@ console.log("orders",orders);
                               </div>
 
                               {/* Desktop Layout */}
-                              <div className="hidden sm:flex items-start justify-between gap-3">
+                              <div className="hidden md:flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-3">
                                   <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                                     <Package className="h-5 w-5 text-green-600" />
@@ -528,9 +534,9 @@ console.log("orders",orders);
                         );
                       })}
                     {orders.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>No orders found for this user</p>
+                      <div className="text-center py-6 md:py-8 text-gray-500">
+                        <ShoppingCart className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm md:text-base">No orders found for this user</p>
                       </div>
                     )}
                   </div>

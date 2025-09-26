@@ -18,6 +18,7 @@ import { useAuth } from "@/components/auth-provider";
 
 interface SelectInventoryItemModalProps {
   truckId: string;
+  truckName: string;
   binId: string;
   onItemSelected?: (item: any, quantity: number) => void;
   isDisabled?: boolean;
@@ -27,6 +28,7 @@ interface SelectInventoryItemModalProps {
 
 export function SelectInventoryItemModal({
   truckId,
+  truckName,
   binId,
   onItemSelected,
   isDisabled = false,
@@ -114,7 +116,7 @@ export function SelectInventoryItemModal({
             <Package className="h-5 w-5" />
             Add Item to Bin
             <span className="text-sm font-normal text-gray-500">
-              - Truck #{truckId.padStart(3, "0")} • {currentItems}/{maxCapacity}{" "}
+              - Truck #{truckName} • {currentItems}/{maxCapacity}{" "}
               items
             </span>
           </DialogTitle>

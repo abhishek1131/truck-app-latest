@@ -13,6 +13,7 @@ interface TruckResponse {
       model: string;
       year: number;
       license_plate: string;
+      description: string;
       vin: string;
       status: "active" | "maintenance" | "inactive";
       location: string | null;
@@ -84,7 +85,7 @@ export async function GET(req: Request) {
 
     let query = `
       SELECT 
-        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.vin, t.status, t.location, t.mileage, t.next_maintenance, t.order_approval,
+        t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.description, t.vin, t.status, t.location, t.mileage, t.next_maintenance, t.order_approval,
         u.id AS technician_id, u.first_name, u.last_name, u.email,
         (SELECT COUNT(*) FROM truck_bins tb WHERE tb.truck_id = t.id) AS bins,
         (SELECT SUM(ti.quantity) FROM truck_inventory ti WHERE ti.truck_id = t.id) AS totalItems,
@@ -131,6 +132,7 @@ export async function GET(req: Request) {
       model: row.model,
       year: row.year,
       license_plate: row.license_plate,
+      description: row.description,
       vin: row.vin,
       status: row.status,
       location: row.location,

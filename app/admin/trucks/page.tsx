@@ -45,6 +45,7 @@ interface Truck {
   truck_number: string;
   location: string | null;
   status: "active" | "maintenance" | "inactive";
+  description: string;
   totalItems: number;
   lowStockItems: number;
   bins: number;
@@ -237,16 +238,13 @@ export default function AdminTrucksPage() {
       });
       const result = await response.json();
       await fetchTrucks();
-      await fetchTrucks();
-      console.log("result", result)
-      await fetchTrucks();
-      console.log("result", result)
       if (result.success) {
         const newTruck: Truck = {
           id: result.data.id,
           truck_number: truckData.truck_number,
           location: truckData.location || null,
           status: truckData.status || "active",
+          description: truckData.description || "",
           totalItems: 0,
           lowStockItems: 0,
           bins: 0,
@@ -262,6 +260,8 @@ export default function AdminTrucksPage() {
         };
         setTrucks((prev) => [...prev, newTruck]);
         setShowCreateDialog(false);
+        setCreateError(null);
+        await fetchTrucks();
       } else {
         setCreateError(result.error || "Failed to create truck");
         setShowCreateDialog(false);
@@ -279,6 +279,7 @@ export default function AdminTrucksPage() {
     setSelectedTruck({
       ...truck,
       name: truck.truck_number,
+      description: truck.description,
       assignedTechnician: truck.assigned_technician
         ? `${truck.assigned_technician.first_name} ${truck.assigned_technician.last_name}`
         : null,
@@ -294,8 +295,9 @@ export default function AdminTrucksPage() {
     setSelectedTruck({
       ...truck,
       name: truck.truck_number,
+      description: truck.description,
       licensePlate: truck.license_plate,
-    });
+    }); 
     setShowEditDialog(true);
     setDropdownKey((prev) => prev + 1);
   }, []);
@@ -322,6 +324,7 @@ export default function AdminTrucksPage() {
   };
 
   const handleDialogClose = useCallback(() => {
+    fetchTrucks();
     setShowAssignDialog(false);
     setShowEditDialog(false);
     setShowCreateDialog(false);

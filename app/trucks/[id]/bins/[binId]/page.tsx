@@ -234,7 +234,7 @@ export default function BinDetailPage() {
   const totalItems = binItems.length;
   const maxCapacity = bin.maxCapacity ?? 10;
   const isAddDisabled = totalItems >= maxCapacity;
-  const categories = [...new Set(binItems.map((item: any) => item.category))];
+  const categories = [...new Set(binItems.map((item: any) => item.category).filter(category => category && category.trim() !== ""))];
   const lowStockCount = lowStockItems.length;
   const lastUpdated = binItems.length > 0
     ? new Date(binItems[0].lastRestocked).toLocaleDateString('en-US', {
@@ -352,6 +352,7 @@ export default function BinDetailPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               <SelectInventoryItemModal
                 truckId={truckId}
+                truckName={bin.truckNumber}
                 binId={binId}
                 onItemSelected={handleItemSelected}
                 isDisabled={isAddDisabled}
@@ -453,170 +454,324 @@ export default function BinDetailPage() {
         )} */}
 
         {/* Items List */}
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {filteredItems.map((item: any) => (
             <Card
               key={item.id}
-              className={`hover:shadow-lg transition-shadow ${item.isLowStock ? "border-red-200" : ""
+              className={`hover:shadow-lg transition-shadow ${item.isLowStock ? "border-red-200 bg-red-50/30" : ""
                 }`}
             >
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Left: Icon + Info */}
-                  <div className="flex items-center space-x-4 min-w-0">
-                    <div
-                      className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center shrink-0 ${item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
-                        }`}
-                    >
-                      <Package
-                        className={`h-6 w-6 md:h-8 md:w-8 ${item.isLowStock ? "text-red-600" : "text-white"
+              <CardContent className="p-3 md:p-6">
+                {/* Mobile Layout */}
+                <div className="block md:hidden">
+                  {/* Header with Icon and Title */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
                           }`}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
-                        {item.name}
-                      </h3>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        <Badge variant="secondary" className="text-xs truncate">
-                          {item.category}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs truncate">
-                          ID: {item.inventoryItemId}
-                        </Badge>
-                        {item.isLowStock && (
-                          <Badge variant="destructive" className="text-xs">
-                            Below Low Stock Threshold
+                      >
+                        <Package
+                          className={`h-5 w-5 ${item.isLowStock ? "text-red-600" : "text-white"
+                            }`}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-semibold text-gray-900 truncate">
+                          {item.name}
+                        </h3>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {item.category}
                           </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1 truncate">
-                        Last restocked{" "}
-                        {new Date(item.lastRestocked).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: Stock + Actions */}
-                  <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-6 w-full md:w-auto">
-                    <div className="flex space-x-6 w-full md:w-auto justify-between md:justify-start">
-                      {/* Current */}
-                      <div className="text-center">
-                        {editingItem === item.id ? (
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              value={editQuantity}
-                              onChange={(e) =>
-                                setEditQuantity(Number.parseInt(e.target.value) || 0)
-                              }
-                              className="w-16 h-8 text-center"
-                              min="0"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => handleSaveEdit(item.id)}
-                              className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700"
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={handleCancelEdit}
-                              className="h-8 w-8 p-0 bg-transparent"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <p
-                              className={`text-lg md:text-xl font-bold ${item.isLowStock ? "text-red-600" : "text-gray-900"
-                                }`}
-                            >
-                              {item.currentStock}
-                            </p>
-                            <p className="text-xs text-gray-500">Current</p>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Low Stock Threshold (NEW) */}
-                      <div className="text-center">
-                        <p className="text-lg md:text-xl font-bold text-orange-600">
-                          {item.lowStockThreshold || 0}
-                        </p>
-                        <p className="text-xs text-gray-500">Low Threshold</p>
-                      </div>
-
-                      {/* Standard */}
-                      <div className="text-center">
-                        <p className="text-lg md:text-xl font-bold text-blue-600">
-                          {item.standardLevel}
-                        </p>
-                        <p className="text-xs text-gray-500">Standard</p>
-                      </div>
-
-                      {/* Total */}
-                      <div className="text-center">
-                        <p className="text-lg md:text-xl font-bold text-green-600">
-                          {item.totalQuantity || 0}
-                        </p>
-                        <p className="text-xs text-gray-500">Total</p>
+                          {item.isLowStock ? <Badge variant="destructive" className="text-xs">
+                              Low Stock
+                            </Badge> : null}
+                        </div>
                       </div>
                     </div>
-
+                    
                     {/* Action buttons */}
                     {editingItem !== item.id && (
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-1 shrink-0">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleEditClick(item)}
+                          className="h-8 w-8 p-0"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3" />
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteItem(item.id)}
-                          className="text-red-600 hover:text-red-700 bg-transparent"
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 bg-transparent"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     )}
                   </div>
 
+                  {/* Stock Information Grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    {/* Current Stock */}
+                    <div className="bg-white rounded-lg p-3 border">
+                      {editingItem === item.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            type="number"
+                            value={editQuantity}
+                            onChange={(e) =>
+                              setEditQuantity(Number.parseInt(e.target.value) || 0)
+                            }
+                            className="w-full h-8 text-center text-sm"
+                            min="0"
+                          />
+                          <div className="flex space-x-1">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveEdit(item.id)}
+                              className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancelEdit}
+                              className="flex-1 h-7 text-xs"
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className={`text-lg font-bold ${item.isLowStock ? "text-red-600" : "text-gray-900"}`}>
+                            {item.currentStock}
+                          </p>
+                          <p className="text-xs text-gray-500">Current Stock</p>
+                        </>
+                      )}
+                    </div>
 
+                    {/* Low Stock Threshold */}
+                    <div className="bg-white rounded-lg p-3 border">
+                      <p className="text-lg font-bold text-orange-600">
+                        {item.lowStockThreshold || 0}
+                      </p>
+                      <p className="text-xs text-gray-500">Low Threshold</p>
+                    </div>
+
+                    {/* Standard Level */}
+                    <div className="bg-white rounded-lg p-3 border">
+                      <p className="text-lg font-bold text-blue-600">
+                        {item.standardLevel}
+                      </p>
+                      <p className="text-xs text-gray-500">Standard</p>
+                    </div>
+
+                    {/* Total Quantity */}
+                    <div className="bg-white rounded-lg p-3 border">
+                      <p className="text-lg font-bold text-green-600">
+                        {item.totalQuantity || 0}
+                      </p>
+                      <p className="text-xs text-gray-500">Total</p>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Stock Level</span>
+                      <span>
+                        {item.totalQuantity} / {item.lowStockThreshold} {item.unit}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${item.isLowStock ? "bg-red-500" : "bg-green-500"
+                          }`}
+                        style={{
+                          width: `${Math.min(
+                            (item.totalQuantity / item.lowStockThreshold) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Last Restocked */}
+                  <p className="text-xs text-gray-400">
+                    Last restocked: {new Date(item.lastRestocked).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
                 </div>
 
-                {/* Stock Level Progress Bar */}
-                <div className="mt-4">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Total Stock Level vs Low Stock Threshold</span>
-                    <span>
-                      {item.totalQuantity} / {item.lowStockThreshold} {item.unit}
-                    </span>
+                {/* Desktop Layout */}
+                <div className="hidden md:block">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    {/* Left: Icon + Info */}
+                    <div className="flex items-center space-x-4 min-w-0">
+                      <div
+                        className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center shrink-0 ${item.isLowStock ? "bg-red-100" : "bg-[#10294B]"
+                          }`}
+                      >
+                        <Package
+                          className={`h-6 w-6 md:h-8 md:w-8 ${item.isLowStock ? "text-red-600" : "text-white"
+                            }`}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
+                          {item.name}
+                        </h3>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <Badge variant="secondary" className="text-xs truncate">
+                            {item.category}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs truncate">
+                            ID: {item.inventoryItemId}
+                          </Badge>
+                          {item.isLowStock ? <Badge variant="destructive" className="text-xs">
+                              Below Low Stock Threshold
+                            </Badge> : null}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 truncate">
+                          Last restocked{" "}
+                          {new Date(item.lastRestocked).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right: Stock + Actions */}
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-6 w-full md:w-auto">
+                      <div className="flex space-x-6 w-full md:w-auto justify-between md:justify-start">
+                        {/* Current */}
+                        <div className="text-center">
+                          {editingItem === item.id ? (
+                            <div className="flex items-center space-x-2">
+                              <Input
+                                type="number"
+                                value={editQuantity}
+                                onChange={(e) =>
+                                  setEditQuantity(Number.parseInt(e.target.value) || 0)
+                                }
+                                className="w-16 h-8 text-center"
+                                min="0"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveEdit(item.id)}
+                                className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleCancelEdit}
+                                className="h-8 w-8 p-0 bg-transparent"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <p
+                                className={`text-lg md:text-xl font-bold ${item.isLowStock ? "text-red-600" : "text-gray-900"
+                                  }`}
+                              >
+                                {item.currentStock}
+                              </p>
+                              <p className="text-xs text-gray-500">Current</p>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Low Stock Threshold */}
+                        <div className="text-center">
+                          <p className="text-lg md:text-xl font-bold text-orange-600">
+                            {item.lowStockThreshold || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">Low Threshold</p>
+                        </div>
+
+                        {/* Standard */}
+                        <div className="text-center">
+                          <p className="text-lg md:text-xl font-bold text-blue-600">
+                            {item.standardLevel}
+                          </p>
+                          <p className="text-xs text-gray-500">Standard</p>
+                        </div>
+
+                        {/* Total */}
+                        <div className="text-center">
+                          <p className="text-lg md:text-xl font-bold text-green-600">
+                            {item.totalQuantity || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">Total</p>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      {editingItem !== item.id && (
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditClick(item)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="text-red-600 hover:text-red-700 bg-transparent"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${item.isLowStock ? "bg-red-500" : "bg-green-500"
-                        }`}
-                      style={{
-                        width: `${Math.min(
-                          (item.totalQuantity / item.lowStockThreshold) * 100,
-                          100
-                        )}%`,
-                      }}
-                    />
+
+                  {/* Stock Level Progress Bar */}
+                  <div className="mt-4">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Total Stock Level vs Low Stock Threshold</span>
+                      <span>
+                        {item.totalQuantity} / {item.lowStockThreshold} {item.unit}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${item.isLowStock ? "bg-red-500" : "bg-green-500"
+                          }`}
+                        style={{
+                          width: `${Math.min(
+                            (item.totalQuantity / item.lowStockThreshold) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>

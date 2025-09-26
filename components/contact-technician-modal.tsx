@@ -185,49 +185,43 @@ Best regards`;
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="flex flex-col overflow-hidden"
-        style={{
-          width: "800px",
-          maxWidth: "90vw",
-          height: "85vh",
-          maxHeight: "85vh",
-        }}
+        className="flex flex-col overflow-hidden w-[95vw] sm:w-[90vw] md:w-[800px] h-[90vh] sm:h-[85vh]"
       >
-        <DialogHeader className="flex-shrink-0 px-4 py-3 border-b">
-          <DialogTitle className="text-xl text-[#10294B] flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Contact {role}
+        <DialogHeader className="flex-shrink-0 px-3 sm:px-4 py-3 border-b">
+          <DialogTitle className="text-lg sm:text-xl text-[#10294B] flex items-center gap-2">
+            <User className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="truncate">Contact {role}</span>
           </DialogTitle>
-          <DialogDescription className="text-sm">
-            Send an email to {technician.name}
+          <DialogDescription className="text-xs sm:text-sm">
+            <span className="truncate">Send an email to {technician.name}</span>
             {!technician.email && (
-              <span className="text-red-500 ml-2">(Email not available)</span>
+              <span className="text-red-500 ml-1 sm:ml-2">(Email not available)</span>
             )}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 overflow-auto">
-          <div className="px-4 py-3 space-y-4">
+          <div className="px-3 sm:px-4 py-3 space-y-3 sm:space-y-4">
             {/* Technician Info */}
             <Card>
-              <CardHeader className="pb-2 pt-3">
-                <CardTitle className="text-base">
+              <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+                <CardTitle className="text-sm sm:text-base">
                   {role} Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-3 pt-1">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-sm">
+              <CardContent className="px-3 sm:px-4 pb-3 pt-1">
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#10294B] rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
                     {technician.name
                       .split(" ")
                       .map((n) => n[0])
                       .join("")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base truncate">
+                    <h3 className="font-semibold text-sm sm:text-base truncate">
                       {technician.name}
                     </h3>
-                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs text-gray-500 mt-1">
                       {technician.email ? (
                         <span className="flex items-center gap-1 truncate">
                           <Mail className="h-3 w-3 flex-shrink-0" />
@@ -239,12 +233,12 @@ Best regards`;
                           <span>No email available</span>
                         </span>
                       )}
+                      {orderId && (
+                        <Badge variant="outline" className="text-xs w-fit">
+                          Order #{orderId}
+                        </Badge>
+                      )}
                     </div>
-                    {orderId && (
-                      <Badge variant="outline" className="mt-1 text-xs">
-                        Order #{orderId}
-                      </Badge>
-                    )}
                   </div>
                 </div>
               </CardContent>
@@ -252,17 +246,17 @@ Best regards`;
 
             {/* Contact Form */}
             <Card>
-              <CardHeader className="pb-2 pt-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Mail className="h-4 w-4" />
+              <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+                <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                  <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
                   Compose Email
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-3 pt-1 space-y-3">
+              <CardContent className="px-3 sm:px-4 pb-3 pt-1 space-y-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Priority</Label>
                   <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger className="h-8">
+                    <SelectTrigger className="h-9 sm:h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -291,7 +285,7 @@ Best regards`;
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="Enter email subject"
-                    className="h-8 text-sm"
+                    className="h-9 sm:h-8 text-sm"
                   />
                 </div>
 
@@ -305,7 +299,7 @@ Best regards`;
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Type your email message here..."
                     rows={4}
-                    className="text-sm resize-none"
+                    className="text-sm resize-none min-h-[100px] sm:min-h-[80px]"
                   />
                 </div>
 
@@ -337,17 +331,17 @@ Best regards`;
           </div>
         </ScrollArea>
 
-        <div className="flex-shrink-0 flex justify-end gap-2 px-4 py-3 border-t">
+        <div className="flex-shrink-0 flex flex-col sm:flex-row sm:justify-end gap-2 px-3 sm:px-4 py-3 border-t">
           <Button
             variant="outline"
             onClick={onClose}
-            className="h-8 text-sm bg-transparent"
+            className="h-9 sm:h-8 text-sm bg-transparent w-full sm:w-auto order-2 sm:order-1"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSendEmail}
-            className="bg-[#E3253D] hover:bg-[#E3253D]/90 h-8 text-sm"
+            className="bg-[#E3253D] hover:bg-[#E3253D]/90 h-9 sm:h-8 text-sm w-full sm:w-auto order-1 sm:order-2"
             disabled={!subject || !message || isSending || !technician.email}
           >
             <Send className="h-3 w-3 mr-1" />

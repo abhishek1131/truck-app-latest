@@ -268,20 +268,20 @@ export default function OrdersPage() {
     >
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="flex">
-          <main className="flex-1 p-6">
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-6">
+          <main className="flex-1 p-3 md:p-6">
+            <div className="mb-6 md:mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 md:mb-6 gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-[#10294B] mb-2">
+                  <h1 className="text-2xl md:text-3xl font-bold text-[#10294B] mb-2">
                     Order Management
                   </h1>
-                  <p className="text-gray-600">
+                  <p className="text-sm md:text-base text-gray-600">
                     Track and manage all your parts orders
                   </p>
                 </div>
                 <Button
                   asChild
-                  className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg"
+                  className="bg-[#E3253D] hover:bg-[#E3253D]/90 text-white shadow-lg w-full sm:w-auto"
                 >
                   <Link href="/order">
                     <Plus className="h-4 w-4 mr-2" />
@@ -291,7 +291,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
                 <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium opacity-90">
@@ -300,7 +300,7 @@ export default function OrdersPage() {
                     <ShoppingCart className="h-4 w-4 opacity-90" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{totalOrders}</div>
+                    <div className="text-xl md:text-2xl font-bold">{totalOrders}</div>
                     <p className="text-xs opacity-75">All time orders</p>
                   </CardContent>
                 </Card>
@@ -312,7 +312,7 @@ export default function OrdersPage() {
                     <DollarSign className="h-4 w-4 opacity-90" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl md:text-2xl font-bold">
                       {formatCurrency(totalValue)}
                     </div>
                     <p className="text-xs opacity-75">Order value</p>
@@ -326,7 +326,7 @@ export default function OrdersPage() {
                     <DollarSign className="h-4 w-4 opacity-90" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl md:text-2xl font-bold">
                       {formatCurrency(totalCredits)}
                     </div>
                     <p className="text-xs opacity-75">Available credits</p>
@@ -349,15 +349,15 @@ export default function OrdersPage() {
             </div>
 
             {/* Filters and Search */}
-            <Card className="mb-6 border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
+            <Card className="mb-4 md:mb-6 border-0 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <Filter className="h-4 w-4 md:h-5 md:w-5" />
                   Filters & Search
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-col md:flex-row gap-4">
+              <CardContent className="pt-0">
+                <div className="flex flex-col gap-3 md:gap-4">
                   <div className="flex-1">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -365,46 +365,48 @@ export default function OrdersPage() {
                         placeholder="Search orders by part name or order ID..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 text-sm md:text-base"
                         disabled={isLoading}
                       />
                     </div>
                   </div>
-                  <Select
-                    value={statusFilter}
-                    onValueChange={setStatusFilter}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger className="w-full md:w-48">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={sortBy}
-                    onValueChange={setSortBy}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger className="w-full md:w-48">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="cost">Cost</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                      <SelectItem value="partName">Part Name</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Select
+                      value={statusFilter}
+                      onValueChange={setStatusFilter}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={sortBy}
+                      onValueChange={setSortBy}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="cost">Cost</SelectItem>
+                        <SelectItem value="status">Status</SelectItem>
+                        <SelectItem value="partName">Part Name</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Orders List */}
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {filteredOrders.map((order) => {
                 console.log("order--",order)
                 const StatusIcon =
@@ -416,107 +418,174 @@ export default function OrdersPage() {
                     key={order.id}
                     className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                   >
-                    <CardContent className="p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="text-lg font-semibold text-[#10294B] mb-1">
-                                {order.part_name}
-                              </h3>
-                              <p className="text-sm text-gray-600 mb-2">
-                                {order.description}
-                              </p>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-4 w-4" />
-                                  {order.created_at}
-                                </span>
-                                <span>Order #{order.order_number}</span>
-                                {/* <span>Supply House: {order.supply_house}</span> */}
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Badge
-                                className={
-                                  statusConfig[
-                                    order.status as keyof typeof statusConfig
-                                  ]?.color
-                                }
-                              >
-                                <StatusIcon className="h-3 w-3 mr-1" />
-                                {order.status.charAt(0).toUpperCase() +
-                                  order.status.slice(1)}
-                              </Badge>
-                              {/* <Badge
-                                className={
-                                  urgencyConfig[
-                                    order.priority as keyof typeof urgencyConfig
-                                  ]?.color
-                                }
-                              >
-                                {order.priority}
-                              </Badge> */}
+                    <CardContent className="p-4 md:p-6">
+                      {/* Mobile Layout */}
+                      <div className="block md:hidden">
+                        {/* Header with Status */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-base font-semibold text-[#10294B] mb-1 truncate">
+                              {order.part_name}
+                            </h3>
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                              {order.description}
+                            </p>
+                            <div className="flex flex-col gap-1 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {order.created_at}
+                              </span>
+                              <span>Order #{order.order_number}</span>
                             </div>
                           </div>
+                          <Badge
+                            className={`${statusConfig[order.status as keyof typeof statusConfig]?.color} text-xs`}
+                          >
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </Badge>
+                        </div>
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-gray-100">
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">
-                                Quantity
-                              </div>
-                              <div className="font-semibold">
-                                {order.quantity} units
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">
-                                Total Cost
-                              </div>
-                              <div className="font-semibold">
-                                {formatCurrency(order.total_amount)}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">
-                                Commission
-                              </div>
-                              <div className="font-semibold text-blue-600">
-                                {formatCurrency(order.commission)}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">
-                                Credit Earned
-                              </div>
-                              <div className="font-semibold text-green-600">
-                                {formatCurrency(order.credit)}
-                              </div>
-                            </div>
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="text-xs text-gray-500 mb-1">Quantity</div>
+                            <div className="font-semibold text-sm">{order.quantity} units</div>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="text-xs text-gray-500 mb-1">Total Cost</div>
+                            <div className="font-semibold text-sm">{formatCurrency(order.total_amount)}</div>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="text-xs text-gray-500 mb-1">Commission</div>
+                            <div className="font-semibold text-sm text-blue-600">{formatCurrency(order.commission)}</div>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="text-xs text-gray-500 mb-1">Credit Earned</div>
+                            <div className="font-semibold text-sm text-green-600">{formatCurrency(order.credit)}</div>
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 lg:ml-6">
-                          <OrderDetailsModal order={order} />
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <OrderDetailsModal order={order} />
+                          </div>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full lg:w-auto bg-transparent"
+                            className="flex-1 bg-transparent text-xs"
                             onClick={() => handleDownloadInvoice(order)}
                             disabled={downloadingOrderId === order.id}
                           >
                             {downloadingOrderId === order.id ? (
                               <>
-                                <Download className="h-4 w-4 mr-2 animate-spin" />
+                                <Download className="h-3 w-3 mr-1 animate-spin" />
                                 Downloading...
                               </>
                             ) : (
                               <>
-                                <Download className="h-4 w-4 mr-2" />
+                                <Download className="h-3 w-3 mr-1" />
                                 Download
                               </>
                             )}
                           </Button>
+                        </div>
+                      </div>
+
+                      {/* Desktop Layout */}
+                      <div className="hidden md:block">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="text-lg font-semibold text-[#10294B] mb-1">
+                                  {order.part_name}
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  {order.description}
+                                </p>
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-4 w-4" />
+                                    {order.created_at}
+                                  </span>
+                                  <span>Order #{order.order_number}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Badge
+                                  className={
+                                    statusConfig[
+                                      order.status as keyof typeof statusConfig
+                                    ]?.color
+                                  }
+                                >
+                                  <StatusIcon className="h-3 w-3 mr-1" />
+                                  {order.status.charAt(0).toUpperCase() +
+                                    order.status.slice(1)}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-gray-100">
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Quantity
+                                </div>
+                                <div className="font-semibold">
+                                  {order.quantity} units
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Total Cost
+                                </div>
+                                <div className="font-semibold">
+                                  {formatCurrency(order.total_amount)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Commission
+                                </div>
+                                <div className="font-semibold text-blue-600">
+                                  {formatCurrency(order.commission)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Credit Earned
+                                </div>
+                                <div className="font-semibold text-green-600">
+                                  {formatCurrency(order.credit)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 lg:ml-6">
+                            <OrderDetailsModal order={order} />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full lg:w-auto bg-transparent"
+                              onClick={() => handleDownloadInvoice(order)}
+                              disabled={downloadingOrderId === order.id}
+                            >
+                              {downloadingOrderId === order.id ? (
+                                <>
+                                  <Download className="h-4 w-4 mr-2 animate-spin" />
+                                  Downloading...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -548,8 +617,8 @@ export default function OrdersPage() {
 
             {/* Pagination */}
             {filteredOrders.length > 0 && (
-              <div className="flex justify-between items-center mt-4">
-                <div className="text-sm text-gray-600">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-4">
+                <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                   Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
                   {Math.min(
                     pagination.page * pagination.limit,
@@ -557,12 +626,13 @@ export default function OrdersPage() {
                   )}{" "}
                   of {pagination.total} orders
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 justify-center sm:justify-end">
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={pagination.page === 1 || isLoading}
                     onClick={() => handlePageChange(pagination.page - 1)}
+                    className="text-xs sm:text-sm"
                   >
                     Previous
                   </Button>
@@ -571,6 +641,7 @@ export default function OrdersPage() {
                     size="sm"
                     disabled={pagination.page === pagination.pages || isLoading}
                     onClick={() => handlePageChange(pagination.page + 1)}
+                    className="text-xs sm:text-sm"
                   >
                     Next
                   </Button>

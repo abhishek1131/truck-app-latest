@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import toast from "react-hot-toast";
-import { Save, User, Shield } from "lucide-react";
+import { Save, User, Shield, Eye, EyeOff } from "lucide-react";
 import { fetchClient } from "@/lib/fetchClient";
 
 export default function SettingsPage() {
@@ -31,6 +31,43 @@ export default function SettingsPage() {
     confirmPassword: "",
   });
 
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
+  const getPasswordValidationMessage = () => {
+    if (isSaving) {
+      return "Changing password...";
+    }
+
+    if (!passwordData.currentPassword) {
+      return "Please enter your current password.";
+    }
+
+    if (!passwordData.newPassword) {
+      return "Please enter a new password.";
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      return "New password must be at least 8 characters long.";
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      return "New password and confirm password do not match.";
+    }
+
+    return "All requirements met. You can change your password.";
+  };
+
   // Fetch user details on mount
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -49,10 +86,10 @@ export default function SettingsPage() {
             phone: result.data.phone || "",
           });
         } else {
-          toast.error( result.error || "Failed to fetch user details");
+          toast.error(result.error || "Failed to fetch user details");
         }
       } catch (error) {
-        toast.error( "Failed to fetch user details");
+        toast.error("Failed to fetch user details");
       } finally {
         setIsLoading(false);
       }
@@ -252,47 +289,89 @@ export default function SettingsPage() {
                   <div className="space-y-4 max-w-md">
                     <div className="space-y-2">
                       <Label htmlFor="currentPassword">Current Password</Label>
-                      <Input
-                        id="currentPassword"
-                        type="password"
-                        value={passwordData.currentPassword}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            currentPassword: e.target.value,
-                          })
-                        }
-                      />
+                      <div className="relative">
+                        <Input
+                          id="currentPassword"
+                          type={showPasswords.current ? "text" : "password"}
+                          value={passwordData.currentPassword}
+                          onChange={(e) =>
+                            setPasswordData({
+                              ...passwordData,
+                              currentPassword: e.target.value,
+                            })
+                          }
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => togglePasswordVisibility('current')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPasswords.current ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="newPassword">New Password</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={passwordData.newPassword}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            newPassword: e.target.value,
-                          })
-                        }
-                      />
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          type={showPasswords.new ? "text" : "password"}
+                          value={passwordData.newPassword}
+                          onChange={(e) =>
+                            setPasswordData({
+                              ...passwordData,
+                              newPassword: e.target.value,
+                            })
+                          }
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => togglePasswordVisibility('new')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPasswords.new ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirmPassword">
                         Confirm New Password
                       </Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={passwordData.confirmPassword}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            confirmPassword: e.target.value,
-                          })
-                        }
-                      />
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showPasswords.confirm ? "text" : "password"}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordData({
+                              ...passwordData,
+                              confirmPassword: e.target.value,
+                            })
+                          }
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => togglePasswordVisibility('confirm')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPasswords.confirm ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <Button
                       onClick={handleChangePassword}
@@ -301,15 +380,26 @@ export default function SettingsPage() {
                         !passwordData.currentPassword ||
                         !passwordData.newPassword ||
                         passwordData.newPassword !==
-                          passwordData.confirmPassword
+                        passwordData.confirmPassword
                       }
                       variant="outline"
                     >
                       {isSaving ? "Changing..." : "Change Password"}
                     </Button>
-                    <p className="text-sm text-gray-600">
-                      Password must be at least 8 characters long.
-                    </p>
+                    <div className="space-y-1">
+                      <p className={`text-sm ${isSaving ||
+                          (!passwordData.currentPassword ||
+                            !passwordData.newPassword ||
+                            passwordData.newPassword !== passwordData.confirmPassword)
+                          ? "text-amber-600"
+                          : "text-green-600"
+                        }`}>
+                        {getPasswordValidationMessage()}
+                      </p>
+                      {/* <p className="text-xs text-gray-500">
+                        Password must be at least 8 characters long.
+                      </p> */}
+                    </div>
                   </div>
                 </div>
 

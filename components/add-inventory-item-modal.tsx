@@ -96,7 +96,7 @@ export function AddInventoryItemModal({ onItemAdded, categories = [] }: AddInven
           Add New Item
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
@@ -119,7 +119,7 @@ export function AddInventoryItemModal({ onItemAdded, categories = [] }: AddInven
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 <Select
@@ -155,7 +155,7 @@ export function AddInventoryItemModal({ onItemAdded, categories = [] }: AddInven
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="partNumber">Part Number</Label>
                 <Input
@@ -175,7 +175,7 @@ export function AddInventoryItemModal({ onItemAdded, categories = [] }: AddInven
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cost_price">Cost Price</Label>
                 <Input
@@ -219,39 +219,81 @@ export function AddInventoryItemModal({ onItemAdded, categories = [] }: AddInven
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="standardLevel">Standard Level *</Label>
-                <Input
-                  id="standardLevel"
-                  type="number"
-                  placeholder="20"
-                  value={formData.standardLevel}
-                  onChange={(e) => setFormData({ ...formData, standardLevel: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-gray-500">Ideal quantity to maintain</p>
+            {/* Mobile Layout */}
+            <div className="block md:hidden space-y-4">
+              <div className="bg-white border rounded-lg p-4 shadow-sm">
+                <div className="space-y-2">
+                  <Label htmlFor="standardLevel" className="text-sm font-medium text-gray-700">
+                    Standard Level *
+                  </Label>
+                  <Input
+                    id="standardLevel"
+                    type="number"
+                    placeholder="20"
+                    value={formData.standardLevel}
+                    onChange={(e) => setFormData({ ...formData, standardLevel: e.target.value })}
+                    required
+                    className="text-base"
+                  />
+                  <p className="text-xs text-gray-500">Ideal quantity to maintain</p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lowStockThreshold">Low Stock Alert Level *</Label>
-                <Input
-                  id="lowStockThreshold"
-                  type="number"
-                  placeholder="5"
-                  value={formData.lowStockThreshold}
-                  onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-gray-500">Minimum before urgent restock</p>
+              
+              <div className="bg-white border rounded-lg p-4 shadow-sm">
+                <div className="space-y-2">
+                  <Label htmlFor="lowStockThreshold" className="text-sm font-medium text-gray-700">
+                    Low Stock Alert Level *
+                  </Label>
+                  <Input
+                    id="lowStockThreshold"
+                    type="number"
+                    placeholder="5"
+                    value={formData.lowStockThreshold}
+                    onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
+                    required
+                    className="text-base"
+                  />
+                  <p className="text-xs text-gray-500">Minimum before urgent restock</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Layout */}
+            <div className="hidden md:block">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="standardLevel">Standard Level *</Label>
+                  <Input
+                    id="standardLevel"
+                    type="number"
+                    placeholder="20"
+                    value={formData.standardLevel}
+                    onChange={(e) => setFormData({ ...formData, standardLevel: e.target.value })}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">Ideal quantity to maintain</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lowStockThreshold">Low Stock Alert Level *</Label>
+                  <Input
+                    id="lowStockThreshold"
+                    type="number"
+                    placeholder="5"
+                    value={formData.lowStockThreshold}
+                    onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">Minimum before urgent restock</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto order-2 sm:order-1">
               Cancel
             </Button>
-            <Button type="submit" className="bg-[#E3253D] hover:bg-[#E3253D]/90">
+            <Button type="submit" className="bg-[#E3253D] hover:bg-[#E3253D]/90 w-full sm:w-auto order-1 sm:order-2">
               Add Item
             </Button>
           </div>

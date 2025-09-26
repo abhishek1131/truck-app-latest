@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, Search, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,17 @@ export function Header({ title, subtitle }: HeaderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { logout, loading } = useAuth();
+  const router = useRouter();
+
+  const handleLogoClick = () => {
+    if (!user) return;
+
+    if (user.role === "admin") {
+      router.push("/admin");
+    } else if (user.role === "technician") {
+      router.push("/dashboard");
+    }
+  };
 
   const fetchNotifications = useCallback(async () => {
     if (!token || !user) return;
@@ -83,9 +95,12 @@ export function Header({ title, subtitle }: HeaderProps) {
       <div className="h-full px-4 md:px-6 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3 md:hidden">
-            <div className="w-8 h-8 bg-[#E3253D] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+            <button
+              onClick={handleLogoClick}
+              className="w-8 h-8 bg-[#E3253D] rounded-lg flex items-center justify-center text-white font-bold text-sm hover:bg-[#C41E3A] transition-colors cursor-pointer"
+            >
               T
-            </div>
+            </button>
           </div>
 
           <div>
@@ -185,7 +200,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           <div className="flex items-center space-x-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#E3253D] to-red-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg">
+                <button className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#E3253D] to-red-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg -mt-2">
                   {initials}
                 </button>
               </DropdownMenuTrigger>

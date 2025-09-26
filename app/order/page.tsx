@@ -1445,18 +1445,18 @@ ${orderDetails.technician}`;
         {/* Previous Orders */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <CardTitle className="flex items-center space-x-2">
-                <Clock className="h-5 w-5" />
-                <span>Previous Orders</span>
+                <Clock className="h-4 w-4 md:h-5 md:w-5" />
+                <span className="text-base md:text-lg">Previous Orders</span>
                 {totalOrders > 0 && (
-                  <Badge variant="outline" className="ml-2">
+                  <Badge variant="outline" className="ml-2 text-xs">
                     {totalOrders} total
                   </Badge>
                 )}
               </CardTitle>
-              <Button onClick={downloadCSV} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
+              <Button onClick={downloadCSV} variant="outline" size="sm" className="w-full sm:w-auto text-xs">
+                <Download className="h-3 w-3 md:h-4 md:w-4 mr-2" />
                 Download CSV
               </Button>
             </div>
@@ -1467,96 +1467,151 @@ ${orderDetails.technician}`;
                 Loading orders...
               </div>
             ) : previousOrders.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 {previousOrders.map((order) => (
-                  <div key={order.id} className="border rounded-lg p-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-3">
-                      <div>
-                        <div className="font-medium">{order.orderId}</div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(order.date).toLocaleDateString()} •{" "}
-                          {order.truckName}
+                  <div key={order.id} className="border rounded-lg p-3 md:p-4">
+                    {/* Mobile Layout */}
+                    <div className="block md:hidden">
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{order.orderId}</div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(order.date).toLocaleDateString()} • {order.truckName}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1 ml-2">
+                          <Badge variant="secondary" className="text-xs w-fit">
+                            {order.totalItems} items
+                          </Badge>
+                          <Badge
+                            variant={order.status === "completed" ? "default" : "secondary"}
+                            className={`text-xs w-fit ${order.status === "completed" ? "bg-green-500" : ""}`}
+                          >
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </Badge>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">
-                          {order.totalItems} items
-                        </Badge>
-                        <Badge
-                          variant={
-                            order.status === "completed"
-                              ? "default"
-                              : "secondary"
-                          }
-                          className={
-                            order.status === "completed" ? "bg-green-500" : ""
-                          }
+
+                      {/* Items List */}
+                      <div className="text-xs text-gray-600 mb-3 line-clamp-2">
+                        <strong>Items:</strong>{" "}
+                        {order.items
+                          .map((item) => `${item.inventoryItem.name} (${item.requestedQuantity} ${item.inventoryItem.unit})`)
+                          .join(", ")}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        {!order.isStockItem && (
+                          <Button
+                            size="sm"
+                            disabled={order.status.toLowerCase() !== "confirmed"}
+                            className={`flex-1 text-xs ${
+                              order.status.toLowerCase() === "confirmed"
+                                ? "bg-green-500 hover:bg-green-600 text-white"
+                                : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                            }`}
+                            onClick={() =>
+                              order.status.toLowerCase() === "confirmed" && handleStockItem(order)
+                            }
+                          >
+                            <Package className="h-3 w-3 mr-1" />
+                            Stock Item
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs bg-transparent"
+                          onClick={() => setSelectedOrderForDetails(order)}
                         >
-                          {order.status.charAt(0).toUpperCase() +
-                            order.status.slice(1)}
-                        </Badge>
-                        
-                        <div className="flex items-center mt-3 md:mt-0 md:ml-4 space-x-2">
-  {!order.isStockItem && (
-    <div className="relative group">
-      <Button
-        size="sm"
-        disabled={order.status.toLowerCase() !== "confirmed"}
-        className={`cursor-pointer ${
-          order.status.toLowerCase() === "confirmed"
-            ? "bg-green-500 hover:bg-green-600 text-white"
-            : "bg-gray-300 text-gray-600 cursor-not-allowed"
-        }`}
-        onClick={() =>
-          order.status.toLowerCase() === "confirmed" && handleStockItem(order)
-        }
-      >
-        <Package className="h-3 w-3 mr-1" />
-        Stock Item
-      </Button>
-
-      {/* Tooltip message when disabled */}
-      {order.status.toLowerCase() !== "confirmed" && (
-        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block bg-black text-white text-xs rounded-md px-2 py-1 whitespace-nowrap shadow-lg">
-          Your order needs to be confirmed before adding to stock.
-        </div>
-      )}
-    </div>
-  )}
-
-  <Button
-    variant="outline"
-    size="sm"
-    className="bg-transparent cursor-pointer"
-    onClick={() => setSelectedOrderForDetails(order)}
-  >
-    <Eye className="h-3 w-3 mr-1" />
-    View Details
-  </Button>
-</div>
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Details
+                        </Button>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <strong>Items:</strong>{" "}
-                      {order.items
-                        .map(
-                          (item) =>
-                            `${item.inventoryItem.name} (${item.requestedQuantity} ${item.inventoryItem.unit})`
-                        )
-                        .join(", ")}
+
+                    {/* Desktop Layout */}
+                    <div className="hidden md:block">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-3">
+                        <div>
+                          <div className="font-medium">{order.orderId}</div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(order.date).toLocaleDateString()} • {order.truckName}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="secondary">
+                            {order.totalItems} items
+                          </Badge>
+                          <Badge
+                            variant={order.status === "completed" ? "default" : "secondary"}
+                            className={order.status === "completed" ? "bg-green-500" : ""}
+                          >
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </Badge>
+                          
+                          <div className="flex items-center mt-3 lg:mt-0 lg:ml-4 space-x-2">
+                            {!order.isStockItem && (
+                              <div className="relative group">
+                                <Button
+                                  size="sm"
+                                  disabled={order.status.toLowerCase() !== "confirmed"}
+                                  className={`cursor-pointer ${
+                                    order.status.toLowerCase() === "confirmed"
+                                      ? "bg-green-500 hover:bg-green-600 text-white"
+                                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                  }`}
+                                  onClick={() =>
+                                    order.status.toLowerCase() === "confirmed" && handleStockItem(order)
+                                  }
+                                >
+                                  <Package className="h-3 w-3 mr-1" />
+                                  Stock Item
+                                </Button>
+
+                                {/* Tooltip message when disabled */}
+                                {order.status.toLowerCase() !== "confirmed" && (
+                                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block bg-black text-white text-xs rounded-md px-2 py-1 whitespace-nowrap shadow-lg">
+                                    Your order needs to be confirmed before adding to stock.
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="bg-transparent cursor-pointer"
+                              onClick={() => setSelectedOrderForDetails(order)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              View Details
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <strong>Items:</strong>{" "}
+                        {order.items
+                          .map((item) => `${item.inventoryItem.name} (${item.requestedQuantity} ${item.inventoryItem.unit})`)
+                          .join(", ")}
+                      </div>
                     </div>
                   </div>
                 ))}
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t">
+                    <div className="flex items-center justify-center sm:justify-start space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handlePreviousPage}
                         disabled={!hasPreviousPage || isLoadingOrders}
+                        className="text-xs"
                       >
                         Previous
                       </Button>
@@ -1580,7 +1635,7 @@ ${orderDetails.technician}`;
                               size="sm"
                               onClick={() => handlePageClick(pageNum)}
                               disabled={isLoadingOrders}
-                              className="w-8 h-8 p-0"
+                              className="w-6 h-6 md:w-8 md:h-8 p-0 text-xs"
                             >
                               {pageNum}
                             </Button>
@@ -1592,11 +1647,12 @@ ${orderDetails.technician}`;
                         size="sm"
                         onClick={handleNextPage}
                         disabled={!hasNextPage || isLoadingOrders}
+                        className="text-xs"
                       >
                         Next
                       </Button>
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-right">
                       Page {currentPage} of {totalPages}
                     </div>
                   </div>
