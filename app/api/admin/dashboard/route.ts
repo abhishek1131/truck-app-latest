@@ -68,7 +68,6 @@ export async function GET(req: Request) {
       //     { status: 403 }
       //   );
       // }
-      console.log("decoded", decoded);
     } catch (error) {
       return NextResponse.json(
         {
@@ -183,18 +182,29 @@ export async function GET(req: Request) {
     // Calculate relative time for activities
     const recentActivityFormatted = (recentActivity as any[]).map((activity: any) => {
       const now = new Date();
-      const diffMs = now.getTime() - activity.created_at.getTime();
+      // Ensure we're working with proper Date objects
+      const activityDate = new Date(activity.created_at);
+      const diffMs = now.getTime() - activityDate.getTime();
       const diffMins = Math.floor(diffMs / 1000 / 60);
       let time: string;
-      if (diffMins < 60) {
+      
+      if (diffMins < 1) {
+        time = "Just now";
+      } else if (diffMins < 60) {
         time = `${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
       } else if (diffMins < 1440) {
         const hours = Math.floor(diffMins / 60);
-        time = `${hours} hour${hours === 1 ? "" : "s"} ago`;
+        const remainingMins = diffMins % 60;
+        if (remainingMins === 0) {
+          time = `${hours} hour${hours === 1 ? "" : "s"} ago`;
+        } else {
+          time = `${hours}h ${remainingMins}m ago`;
+        }
       } else {
         const days = Math.floor(diffMins / 1440);
         time = `${days} day${days === 1 ? "" : "s"} ago`;
       }
+      
       return {
         id: activity.id,
         type: activity.type,

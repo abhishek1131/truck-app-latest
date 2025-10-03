@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    console.log("inventory decoded", decoded);
     const userId = decoded.id;
 
     // Verify admin role (super_admin or company_admin)
