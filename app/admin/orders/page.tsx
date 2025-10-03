@@ -224,13 +224,14 @@ export default function AdminOrdersPage() {
           },
         });
         const result = await response.json();
+        console.log("API Response:", result);
         if (result.success && result.data) {
           setOrders((prev) =>
             prev.map((o) =>
               o.id === orderId ? { ...o, status: result.data.status } : o
             )
           );
-          toast.error(`Order #${result.data.order_number} confirmed`);
+          toast.success(`Order #${result.data.id} confirmed`);
         } else {
           toast.error(result.error || "Failed to confirm order");
         }
@@ -279,7 +280,7 @@ export default function AdminOrdersPage() {
   );
 
   useEffect(() => {
-    if (user?.role === "admin" && token) {
+    if ((user?.role === "super_admin" || user?.role === "company_admin") && token) {
       fetchTechnicians();
       fetchOrders();
 

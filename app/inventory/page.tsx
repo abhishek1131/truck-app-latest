@@ -233,17 +233,6 @@ export default function InventoryPage() {
         <div className="space-y-6">
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm opacity-90">Total Items</p>
-                    <p className="text-2xl font-bold">{stats.totalItems}</p>
-                  </div>
-                  <Package className="h-8 w-8 opacity-80" />
-                </div>
-              </CardContent>
-            </Card>
 
             <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
               <CardContent className="p-6">
@@ -252,6 +241,18 @@ export default function InventoryPage() {
                     <p className="text-sm opacity-90">Total Item Types</p>
                     <p className="text-2xl font-bold">{totalItems}</p>
                     <p className="text-xs opacity-75">{stats.assignedItem} Assigned Items</p>
+                  </div>
+                  <Package className="h-8 w-8 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm opacity-90">Total Items</p>
+                    <p className="text-2xl font-bold">{stats.totalItems}</p>
                   </div>
                   <Package className="h-8 w-8 opacity-80" />
                 </div>

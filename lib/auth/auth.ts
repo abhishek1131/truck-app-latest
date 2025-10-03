@@ -172,7 +172,7 @@ export async function requireAuth(): Promise<User> {
 export async function requireAdmin(): Promise<User> {
   const user = await requireAuth()
 
-  if (user.role !== "admin") {
+  if (user.role !== "super_admin" && user.role !== "company_admin") {
     throw new Error("Admin access required")
   }
 

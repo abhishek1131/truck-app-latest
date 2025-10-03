@@ -22,7 +22,6 @@ export async function sendLowStockEmail() {
   try {
     // Get low stock items from database
     const lowStockItems = await getAllLowStockItems();
-    console.log("lowStockItems", lowStockItems);
     if (lowStockItems.length === 0) {
       return {
         success: true,

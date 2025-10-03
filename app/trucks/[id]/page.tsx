@@ -64,11 +64,11 @@ export default function TruckDetailPage() {
   }, [user, token, truckId, router]);
 
   const getBackUrl = () => {
-    return user?.role === "admin" ? "/admin/trucks" : "/trucks";
+    return (user?.role === "super_admin" || user?.role === "company_admin") ? "/admin/trucks" : "/trucks";
   };
 
   const getBackLabel = () => {
-    return user?.role === "admin"
+    return (user?.role === "super_admin" || user?.role === "company_admin")
       ? "Back to Fleet Management"
       : "Back to Trucks";
   };

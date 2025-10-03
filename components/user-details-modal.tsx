@@ -106,7 +106,13 @@ const statusConfig = {
   processing: { color: "bg-blue-100 text-blue-800", label: "Processing", icon: Clock },
 };
 
-const tabs = [
+const roleConfig = {
+  super_admin: { color: "bg-red-100 text-red-800", label: "Super Admin" },
+  company_admin: { color: "bg-purple-100 text-purple-800", label: "Company Admin" },
+  technician: { color: "bg-green-100 text-green-800", label: "Technician" },
+};
+
+const allTabs = [
   { id: "overview", label: "Overview" },
   { id: "trucks", label: "Assigned Trucks" },
   { id: "orders", label: "Order History" },
@@ -124,6 +130,9 @@ export function UserDetailsModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Show tabs based on user role
+  const tabs = user.role === "technician" ? allTabs : [allTabs[0]]; // Only Overview for non-technicians
+
   useEffect(() => {
     const fetchData = async () => {
       if (!token) {
@@ -132,27 +141,34 @@ export function UserDetailsModal({
       }
       setIsLoading(true);
       try {
-        // Fetch trucks (already included in user.assigned_trucks)
-        setTrucks(
-          user.assigned_trucks.map((truck) => ({
-            ...truck,
-            status: "active" as const,
-            location: "Unknown",
-          }))
-        );
+        // Only fetch trucks and orders for technicians
+        if (user.role === "technician") {
+          // Fetch trucks (already included in user.assigned_trucks)
+          setTrucks(
+            user.assigned_trucks.map((truck) => ({
+              ...truck,
+              status: "active" as const,
+              location: "Unknown",
+            }))
+          );
 
-        // Fetch orders from /api/orders/previous endpoint
-        const orderResponse = await fetch(`/api/orders/previous?page=1&limit=50&userId=${user.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const orderResult = await orderResponse.json();        
-        console.log("API Response:", orderResult);
-        
-        // Handle the /api/orders/previous response structure
-        if (orderResult.previousOrders) {
-          setOrders(orderResult.previousOrders);
+          // Fetch orders from /api/orders/previous endpoint
+          const orderResponse = await fetch(`/api/orders/previous?page=1&limit=50&userId=${user.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const orderResult = await orderResponse.json();        
+          console.log("API Response:", orderResult);
+          
+          // Handle the /api/orders/previous response structure
+          if (orderResult.previousOrders) {
+            setOrders(orderResult.previousOrders);
+          } else {
+            setError(orderResult.error || "Failed to fetch orders.");
+          }
         } else {
-          setError(orderResult.error || "Failed to fetch orders.");
+          // For non-technicians, clear trucks and orders
+          setTrucks([]);
+          setOrders([]);
         }
       } catch (error) {
         setError("Error fetching data.");
@@ -165,7 +181,7 @@ export function UserDetailsModal({
     if (isOpen) {
       fetchData();
     }
-  }, [isOpen, user.id, token, user.assigned_trucks]);
+  }, [isOpen, user.id, token, user.assigned_trucks, user.role]);
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto sm:max-w-[90%] sm:max-h-[85vh] p-0 sm:p-6">
@@ -213,7 +229,11 @@ export function UserDetailsModal({
               >
                 {statusConfig[user.status as keyof typeof statusConfig]?.label}
               </Badge>
-              <Badge variant="outline" className="text-xs">{user.role}</Badge>
+              <Badge 
+                className={`${roleConfig[user.role as keyof typeof roleConfig]?.color} text-xs`}
+              >
+                {roleConfig[user.role as keyof typeof roleConfig]?.label}
+              </Badge>
             </div>
           </div>
 
@@ -278,8 +298,8 @@ export function UserDetailsModal({
                           <span className="text-sm font-medium text-gray-600">
                             Role:
                           </span>
-                          <p className="font-semibold capitalize">
-                            {user.role}
+                          <p className="font-semibold">
+                            {roleConfig[user.role as keyof typeof roleConfig]?.label}
                           </p>
                         </div>
                       </CardContent>

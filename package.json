@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "node scripts/start-with-cron.js --dev",
+    "dev": "node start-server.mjs",
     "dev:next": "next dev",
     "lint": "next lint",
-    "start": "node scripts/start-with-cron.js"
+    "start": "node start-production.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

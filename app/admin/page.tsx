@@ -75,13 +75,13 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== "admin")) {
+    if (!loading && (!user || (user.role !== "super_admin" && user.role !== "company_admin"))) {
       router.push("/login");
     }
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user && user.role === "admin") {
+    if (user && (user.role === "super_admin" || user.role === "company_admin")) {
       const fetchDashboardData = async () => {
         try {
           const token = localStorage.getItem("access_token");
@@ -120,7 +120,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "super_admin" && user.role !== "company_admin")) {
     return null;
   }
 
@@ -153,70 +153,87 @@ export default function AdminDashboardPage() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Total Technicians
-              </CardTitle>
-              <Users className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalTechnicians}</div>
-              <p className="text-xs opacity-75">
-                <span className="text-green-300">
-                  {stats.activeTechnicians} active
-                </span>
-              </p>
-            </CardContent>
-          </Card>
+          <Link href="/admin/users">
+            <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium opacity-90">
+                  {user.role === "super_admin" ? "Total Users" : "Total Technicians"}
+                </CardTitle>
+                <Users className="h-4 w-4 opacity-90" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTechnicians}</div>
+                <p className="text-xs opacity-75">
+                  <span className="text-green-300">
+                    {stats.activeTechnicians} active
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Total Orders
-              </CardTitle>
-              <ShoppingCart className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.totalOrders.toLocaleString()}
-              </div>
-              <p className="text-xs opacity-75">
-                <span className="text-yellow-300">
-                  {stats.pendingOrders} pending
-                </span>
-              </p>
-            </CardContent>
-          </Card>
+          <Link href="/admin/orders">
+            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium opacity-90">
+                  Total Orders
+                </CardTitle>
+                <ShoppingCart className="h-4 w-4 opacity-90" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.totalOrders.toLocaleString()}
+                </div>
+                <p className="text-xs opacity-75">
+                  <span className="text-yellow-300">
+                    {stats.pendingOrders} pending
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Total Trucks
-              </CardTitle>
-              <Truck className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.totalTrucks.toLocaleString()} 
-              </div>
+          <Link href="/admin/trucks">
+            <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium opacity-90">
+                  Total Trucks
+                </CardTitle>
+                <Truck className="h-4 w-4 opacity-90" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.totalTrucks.toLocaleString()}
+                </div>
+                <p className="text-xs opacity-75">
+                  <span className="text-blue-300">
+                    Fleet vehicles
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
 
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Total Items
-              </CardTitle>
-              <Package className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.totalItems.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
+          <Link href="/admin/inventory">
+            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium opacity-90">
+                  Total Items
+                </CardTitle>
+                <Package className="h-4 w-4 opacity-90" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.totalItems.toLocaleString()}
+                </div>
+                <p className="text-xs opacity-75">
+                  <span className="text-orange-300">
+                    Inventory items
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Recent Activity - Full Width */}
@@ -439,9 +456,9 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent className="text-center">
                 <Button className="w-full bg-[#10294B] hover:bg-[#006AA1]">
-                  <Badge className="mr-2 bg-green-100 text-green-800 text-xs">
+                  {/* <Badge className="mr-2 bg-green-100 text-green-800 text-xs">
                     New
-                  </Badge>
+                  </Badge> */}
                   Manage Fleet
                 </Button>
               </CardContent>
@@ -459,27 +476,27 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent className="text-center">
                 <Button className="w-full bg-[#E3253D] hover:bg-[#E3253D]/90">
-                  <Badge className="mr-2 bg-green-100 text-green-800 text-xs">
+                  {/* <Badge className="mr-2 bg-green-100 text-green-800 text-xs">
                     New
-                  </Badge>
+                  </Badge> */}
                   Manage Users
                 </Button>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/admin/users">
+          <Link href="/admin/inventory">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
               <CardHeader className="text-center">
                 <div className="w-12 h-12 bg-[#006AA1] rounded-lg flex items-center justify-center mx-auto mb-4">
                   <UserCheck className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle>Technicians</CardTitle>
-                <CardDescription>Manage technician accounts</CardDescription>
+                <CardTitle>Inventory Management</CardTitle>
+                <CardDescription>Manage and monitor inventory</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <Button className="w-full bg-[#006AA1] hover:bg-[#006AA1]/90">
-                  View Users
+                  View Inventory
                 </Button>
               </CardContent>
             </Card>

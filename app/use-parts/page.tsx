@@ -91,8 +91,45 @@ export default function UsePartsPage() {
   const [totalJob, setTotalJob] = useState(0)
   const [quickAddItem, setQuickAddItem] = useState("")
   const [isAddingItem, setIsAddingItem] = useState(false)
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
 
   console.log("usedParts", usedParts)
+  console.log("user", user)
+  // Fetch suggestions from API
+  const fetchSuggestions = async (searchTerm: string) => {
+    if (!searchTerm.trim() || !token) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    setIsLoadingSuggestions(true)
+    try {
+      const response = await fetch(`/api/inventory/suggestions?search=${encodeURIComponent(searchTerm)}&limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setSuggestions(data.data.suggestions || [])
+        setShowSuggestions(true)
+      } else {
+        setSuggestions([])
+        setShowSuggestions(false)
+      }
+    } catch (error) {
+      console.error("Error fetching suggestions:", error)
+      setSuggestions([])
+      setShowSuggestions(false)
+    } finally {
+      setIsLoadingSuggestions(false)
+    }
+  }
+
   // Filter available items based on quickAddItem search
   const filteredAvailableItems = quickAddItem.trim() 
     ? availableItems.filter(item => 
@@ -175,6 +212,81 @@ export default function UsePartsPage() {
     }
   };
 
+  // Quick Add Item function with suggestion data
+  const handleQuickAddItemWithSuggestion = async (suggestion: any) => {
+    if (!suggestion.name) {
+      toast.error("Please select a valid item");
+      return;
+    }
+
+    setIsAddingItem(true);
+    try {
+      const response = await fetch("/api/inventory/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: suggestion.name,
+          category: suggestion.category_name || "",
+          unit: suggestion.unit || "",
+          description: suggestion.description || "",
+          partNumber: suggestion.part_number || "",
+          brand: suggestion.brand || "",
+          cost_price: parseFloat(suggestion.cost_price) || 0,
+          lowStockThreshold: suggestion.min_quantity || 0,
+          standardLevel: suggestion.standard_level || 0
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("API Response:", data);
+        toast.success("Item added successfully!");
+        setQuickAddItem("");
+        
+        // Add the new item to usedParts with default quantity of 1
+        const newItem: UsedPart = {
+          id: data.item.id || data.id || "",
+          name: suggestion.name,
+          sku: suggestion.part_number || "",
+          count: 1,
+          unit_price: parseFloat(suggestion.unit_price) || 0,
+          cost_price: parseFloat(suggestion.cost_price) || 0,
+          currentStock: 0,
+          binLocation: ""
+        };
+        console.log("Creating new item from suggestion:", newItem);
+        setUsedParts([...usedParts, newItem]);
+        
+        // Scroll to the "Parts Used on This Job" section
+        setTimeout(() => {
+          const partsSection = document.getElementById("parts-used-section");
+          if (partsSection) {
+            partsSection.scrollIntoView({ behavior: "smooth" });
+          }
+        }, 100);
+        
+        // Refresh available items to include the new item
+        if (selectedTruck) {
+          fetch(`/api/use-parts/${selectedTruck}`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(res => res.json())
+          .then(data => setAvailableItems(data.items || []))
+          .catch(err => console.error(err))
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || "Failed to add item");
+      }
+    } catch (error) {
+      console.error("Error adding item:", error);
+      toast.error("Failed to add item");
+    } finally {
+      setIsAddingItem(false);
+    }
+  };
+
   // ✅ Fetch jobs from API based on filters and pagination
   const fetchJobs = async (page: number = 1) => {
     if (!token) return
@@ -227,6 +339,33 @@ export default function UsePartsPage() {
   useEffect(() => {
     fetchJobs(currentPage)
   }, [searchTerm, dateFrom, dateTo, selectedTruckFilter, currentPage])
+
+  // Debounced suggestions fetch
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchSuggestions(quickAddItem)
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timeoutId)
+  }, [quickAddItem])
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: any) => {
+    setQuickAddItem(suggestion.name)
+    setShowSuggestions(false)
+    setSuggestions([])
+  }
+
+  // Handle adding suggestion directly
+  const handleAddSuggestion = async (suggestion: any) => {
+    // Set the suggestion name in the input
+    setQuickAddItem(suggestion.name)
+    setShowSuggestions(false)
+    setSuggestions([])
+    
+    // Call handleQuickAddItem with the full suggestion data
+    await handleQuickAddItemWithSuggestion(suggestion)
+  }
 
   const addPartToJob = (item: InventoryItem) => {
     console.log("Adding part to job:", item);
@@ -526,14 +665,76 @@ export default function UsePartsPage() {
                       <div className="space-y-4">
                         <div className="space-y-2">
                           {/* <Label htmlFor="quickAdd">Quick Add Item</Label> */}
-                          <div className="flex gap-2">
-                            <Input
-                              id="quickAdd"
-                              placeholder="Search existing parts or enter new item name"
-                              value={quickAddItem}
-                              onChange={(e) => setQuickAddItem(e.target.value)}
-                              onKeyPress={(e) => e.key === 'Enter' && handleQuickAddItem()}
-                            />
+                          <div className="flex gap-2 relative">
+                            <div className="flex-1 relative">
+                              <Input
+                                id="quickAdd"
+                                placeholder="Search existing parts or enter new item name"
+                                value={quickAddItem}
+                                onChange={(e) => setQuickAddItem(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleQuickAddItem()}
+                                onFocus={() => quickAddItem.trim() && setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                              />
+                              
+                              {/* Suggestions Dropdown */}
+                              {showSuggestions && suggestions.length > 0 && (
+                                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                                    <div className="text-xs font-medium text-gray-600">Suggestions ({suggestions.length})</div>
+                                  </div>
+                                  {suggestions.map((suggestion, index) => (
+                                    <div
+                                      key={suggestion.id || index}
+                                      className="px-4 py-3 hover:bg-blue-50 hover:shadow-sm transition-all duration-200 border-b border-gray-100 last:border-b-0 flex items-center justify-between group"
+                                    >
+                                      <div 
+                                        className="flex-1 cursor-pointer"
+                                        onClick={() => handleSuggestionSelect(suggestion)}
+                                      >
+                                        <div className="font-medium text-sm text-gray-900">{suggestion.name}</div>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                          {suggestion.part_number && (
+                                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                              {suggestion.part_number}
+                                            </span>
+                                          )}
+                                          {suggestion.brand && (
+                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                              {suggestion.brand}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {suggestion.created_by_name && (
+                                          <div className="text-xs text-gray-500 mt-1">
+                                            Added by: {suggestion.created_by_name}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        className="ml-2 h-8 px-3 text-xs transition-all duration-200 hover:bg-red-900 hover:text-white hover:border-black hover:shadow-md transform hover:scale-105"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleAddSuggestion(suggestion)
+                                        }}
+                                        disabled={isAddingItem}
+                                      >
+                                        {isAddingItem ? "Adding..." : "Add"}
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              
+                              {/* Loading indicator */}
+                              {isLoadingSuggestions && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                </div>
+                              )}
+                            </div>
                             <Button 
                               onClick={handleQuickAddItem}
                               disabled={isAddingItem || !quickAddItem.trim()}

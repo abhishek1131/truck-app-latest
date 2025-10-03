@@ -41,7 +41,7 @@ export async function updateSession(request: NextRequest) {
     // Check if user is admin
     const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
 
-    if (!userData || userData.role !== "admin") {
+    if (!userData || (userData.role !== "super_admin" && userData.role !== "company_admin")) {
       const url = request.nextUrl.clone()
       url.pathname = "/dashboard"
       return NextResponse.redirect(url)

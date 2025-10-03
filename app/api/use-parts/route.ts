@@ -180,32 +180,32 @@ export async function GET(request: NextRequest) {
     const truckId = searchParams.get("truckId") || "";
 
     // ✅ Build WHERE clause dynamically
-    let whereClause = `WHERE created_by = ?`;
+    let whereClause = `WHERE j.created_by = ?`;
     const params: any[] = [userId];
 
     if (search) {
-      whereClause += ` AND (job_name LIKE ? OR JSON_SEARCH(parts, 'all', ?) IS NOT NULL)`;
+      whereClause += ` AND (j.job_name LIKE ? OR JSON_SEARCH(j.parts, 'all', ?) IS NOT NULL)`;
       params.push(`%${search}%`, `%${search}%`);
     }
 
     if (dateFrom) {
-      whereClause += ` AND date >= ?`;
+      whereClause += ` AND j.date >= ?`;
       params.push(dateFrom);
     }
 
     if (dateTo) {
-      whereClause += ` AND date <= ?`;
+      whereClause += ` AND j.date <= ?`;
       params.push(dateTo);
     }
 
     if (truckId && truckId !== "all") {
-      whereClause += ` AND truck_id = ?`;
+      whereClause += ` AND j.truck_id = ?`;
       params.push(truckId);
     }
 
     // ✅ Get total count
     const [countRows] = await pool.query(
-      `SELECT COUNT(*) as total FROM use_parts_job ${whereClause}`,
+      `SELECT COUNT(*) as total FROM use_parts_job j ${whereClause}`,
       params
     );
     const total = (countRows as any[])[0].total;

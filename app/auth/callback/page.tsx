@@ -21,7 +21,7 @@ export default async function AuthCallbackPage({
       if (user) {
         const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
 
-        if (userData?.role === "admin") {
+        if (userData?.role === "super_admin" || userData?.role === "company_admin") {
           redirect("/admin")
         } else {
           redirect("/dashboard")

@@ -987,7 +987,7 @@ ${orderDetails.technician}`;
   const categories = [
     "all",
     ...Array.from(
-      new Set(inventoryItems.map((item: InventoryItem) => item.category))
+      new Set(inventoryItems.map((item: InventoryItem) => item.category).filter(category => category && category.trim() !== ""))
     ),
   ];
 

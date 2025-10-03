@@ -73,6 +73,7 @@ export async function GET(req: Request) {
       );
     }
 
+    console.log("decoded", decoded);
     const { searchParams } = new URL(req.url);
     const page = Number.parseInt(searchParams.get("page") || "1");
     const limit = Number.parseInt(searchParams.get("limit") || "10");
@@ -113,6 +114,18 @@ export async function GET(req: Request) {
     const conditions: string[] = [];
     const values: any[] = [];
 
+    // Role-based filtering
+    if (decoded.role === 'company_admin') {
+      // Company admin can only see orders from users in their company
+      conditions.push("u.created_by = ?");
+      values.push(decoded.id);
+    } else if (decoded.role === 'technician') {
+      // Technician can only see their own orders
+      conditions.push("o.technician_id = ?");
+      values.push(decoded.id);
+    }
+    // super_admin can see all orders (no additional filtering)
+
     if (status) {
       conditions.push("o.status = ?");
       values.push(status);
@@ -151,14 +164,59 @@ export async function GET(req: Request) {
 
     const [rows] = await pool.query(query, values);
 
-    const [countResult] = await pool.query(
-      `SELECT COUNT(DISTINCT o.id) as total FROM orders o
-       JOIN users u ON o.technician_id = u.id
-       LEFT JOIN trucks t ON o.truck_id = t.id
-       LEFT JOIN order_items oi ON o.id = oi.order_id
-       ${conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : ""}`,
-      values
-    );
+    // Create count query with same role-based filtering
+    let countQuery = `
+      SELECT COUNT(DISTINCT o.id) as total FROM orders o
+      JOIN users u ON o.technician_id = u.id
+      LEFT JOIN trucks t ON o.truck_id = t.id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+    `;
+    
+    const countConditions: string[] = [];
+    const countValues: any[] = [];
+    
+    // Apply same role-based filtering for count
+    if (decoded.role === 'company_admin') {
+      countConditions.push("u.created_by = ?");
+      countValues.push(decoded.id);
+    } else if (decoded.role === 'technician') {
+      countConditions.push("o.technician_id = ?");
+      countValues.push(decoded.id);
+    }
+    
+    // Apply other filters for count
+    if (status) {
+      countConditions.push("o.status = ?");
+      countValues.push(status);
+    }
+    if (technician) {
+      countConditions.push("u.id = ?");
+      countValues.push(technician);
+    }
+    if (truck) {
+      countConditions.push("t.id = ?");
+      countValues.push(truck);
+    }
+    if (search) {
+      countConditions.push(
+        `(u.first_name LIKE ? OR u.last_name LIKE ? OR o.id LIKE ? OR o.order_number LIKE ? OR t.truck_number LIKE ? OR oi.part_number LIKE ?)`
+      );
+      const searchTerm = `%${search}%`;
+      countValues.push(
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm
+      );
+    }
+    
+    if (countConditions.length > 0) {
+      countQuery += " WHERE " + countConditions.join(" AND ");
+    }
+
+    const [countResult] = await pool.query(countQuery, countValues);
 
     const total = (countResult as any)[0].total;
 
@@ -201,6 +259,10 @@ export async function GET(req: Request) {
 
     // 🔹 Log activity: "Viewed orders"
     try {
+      const roleFilter = decoded.role === 'super_admin' ? 'all orders' : 
+                        decoded.role === 'company_admin' ? 'company orders' : 
+                        'own orders';
+      
       await pool.query(
         `
         INSERT INTO activities (id, type, message, status, user_id, created_at)
@@ -209,12 +271,12 @@ export async function GET(req: Request) {
         [
           uuidv4(), 
           "order", 
-          `User viewed orders list (page ${page}, filters applied: status=${status || "all"})`, 
+          `User viewed orders list (${roleFilter}, page ${page}, filters applied: status=${status || "all"})`, 
           "new", 
           decoded.id
         ]
       );
-      console.log(`Activity logged: user ${decoded.id} viewed orders`);
+      console.log(`Activity logged: user ${decoded.id} (${decoded.role}) viewed orders`);
     } catch (activityError: any) {
       console.error("Failed to log activity:", activityError);
     }

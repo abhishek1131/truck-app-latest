@@ -13,9 +13,12 @@ interface ConfirmResponse {
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params before using its properties
+    const { id } = await params;
+    
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -54,7 +57,7 @@ export async function POST(
       SET status = ?, confirmed_at = NOW(), updated_at = NOW()
       WHERE id = ? AND status = ?
       `,
-      ["confirmed", params.id, "pending"]
+      ["confirmed", id, "pending"]
     );
         
     if ((result as any).affectedRows === 0) {
@@ -85,7 +88,7 @@ export async function POST(
       JOIN trucks t ON o.truck_id = t.id
       WHERE o.id = ?
       `,
-      [params.id]
+      [id]
     );
 
     // 🔹 Log activity
@@ -98,12 +101,12 @@ export async function POST(
         [
           uuidv4(),                                  // id
           "order",                                   // type
-          `Order #${params.id} confirmed successfully`, // message
+          `Order #${id} confirmed successfully`, // message
           "info",                               // status
           decoded.id,                                // user_id (who confirmed)
         ]
       );
-      console.log(`Activity logged: Order #${params.id} confirmed by user ${decoded.id}`);
+      console.log(`Activity logged: Order #${id} confirmed by user ${decoded.id}`);
     } catch (activityError: any) {
       console.error("Failed to log activity:", activityError);
       // Do not block response if activity logging fails
@@ -111,7 +114,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      data: updatedOrder[0],
+      data: (updatedOrder as any[])[0],
       message: "Order confirmed successfully",
     });
   } catch (error: any) {

@@ -18,13 +18,17 @@ CREATE TABLE `users` (
   `first_name` varchar(100) DEFAULT NULL,
   `last_name` varchar(100) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
-  `role` enum('admin','technician') NOT NULL DEFAULT 'technician',
+  `role` enum('super_admin','company_admin','technician') NOT NULL DEFAULT 'technician',
   `status` enum('active','inactive','suspended') NOT NULL DEFAULT 'active',
+  `company_name` varchar(255) DEFAULT NULL,
+  `created_by` char(36) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `password` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`)
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_users_created_by` (`created_by`),
+  CONSTRAINT `users_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Create table trucks
@@ -42,13 +46,16 @@ CREATE TABLE `trucks` (
   `location` varchar(255) DEFAULT NULL,
   `mileage` int DEFAULT '0',
   `assigned_to` char(36) DEFAULT NULL,
+  `created_by` char(36) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `next_maintenance` date DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `truck_number` (`truck_number`),
   KEY `idx_trucks_assigned_to` (`assigned_to`),
-  CONSTRAINT `trucks_ibfk_1` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  KEY `idx_trucks_created_by` (`created_by`),
+  CONSTRAINT `trucks_ibfk_1` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `trucks_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Create table truck_bins
@@ -279,4 +286,25 @@ CREATE TABLE `use_parts_job` (
   KEY `idx_created_by` (`created_by`),
   CONSTRAINT `fk_use_parts_job_truck` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_use_parts_job_user` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Create table notifications
+CREATE TABLE `notifications` (
+  `id` CHAR(36) NOT NULL,
+  `message` TEXT NOT NULL,
+  `type` ENUM('item_create', 'item_assign') NOT NULL,
+  `status` ENUM('unread', 'read') DEFAULT 'unread',
+  `item_id` CHAR(36) DEFAULT NULL,
+  `truck_id` CHAR(36) DEFAULT NULL,
+  `quantity` INT DEFAULT 0,
+  `used_quantity` INT DEFAULT 0,
+  `user_id` CHAR(36) DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_notifications_item_id` (`item_id`),
+  KEY `idx_notifications_truck_id` (`truck_id`),
+  KEY `idx_notifications_user_id` (`user_id`),
+  CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `inventory_items` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `notifications_ibfk_2` FOREIGN KEY (`truck_id`) REFERENCES `trucks` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `notifications_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

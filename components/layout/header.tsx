@@ -29,6 +29,7 @@ interface Notification {
   action: string;
   entity_type: string | null;
   entity_id: string | null;
+  item_id?: string | null;
   details: string | null;
   created_at: string;
 }
@@ -89,6 +90,20 @@ export function Header({ title, subtitle }: HeaderProps) {
       .map((n) => n[0])
       .join("")
       .toUpperCase() || "T";
+
+  // Get proper role display name
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case "super_admin":
+        return "Super Admin";
+      case "company_admin":
+        return "Company Admin";
+      case "technician":
+        return "Technician";
+      default:
+        return role;
+    }
+  };
 
   return (
     <div className="h-16 bg-white border-b border-gray-200/80 sticky top-0 z-30 shadow-sm">
@@ -178,14 +193,42 @@ export function Header({ title, subtitle }: HeaderProps) {
                         )}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-700">
-                      {notification.action}
+                    <div className="text-sm text-gray-700 flex items-center justify-between">
+                      <span>
+                        {notification.action === 'item_create'
+                          ? 'Item Created'
+                          : notification.action === 'item_assign'
+                            ? 'Item Assigned'
+                            : notification.action}
+                      </span>
+
+                      {user?.role === 'company_admin' &&
+                        (notification.action === 'item_create' ||
+                          notification.action === 'item_assign') &&
+                        notification.item_id && (
+                          <Link
+                            href={`/admin/inventory?item=${notification.item_id}`}
+                            className="text-xs text-blue-600 hover:underline ml-3"
+                          >
+                            Edit Item
+                          </Link>
+                        )}
                     </div>
                     {notification.details && (
                       <div className="text-xs text-gray-500">
                         {notification.details}
                       </div>
                     )}
+                    {/* {user?.role === 'company_admin' && 
+                     (notification.action === 'item_create' || notification.action === 'item_assign') && 
+                     notification.item_id && (
+                        <Link
+                          href={`/admin/inventory?item=${notification.item_id}`}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Edit Item
+                        </Link>
+                      )} */}
                     {/* {notification.entity_type === "order" &&
                       notification.entity_id && (
                         <Link
@@ -211,7 +254,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               <DropdownMenuContent align="end" className="w-48">
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold text-[#10294B]">{displayName}</p>
-                  <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+                  <p className="text-xs text-gray-600">{getRoleDisplayName(user.role)}</p>
                 </div>
                 <DropdownMenuItem
                   onClick={logout}
@@ -231,7 +274,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                 className="hidden lg:block cursor-pointer"
               >
                 <p className="text-sm font-semibold text-[#10294B]">{displayName}</p>
-                <p className="text-xs text-gray-600 capitalize">{user.role}</p>
+                <p className="text-xs text-gray-600">{getRoleDisplayName(user.role)}</p>
               </Link>
             </div>
           </div>

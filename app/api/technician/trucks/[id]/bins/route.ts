@@ -210,7 +210,7 @@ export async function DELETE(
 
     let effectiveUserId = userId;
 
-    if (userData.role === "admin") {
+    if (userData.role === "super_admin" || userData.role === "company_admin") {
       const [truckRows] = await pool.query(
         `SELECT assigned_to FROM trucks WHERE id = ?`,
         [truckId]

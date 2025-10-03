@@ -12,7 +12,7 @@ interface UserResponse {
       last_name: string;
       email: string;
       phone: string | null;
-      role: "admin" | "manager" | "technician";
+      role: "super_admin" | "company_admin" | "technician";
       status: "active" | "inactive" | "pending" | "suspended";
       created_at: string;
       updated_at: string | null;
@@ -28,6 +28,13 @@ interface UserResponse {
       limit: number;
       total: number;
       pages: number;
+    };
+    statistics: {
+      totalUsers: number;
+      totalTechnicians: number;
+      totalAdministrators: number;
+      activeTechnicians: number;
+      inactiveTechnicians: number;
     };
   };
   error?: string;
@@ -55,16 +62,6 @@ export async function GET(req: Request) {
         id: string;
         role: string;
       };
-      // if (decoded.role !== "admin") {
-      //   return NextResponse.json(
-      //     {
-      //       success: false,
-      //       error: "Forbidden: Admin access required",
-      //       code: "FORBIDDEN",
-      //     },
-      //     { status: 403 }
-      //   );
-      // }
     } catch (error) {
       return NextResponse.json(
         {
@@ -75,10 +72,27 @@ export async function GET(req: Request) {
         { status: 401 }
       );
     }
+    console.log("decoded", decoded);
+    // Get current user details for role-based filtering
+    const [currentUserRows] = await pool.query(
+      `SELECT role, company_name FROM users WHERE id = ?`,
+      [decoded.id]
+    );
+    const currentUser = (currentUserRows as any[])[0];
+    
+    if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "company_admin")) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden", code: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const userCompany = currentUser.company_name;
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(searchParams.get("limit") || "50");
     const search = searchParams.get("search") || "";
     const role = searchParams.get("role") || "";
     const status = searchParams.get("status") || "";
@@ -87,15 +101,33 @@ export async function GET(req: Request) {
 
     let query = `
       SELECT 
-        u.id, u.first_name, u.last_name, u.email, u.phone, u.role, u.status, u.created_at, u.updated_at,
-        t.id AS truck_id, t.truck_number, t.make, t.model,
-        (SELECT COUNT(*) FROM users) AS total_count
+        u.id, u.first_name, u.last_name, u.email, u.phone, u.role, u.status, u.company_name, u.created_by, u.created_at, u.updated_at,
+        t.id AS truck_id, t.truck_number, t.make, t.model
       FROM users u
       LEFT JOIN trucks t ON t.assigned_to = u.id
       WHERE 1=1
     `;
 
     const params: any[] = [];
+
+    // Apply role-based filtering
+    if (isSuperAdmin) {
+      // Super admin can see company_admin and technician users
+      // But if role filter is super_company_admin, allow super_admin users too
+      if (role === "super_company_admin") {
+        query += ` AND u.role IN ('super_admin', 'company_admin')`;
+      } else {
+        query += ` AND u.role IN ('company_admin', 'technician')`;
+      }
+    } else {
+      // Company admin can only see technicians
+      query += ` AND (u.company_name = ? OR u.created_by = ?)`;
+      params.push(userCompany, decoded.id);
+      
+      if (currentUser.role === "company_admin") {
+        query += ` AND u.role = 'technician'`;
+      }
+    }
 
     if (search) {
       query += ` AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.id LIKE ?)`;
@@ -104,8 +136,12 @@ export async function GET(req: Request) {
     }
 
     if (role) {
-      query += ` AND u.role = ?`;
-      params.push(role);
+      if (role === "super_company_admin") {
+        query += ` AND u.role IN ('super_admin', 'company_admin')`;
+      } else {
+        query += ` AND u.role = ?`;
+        params.push(role);
+      }
     }
 
     if (status) {
@@ -113,12 +149,21 @@ export async function GET(req: Request) {
       params.push(status);
     }
 
-    query += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
+    // Add custom ordering for super_company_admin role filter
+    if (role === "super_company_admin") {
+      query += ` ORDER BY 
+        CASE 
+          WHEN u.role = 'super_admin' THEN 1 
+          WHEN u.role = 'company_admin' THEN 2 
+          ELSE 3 
+        END, 
+        u.created_at DESC LIMIT ? OFFSET ?`;
+    } else {
+      query += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;      
+    }
     params.push(limit, offset);
 
     const [results] = await pool.query<any[]>(query, params);
-
-    const total = results.length > 0 ? results[0].total_count : 0;
 
     // Group trucks by user
     const usersMap = new Map<string, any>();
@@ -132,6 +177,8 @@ export async function GET(req: Request) {
           phone: row.phone,
           role: row.role,
           status: row.status,
+          company_name: row.company_name,
+          created_by: row.created_by,
           created_at: row.created_at,
           updated_at: row.updated_at,
           assigned_trucks: [],
@@ -149,6 +196,93 @@ export async function GET(req: Request) {
 
     const users = Array.from(usersMap.values());
 
+    // Calculate statistics from total dataset (not paginated results)
+    let statsQuery = `
+      SELECT 
+        SUM(CASE WHEN role IN ('technician', 'company_admin') THEN 1 ELSE 0 END) as total_users,
+        SUM(CASE WHEN role = 'technician' THEN 1 ELSE 0 END) as total_technicians,
+        SUM(CASE WHEN role IN ('company_admin') THEN 1 ELSE 0 END) as total_administrators,
+        SUM(CASE WHEN role = 'technician' AND status = 'active' THEN 1 ELSE 0 END) as active_technicians,
+        SUM(CASE WHEN role = 'technician' AND status != 'active' THEN 1 ELSE 0 END) as inactive_technicians
+      FROM users u
+      WHERE 1=1
+    `;
+    
+    const statsParams: any[] = [];
+    
+    // Apply same role-based filtering for statistics
+    if (isSuperAdmin) {
+      // Super admin can see company_admin and technician users
+      // But if role filter is super_company_admin, allow super_admin users too
+      if (role === "super_company_admin") {
+        statsQuery += ` AND u.role IN ('super_admin', 'company_admin')`;
+      } else {
+        statsQuery += ` AND u.role IN ('company_admin', 'technician')`;
+      }
+    } else {
+      // Company admin can only see technicians
+      statsQuery += ` AND (u.company_name = ? OR u.created_by = ?)`;
+      statsParams.push(userCompany, decoded.id);
+      
+      if (currentUser.role === "company_admin") {
+        statsQuery += ` AND u.role = 'technician'`;
+      }
+    }
+    
+    const [statsResults] = await pool.query<any[]>(statsQuery, statsParams);
+    const stats = statsResults[0];
+    
+    // Get total count for pagination with same filtering logic
+    let countQuery = `SELECT COUNT(*) as total_count FROM users u WHERE 1=1`;
+    const countParams: any[] = [];
+    
+    if (isSuperAdmin) {
+      // Super admin can see company_admin and technician users
+      // But if role filter is super_company_admin, allow super_admin users too
+      if (role === "super_company_admin") {
+        countQuery += ` AND u.role IN ('super_admin', 'company_admin')`;
+      } else {
+        countQuery += ` AND u.role IN ('company_admin', 'technician')`;
+      }
+    } else {
+      countQuery += ` AND (u.company_name = ? OR u.created_by = ?)`;
+      countParams.push(userCompany, decoded.id);
+      
+      if (currentUser.role === "company_admin") {
+        countQuery += ` AND u.role = 'technician'`;
+      }
+    }
+    
+    // Apply same search and filter conditions to count query
+    if (search) {
+      countQuery += ` AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.id LIKE ?)`;
+      const searchParam = `%${search}%`;
+      countParams.push(searchParam, searchParam, searchParam, searchParam);
+    }
+    
+    if (role) {
+      if (role === "super_company_admin") {
+        countQuery += ` AND u.role IN ('super_admin', 'company_admin')`;
+      } else {
+        countQuery += ` AND u.role = ?`;
+        countParams.push(role);
+      }
+    }
+    
+    if (status) {
+      countQuery += ` AND u.status = ?`;
+      countParams.push(status);
+    }
+    
+    const [countResults] = await pool.query<any[]>(countQuery, countParams);
+    const total = countResults[0].total_count;
+    
+    const totalUsers = stats.total_users;
+    const totalTechnicians = stats.total_technicians;
+    const totalAdministrators = stats.total_administrators;
+    const activeTechnicians = stats.active_technicians;
+    const inactiveTechnicians = stats.inactive_technicians;
+
     const response: UserResponse = {
       success: true,
       data: {
@@ -158,6 +292,13 @@ export async function GET(req: Request) {
           limit,
           total,
           pages: Math.ceil(total / limit),
+        },
+        statistics: {
+          totalUsers,
+          totalTechnicians,
+          totalAdministrators,
+          activeTechnicians,
+          inactiveTechnicians,
         },
       },
     };
@@ -189,6 +330,7 @@ export async function POST(req: Request) {
     const token = authHeader.split(" ")[1];
     let decoded: { id: string; role: string };
     try {
+      console.log("token", token);
       decoded = verify(token, process.env.JWT_SECRET as string) as {
         id: string;
         role: string;
@@ -213,9 +355,10 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
+    console.log("decoded", decoded);
 
     const body = await req.json();
-    const { first_name, last_name, email, password, phone, role } = body;
+    const { first_name, last_name, email, password, phone, role, company_name, status } = body;
 
     if (!first_name || !last_name || !email || !password || !role) {
       return NextResponse.json(
@@ -229,9 +372,17 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!["admin", "manager", "technician"].includes(role)) {
+    if (!["super_admin", "company_admin", "technician"].includes(role)) {
       return NextResponse.json(
         { success: false, error: "Invalid role", code: "BAD_REQUEST" },
+        { status: 400 }
+      );
+    }
+
+    // Validate company_name for company_admin role
+    if (role === "company_admin" && !company_name?.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Company name is required for Company Admin role", code: "BAD_REQUEST" },
         { status: 400 }
       );
     }
@@ -274,15 +425,25 @@ export async function POST(req: Request) {
 
     const [result] = await pool.query(
       `
-      INSERT INTO users (id, first_name, last_name, email, password, phone, role, status, created_at, updated_at)
-      VALUES (UUID(), ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+      INSERT INTO users (id, first_name, last_name, email, password, phone, role, status, company_name, created_by, created_at, updated_at)
+      VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `,
-      [first_name, last_name, email, hashedPassword, phone || null, role]
+      [
+        first_name, 
+        last_name, 
+        email, 
+        hashedPassword, 
+        phone || null, 
+        role, 
+        status || 'active',
+        role === "company_admin" ? company_name : null,
+        decoded.id, // created_by is the current user's ID
+      ]
     );
 
     const [newUser] = await pool.query(
       `
-      SELECT id, first_name, last_name, email, phone, role, status, created_at, updated_at
+      SELECT id, first_name, last_name, email, phone, role, status, company_name, created_by, created_at, updated_at
       FROM users
       WHERE id = (SELECT LAST_INSERT_ID())
       `
@@ -290,7 +451,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      data: { ...newUser[0], assigned_trucks: [] },
+      data: { ...(newUser as any[])[0], assigned_trucks: [] },
     });
   } catch (error: any) {
     console.error("Create user error:", error);

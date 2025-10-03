@@ -28,12 +28,12 @@ const technicianNavigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-const adminNavigation = [
+const baseAdminNavigation = [
   { name: "Admin Dashboard", href: "/admin", icon: Shield },
   { name: "Fleet Management", href: "/admin/trucks", icon: Truck },
   { name: "User Management", href: "/admin/users", icon: Users },
+  { name: "Inventory Management", href: "/admin/inventory", icon: Package },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 export function SidebarNavigation() {
@@ -41,8 +41,17 @@ export function SidebarNavigation() {
   const { user, logout, loading } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Build admin navigation dynamically based on user role
+  const adminNavigation = [
+    ...baseAdminNavigation,
+    // Only show "Settings" for super_admin, not for company_admin
+    ...(user?.role === "super_admin"
+      ? [{ name: "Settings", href: "/admin/settings", icon: Settings }]
+      : []),
+  ];
+
   const navigation =
-    user?.role === "admin" ? adminNavigation : technicianNavigation;
+    (user?.role === "super_admin" || user?.role === "company_admin") ? adminNavigation : technicianNavigation;
 
   // Construct name from first_name and last_name, with fallback
   const displayName =
@@ -80,7 +89,7 @@ export function SidebarNavigation() {
                   TruXtoK
                 </span>
                 <span className="text-xs text-gray-500">
-                  {user?.role === "admin" ? "Administrator" : "Technician"}
+                  {(user?.role === "super_admin" || user?.role === "company_admin") ? "Administrator" : "Technician"}
                 </span>
               </div>
             )}
@@ -91,7 +100,7 @@ export function SidebarNavigation() {
         <nav className="flex-1 px-2 py-4 space-y-1">
           {navigation.map((item) => {
             const isActive =
-              user?.role === "admin"
+              (user?.role === "super_admin" || user?.role === "company_admin")
                 ? pathname === item.href ||
                   (item.href !== "/admin" &&
                     pathname.startsWith(item.href + "/"))

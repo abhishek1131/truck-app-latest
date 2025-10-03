@@ -40,7 +40,7 @@ export async function GET(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "admin") {
+    if (!userData || (userData.role !== "super_admin" && userData.role !== "company_admin")) {
       console.error(`User not found or inactive: userId=${userId}`);
       return NextResponse.json(
         { error: "Forbidden: User not found or inactive" },
@@ -124,7 +124,7 @@ export async function POST(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "admin") {
+    if (!userData || (userData.role !== "super_admin" && userData.role !== "company_admin")) {
       console.error(`User not found or inactive: userId=${userId}`);
       return NextResponse.json(
         { error: "Forbidden: User not found or inactive" },
@@ -245,7 +245,7 @@ export async function DELETE(
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "admin") {
+    if (!userData || (userData.role !== "super_admin" && userData.role !== "company_admin")) {
       console.error(`User not found or inactive: userId=${userId}`);
       return NextResponse.json(
         { error: "Forbidden: User not found or inactive" },

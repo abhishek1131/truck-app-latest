@@ -47,24 +47,27 @@ export async function GET(req: Request) {
         { status: 401 }
       );
     }
-
+    console.log("decoded", decoded);
     const userId = decoded.id;
 
-    // ✅ Verify role from DB
+    // ✅ Verify role from DB and get company info
     const [userRows] = await pool.query(
-      "SELECT role FROM users WHERE id = ? AND status = 'active'",
+      "SELECT role, company_name FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || !["technician", "admin"].includes(userData.role)) {
+    if (!userData || !["technician", "super_admin", "company_admin"].includes(userData.role)) {
       return NextResponse.json(
         { success: false, error: "Forbidden", code: "FORBIDDEN" },
         { status: 403 }
       );
     }
 
-    const isAdmin = decoded.role === "admin";
+    const isSuperAdmin = decoded.role === "super_admin";
+    const isCompanyAdmin = decoded.role === "company_admin";
+    const isAdmin = isSuperAdmin || isCompanyAdmin;
+    const userCompany = userData.company_name;
 
     // Revised query to ensure all technician-related activities are included
     const query = `
@@ -75,13 +78,14 @@ export async function GET(req: Request) {
         a.type AS action,
         'order' AS entity_type,
         a.id AS entity_id,
+        NULL AS item_id,
         a.message AS details,
         a.created_at
       FROM activities a
       LEFT JOIN orders o ON a.message LIKE CONCAT('%', o.order_number, '%')
       LEFT JOIN users u ON o.technician_id = u.id
-      WHERE a.type = 'order' AND o.technician_id IN (SELECT id FROM users WHERE role = 'technician')
-      ${isAdmin ? "" : "AND o.technician_id = ?"}
+      WHERE a.type = 'order' AND o.technician_id IN (SELECT id FROM users WHERE role IN ('technician', 'company_admin'))
+      ${isSuperAdmin ? "" : isCompanyAdmin ? "AND o.technician_id IN (SELECT id FROM users WHERE company_name = ? OR created_by = ?)" : "AND o.technician_id = ?"}
       
       UNION
 
@@ -92,12 +96,13 @@ export async function GET(req: Request) {
         a.type AS action,
         a.type AS entity_type,
         a.id AS entity_id,
+        NULL AS item_id,
         a.message AS details,
         a.created_at
       FROM activities a
       LEFT JOIN users u ON a.user_id = u.id
-      WHERE a.type IN ('technician', 'redemption') AND a.user_id IN (SELECT id FROM users WHERE role = 'technician')
-      ${isAdmin ? "" : "AND a.user_id = ?"}
+      WHERE a.type IN ('technician', 'redemption') AND a.user_id IN (SELECT id FROM users WHERE role IN ('technician', 'company_admin'))
+      ${isSuperAdmin ? "" : isCompanyAdmin ? "AND a.user_id IN (SELECT id FROM users WHERE company_name = ? OR created_by = ?)" : "AND a.user_id = ?"}
       
       UNION
 
@@ -108,6 +113,7 @@ export async function GET(req: Request) {
         a.type AS action,
         a.type AS entity_type,
         a.id AS entity_id,
+        NULL AS item_id,
         a.message AS details,
         a.created_at
       FROM activities a
@@ -127,12 +133,13 @@ export async function GET(req: Request) {
         us.action,
         'session' AS entity_type,
         us.id AS entity_id,
+        NULL AS item_id,
         COALESCE(JSON_UNQUOTE(JSON_EXTRACT(us.details, '$.status')), us.action) AS details,
         us.created_at
       FROM user_sessions us
       LEFT JOIN users u ON us.user_id = u.id
-      WHERE us.user_id IN (SELECT id FROM users WHERE role = 'technician')
-      ${isAdmin ? "" : "AND us.user_id = ?"}
+      WHERE us.user_id IN (SELECT id FROM users WHERE role IN ('technician', 'company_admin'))
+      ${isSuperAdmin ? "" : isCompanyAdmin ? "AND us.user_id IN (SELECT id FROM users WHERE company_name = ? OR created_by = ?)" : "AND us.user_id = ?"}
       
       UNION
 
@@ -143,12 +150,13 @@ export async function GET(req: Request) {
         c.type AS action,
         'credit' AS entity_type,
         c.id AS entity_id,
+        NULL AS item_id,
         c.description AS details,
         c.created_at
       FROM credits c
       LEFT JOIN users u ON c.technician_id = u.id
-      WHERE c.technician_id IN (SELECT id FROM users WHERE role = 'technician')
-      ${isAdmin ? "" : "AND c.technician_id = ?"}
+      WHERE c.technician_id IN (SELECT id FROM users WHERE role IN ('technician', 'company_admin'))
+      ${isSuperAdmin ? "" : isCompanyAdmin ? "AND c.technician_id IN (SELECT id FROM users WHERE company_name = ? OR created_by = ?)" : "AND c.technician_id = ?"}
       
       UNION
 
@@ -159,27 +167,47 @@ export async function GET(req: Request) {
         ro.status AS action,
         'restock_order' AS entity_type,
         ro.id AS entity_id,
+        NULL AS item_id,
         CONCAT('Restock order ', ro.id, ' - ', ro.status) AS details,
         ro.created_at
       FROM restock_orders ro
       LEFT JOIN users u ON ro.technician_id = u.id
-      WHERE ro.technician_id IN (SELECT id FROM users WHERE role = 'technician')
-      ${isAdmin ? "" : "AND ro.technician_id = ?"}
+      WHERE ro.technician_id IN (SELECT id FROM users WHERE role IN ('technician', 'company_admin'))
+      ${isSuperAdmin ? "" : isCompanyAdmin ? "AND ro.technician_id IN (SELECT id FROM users WHERE company_name = ? OR created_by = ?)" : "AND ro.technician_id = ?"}
+      
+      UNION
+
+      SELECT 
+        n.id,
+        n.user_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+        n.type AS action,
+        'notification' AS entity_type,
+        n.id AS entity_id,
+        n.item_id,
+        n.message AS details,
+        n.created_at
+      FROM notifications n
+      LEFT JOIN users u ON n.user_id = u.id
+      WHERE n.user_id IN (SELECT id FROM users WHERE role IN ('technician', 'company_admin'))
+      ${isSuperAdmin ? "" : isCompanyAdmin ? "AND n.user_id IN (SELECT id FROM users WHERE company_name = ? OR created_by = ?)" : "AND n.user_id = ?"}
       
       ORDER BY created_at DESC
       LIMIT 50
     `;
 
-    const params = isAdmin
-      ? []
-      : [
-          decoded.id,
-          decoded.id,
-          decoded.id,
-          decoded.id,
-          decoded.id,
-          decoded.id,
-        ];
+    let params: any[] = [];
+    
+    if (isSuperAdmin) {
+      // No filtering for super admin
+      params = [];
+    } else if (isCompanyAdmin) {
+      // Filter by company and created_by for company admin
+      params = [userCompany, decoded.id, userCompany, decoded.id, userCompany, decoded.id, userCompany, decoded.id, userCompany, decoded.id, userCompany, decoded.id, userCompany, decoded.id];
+    } else {
+      // Filter by user ID for technician
+      params = [decoded.id, decoded.id, decoded.id, decoded.id, decoded.id, decoded.id, decoded.id];
+    }
 
     const [rows] = await pool.query(query, params);
 
@@ -189,6 +217,7 @@ export async function GET(req: Request) {
       user_name: row.user_name || "System",
       action: row.action,
       entity_type: row.entity_type || null,
+      item_id: row.item_id || null,
       entity_id: row.entity_id || null,
       details: row.details || null,
       created_at: new Date(row.created_at).toISOString(),

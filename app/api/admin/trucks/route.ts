@@ -72,7 +72,23 @@ export async function GET(req: Request) {
         },
         { status: 401 }
       );
+    }    
+    // Get current user details for role-based filtering
+    const [currentUserRows] = await pool.query(
+      `SELECT role, company_name FROM users WHERE id = ?`,
+      [decoded.id]
+    );
+    const currentUser = (currentUserRows as any[])[0];
+    
+    if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "company_admin")) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden", code: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
+
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const userCompany = currentUser.company_name;
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -84,7 +100,7 @@ export async function GET(req: Request) {
     const offset = (page - 1) * limit;
 
     let query = `
-      SELECT 
+      SELECT       
         t.id, t.truck_number, t.make, t.model, t.year, t.license_plate, t.description, t.vin, t.status, t.location, t.mileage, t.next_maintenance, t.order_approval,
         u.id AS technician_id, u.first_name, u.last_name, u.email,
         (SELECT COUNT(*) FROM truck_bins tb WHERE tb.truck_id = t.id) AS bins,
@@ -93,13 +109,19 @@ export async function GET(req: Request) {
          JOIN inventory_items ii ON ti.item_id = ii.id 
          WHERE ti.truck_id = t.id AND ti.quantity < ii.min_quantity) AS lowStockItems,
         t.updated_at AS lastUpdated,
-        (SELECT COUNT(*) FROM trucks) AS total_count
+        (SELECT COUNT(*) FROM trucks ${!isSuperAdmin ? `t2 WHERE t2.created_by = '${decoded.id}'` : ''}) AS total_count
       FROM trucks t
       LEFT JOIN users u ON t.assigned_to = u.id
       WHERE 1=1
     `;
 
     const params: any[] = [];
+
+    // Apply role-based filtering - show only trucks created by current user
+    if (!isSuperAdmin) {
+      query += ` AND t.created_by = ?`;
+      params.push(decoded.id);
+    }
 
     if (search) {
       query += ` AND (t.truck_number LIKE ? OR t.make LIKE ? OR t.model LIKE ? OR t.location LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)`;
@@ -146,6 +168,7 @@ export async function GET(req: Request) {
           email: row.email,
         }
         : null,
+      created_by: row.created_by,
       totalItems: Number(row.totalItems) || 0,
       lowStockItems: Number(row.lowStockItems) || 0,
       bins: Number(row.bins) || 0,
@@ -156,24 +179,47 @@ export async function GET(req: Request) {
     }));
 
 
-    const [statsResult] = await pool.query<any[]>(`
-      SELECT 
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeTrucks,
-        SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS inactiveTrucks,
-        SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceTrucks,
-        (SELECT SUM(ti.quantity) FROM truck_inventory ti) AS totalItems,
-        (
-          SELECT COUNT(*) 
-          FROM (
-            SELECT ti.item_id, SUM(ti.quantity) as total_quantity, ii.min_quantity
-            FROM truck_inventory ti
-            JOIN inventory_items ii ON ti.item_id = ii.id
-            GROUP BY ti.item_id, ii.min_quantity
-            HAVING SUM(ti.quantity) < ii.min_quantity
-          ) AS low_stock_items
-        ) AS totalLowStock
-      FROM trucks;
-    `);
+    const statsQuery = isSuperAdmin 
+      ? `SELECT 
+          SUM(CASE WHEN t.status = 'active' THEN 1 ELSE 0 END) AS activeTrucks,
+          SUM(CASE WHEN t.status = 'inactive' THEN 1 ELSE 0 END) AS inactiveTrucks,
+          SUM(CASE WHEN t.status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceTrucks,
+          (SELECT SUM(ti.quantity) FROM truck_inventory ti) AS totalItems,
+          (
+            SELECT COUNT(*) 
+            FROM (
+              SELECT ti.item_id, SUM(ti.quantity) as total_quantity, ii.min_quantity
+              FROM truck_inventory ti
+              JOIN inventory_items ii ON ti.item_id = ii.id
+              GROUP BY ti.item_id, ii.min_quantity
+              HAVING SUM(ti.quantity) < ii.min_quantity
+            ) AS low_stock_items
+          ) AS totalLowStock
+        FROM trucks t`
+      : `SELECT 
+          SUM(CASE WHEN t.status = 'active' THEN 1 ELSE 0 END) AS activeTrucks,
+          SUM(CASE WHEN t.status = 'inactive' THEN 1 ELSE 0 END) AS inactiveTrucks,
+          SUM(CASE WHEN t.status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceTrucks,
+          (SELECT SUM(ti.quantity) FROM truck_inventory ti 
+           INNER JOIN trucks t2 ON ti.truck_id = t2.id 
+           WHERE t2.created_by = ?) AS totalItems,
+          (
+            SELECT COUNT(*) 
+            FROM (
+              SELECT ti.item_id, SUM(ti.quantity) as total_quantity, ii.min_quantity
+              FROM truck_inventory ti
+              JOIN inventory_items ii ON ti.item_id = ii.id
+              JOIN trucks t3 ON ti.truck_id = t3.id
+              WHERE t3.created_by = ?
+              GROUP BY ti.item_id, ii.min_quantity
+              HAVING SUM(ti.quantity) < ii.min_quantity
+            ) AS low_stock_items
+          ) AS totalLowStock
+        FROM trucks t
+        WHERE t.created_by = ?`;
+    
+    const statsParams = isSuperAdmin ? [] : [decoded.id, decoded.id, decoded.id];
+    const [statsResult] = await pool.query<any[]>(statsQuery, statsParams);
     
     const stats = {
       activeTrucks: Number(statsResult[0].activeTrucks) || 0,
@@ -249,6 +295,7 @@ export async function POST(req: Request) {
       );
     }
 
+    console.log("decoded", decoded);
     const body = await req.json();
     const {
       truck_number,
@@ -294,7 +341,7 @@ export async function POST(req: Request) {
       [truck_number, license_plate, vin]
     );
 
-    if (existingTruck.length > 0) {
+    if ((existingTruck as any[]).length > 0) {
       return NextResponse.json(
         {
           success: false,
@@ -307,8 +354,8 @@ export async function POST(req: Request) {
 
     const [result] = await pool.query(
       `
-      INSERT INTO trucks (id, truck_number, make, model, year, license_plate, vin, status, location, mileage, assigned_to, next_maintenance,order_approval, created_at, updated_at)
-      VALUES (UUID(), ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?,NOW(), NOW())
+      INSERT INTO trucks (id, truck_number, make, model, year, license_plate, vin, status, location, mileage, assigned_to, next_maintenance, order_approval, created_by, created_at, updated_at)
+      VALUES (UUID(), ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `,
       [
         truck_number,
@@ -322,6 +369,7 @@ export async function POST(req: Request) {
         assigned_to || null,
         next_maintenance || null,
         order_approval ?? false,
+        decoded.id,
       ]
     );
     // inserted row ka full record le aao
@@ -340,7 +388,7 @@ export async function POST(req: Request) {
     );
     return NextResponse.json({
       success: true,
-      data: newTruck[0],
+      data: (newTruck as any[])[0],
     });
   } catch (error: any) {
     console.error("Create truck error:", error);

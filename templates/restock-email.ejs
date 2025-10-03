@@ -142,12 +142,10 @@
                 <tr>
                     <th>Item Name</th>
                     <th>Part Number</th>
-                    <th>Category</th>
                     <th>Current Stock</th>
                     <th>Standard Level</th>
                     <th>Suggested Qty</th>
                     <th>Priority</th>
-                    <th>Location</th>
                 </tr>
             </thead>
             <tbody>
@@ -155,7 +153,6 @@
                 <tr class="<%= item.priority === 'high' ? 'high-priority' : 'restock-item' %>">
                     <td><strong><%= item.name %></strong></td>
                     <td><%= item.partNumber %></td>
-                    <td><%= item.category || 'Uncategorized' %></td>
                     <td><%= item.currentQuantity %></td>
                     <td><%= item.standardLevel %></td>
                     <td><%= item.suggestedQuantity %></td>
@@ -168,7 +165,6 @@
                             <span class="priority-low">LOW</span>
                         <% } %>
                     </td>
-                    <td><%= item.location || 'N/A' %></td>
                 </tr>
                 <% }); %>
             </tbody>

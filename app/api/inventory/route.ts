@@ -23,15 +23,20 @@ export async function GET(request: NextRequest) {
 
     const userId = decoded.id;
 
-    // Verify technician role
+    // Verify user role
     const [userRows] = await pool.query(
       "SELECT role FROM users WHERE id = ? AND status = 'active'",
       [userId]
     );
     const userData = (userRows as any[])[0];
 
-    if (!userData || userData.role !== "technician") {
+    if (!userData) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Check if user has access (technician, company_admin, or super_admin)
+    if (!['technician', 'company_admin', 'super_admin'].includes(userData.role)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -72,7 +77,7 @@ export async function GET(request: NextRequest) {
            ii.cost_price AS costPrice,
            ii.supplier
          FROM inventory_items ii
-         JOIN inventory_categories ic ON ii.category_id = ic.id
+         LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
          WHERE ii.id = ?`,
         [itemId]
       );
@@ -122,9 +127,13 @@ export async function GET(request: NextRequest) {
           .split("T")[0]
         : "Never";
 
-      // Truck bin distribution
-      const [distRows] = await pool.query(
-        `SELECT 
+      // Truck bin distribution - role-based query
+      let truckBinQuery = "";
+      let truckBinParams = [itemId];
+      
+      if (userData.role === 'technician') {
+        // For technician: only their own trucks
+        truckBinQuery = `SELECT 
            t.id as truckId, 
            t.truck_number as truckName, 
            t.location as location,
@@ -136,9 +145,41 @@ export async function GET(request: NextRequest) {
          JOIN truck_bins tb ON ti.bin_id = tb.id
          WHERE ti.item_id = ?
          AND t.assigned_to = ?
-         ORDER BY t.truck_number, tb.bin_code`,
-        [itemId, userId]
-      );
+         ORDER BY t.truck_number, tb.bin_code`;
+        truckBinParams.push(userId);
+      } else if (userData.role === 'company_admin') {
+        // For company_admin: trucks of all technicians under them
+        truckBinQuery = `SELECT 
+           t.id as truckId, 
+           t.truck_number as truckName, 
+           t.location as location,
+           tb.id as binId, 
+           tb.bin_code as binName, 
+           ti.quantity
+         FROM truck_inventory ti
+         JOIN trucks t ON ti.truck_id = t.id
+         JOIN truck_bins tb ON ti.bin_id = tb.id
+         WHERE ti.item_id = ?
+         AND t.assigned_to IN (SELECT id FROM users WHERE created_by = ? AND role = 'technician')
+         ORDER BY t.truck_number, tb.bin_code`;
+        truckBinParams.push(userId);
+      } else if (userData.role === 'super_admin') {
+        // For super_admin: all trucks
+        truckBinQuery = `SELECT 
+           t.id as truckId, 
+           t.truck_number as truckName, 
+           t.location as location,
+           tb.id as binId, 
+           tb.bin_code as binName, 
+           ti.quantity
+         FROM truck_inventory ti
+         JOIN trucks t ON ti.truck_id = t.id
+         JOIN truck_bins tb ON ti.bin_id = tb.id
+         WHERE ti.item_id = ?
+         ORDER BY t.truck_number, tb.bin_code`;
+      }
+
+      const [distRows] = await pool.query(truckBinQuery, truckBinParams);
 
       const truckMap = new Map();
       (distRows as any[]).forEach((row) => {
@@ -206,7 +247,7 @@ export async function GET(request: NextRequest) {
       const [countRows] = await pool.query(
         `SELECT COUNT(*) as total 
          FROM inventory_items ii
-         JOIN inventory_categories ic ON ii.category_id = ic.id
+         LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
          WHERE ii.created_by = ? ${whereClause}`,
         [userId, ...queryParams]
       );
@@ -244,7 +285,7 @@ export async function GET(request: NextRequest) {
       AND o.technician_id = ?) AS last_ordered,
      ii.created_at
   FROM inventory_items ii
-  JOIN inventory_categories ic ON ii.category_id = ic.id
+  LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
   WHERE ii.created_by = ?
   ${whereClause}
   ORDER BY ii.created_at DESC
@@ -291,7 +332,7 @@ export async function GET(request: NextRequest) {
          FROM truck_inventory ti
          JOIN trucks t ON ti.truck_id = t.id
          JOIN inventory_items ii ON ti.item_id = ii.id
-         JOIN inventory_categories ic ON ii.category_id = ic.id
+         LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
          WHERE t.assigned_to = ? AND ii.created_by = ?${whereClause}`,
         [userId, userId, userId, userId, userId, userId, ...queryParams]
       );

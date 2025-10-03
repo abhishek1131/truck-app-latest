@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth-provider";
 import {
   Dialog,
@@ -31,7 +31,7 @@ interface CreateUserModalProps {
     last_name: string;
     email: string;
     phone: string | null;
-    role: "admin" | "manager" | "technician";
+    role: "super_admin" | "company_admin" | "technician";
     status: "active" | "inactive" | "pending" | "suspended";
     created_at: string;
     updated_at: string | null;
@@ -49,7 +49,7 @@ export function CreateUserModal({
   onClose,
   onUserCreated,
 }: CreateUserModalProps) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -57,16 +57,36 @@ export function CreateUserModal({
     phone: "",
     password: "",
     confirmPassword: "",
-    role: "technician" as "technician" | "admin" | "admin",
+    role: "technician" as "super_admin" | "company_admin" | "technician",
     status: "active" as "active" | "inactive" | "pending" | "suspended",
+    company_name: "",
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const roles = [
-    { value: "admin", label: "Administrator" },
-    { value: "technician", label: "Technician" },
-  ];
+  // Define available roles based on current user's role
+  const getAvailableRoles = () => {
+    if (user?.role === "super_admin") {
+      return [
+        { value: "company_admin", label: "Company Admin" },
+        { value: "technician", label: "Technician" },
+      ];
+    } else if (user?.role === "company_admin") {
+      return [
+        { value: "technician", label: "Technician" },
+      ];
+    }
+    return [];
+  };
+
+  const roles = getAvailableRoles();
+
+  // Reset company_name when role changes
+  useEffect(() => {
+    if (formData.role !== "company_admin") {
+      setFormData(prev => ({ ...prev, company_name: "" }));
+    }
+  }, [formData.role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +112,12 @@ export function CreateUserModal({
       return;
     }
 
+    // Validate company_name for company_admin role
+    if (formData.role === "company_admin" && !formData.company_name.trim()) {
+      setError("Company name is required for Company Admin role.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -99,7 +125,7 @@ export function CreateUserModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          // Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           first_name: formData.first_name,
@@ -109,6 +135,7 @@ export function CreateUserModal({
           password: formData.password,
           role: formData.role,
           status: formData.status,
+          company_name: formData.role === "company_admin" ? formData.company_name : null,
         }),
       });
 
@@ -125,6 +152,7 @@ export function CreateUserModal({
           confirmPassword: "",
           role: "technician",
           status: "active",
+          company_name: "",
         });
         onClose();
       } else {
@@ -230,7 +258,7 @@ export function CreateUserModal({
               <Label htmlFor="role">Role *</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) =>
+                onValueChange={(value: "super_admin" | "company_admin" | "technician") =>
                   setFormData({ ...formData, role: value })
                 }
               >
@@ -250,7 +278,7 @@ export function CreateUserModal({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) =>
+                onValueChange={(value: "active" | "inactive" | "pending" | "suspended") =>
                   setFormData({ ...formData, status: value })
                 }
               >
@@ -260,12 +288,28 @@ export function CreateUserModal({
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
+                  {/* <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>
-          </div>
+            </div>
+
+            {/* Company Name field - only show when company_admin role is selected */}
+          {formData.role === "company_admin" && (
+            <div className="space-y-2">
+              <Label htmlFor="company_name">Company Name *</Label>
+              <Input
+                id="company_name"
+                value={formData.company_name}
+                onChange={(e) =>
+                  setFormData({ ...formData, company_name: e.target.value })
+                }
+                required
+                placeholder="Enter company name"
+              />
+            </div>
+          )}
 
           {error && (
             <Alert variant="destructive">

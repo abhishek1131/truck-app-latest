@@ -46,7 +46,7 @@ interface User {
   last_name: string;
   email: string;
   phone: string | null;
-  role: "admin" | "technician";
+  role: "super_admin" | "company_admin" | "technician";
   status: "active" | "inactive" | "pending" | "suspended";
   created_at: string;
   updated_at: string | null;
@@ -66,9 +66,14 @@ const statusConfig = {
 };
 
 const roleConfig = {
-  admin: {
+  super_admin: {
+    color: "bg-red-100 text-red-800",
+    label: "Super Admin",
+    icon: Shield,
+  },
+  company_admin: {
     color: "bg-purple-100 text-purple-800",
-    label: "Admin",
+    label: "Company Admin",
     icon: Shield,
   },
   technician: {
@@ -90,11 +95,23 @@ export default function AdminUsersPage() {
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false); // New state for create operation
-  const [dropdownKey, setDropdownKey] = useState(0); // To force re-render of DropdownMenu
+  const [isCreating, setIsCreating] = useState(false);
+  const [dropdownKey, setDropdownKey] = useState(0);
   const triggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [statistics, setStatistics] = useState({
+    totalUsers: 0,
+    totalTechnicians: 0,
+    totalAdministrators: 0,
+    activeTechnicians: 0,
+    inactiveTechnicians: 0,
+  });
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (page = 1) => {
     if (!token) {
       setError("Please log in to view users");
       setIsLoading(false);
@@ -104,14 +121,26 @@ export default function AdminUsersPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/users", {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: "10",
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter !== "all" && { status: statusFilter }),
+        ...(roleFilter !== "all" && { role: roleFilter }),
+      });
+
+      const response = await fetch(`/api/admin/users?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       const result = await response.json();
-      if (result.success && result.data?.users) {
+      if (result.success && result.data) {
         setUsers(result.data.users);
+        setCurrentPage(result.data.pagination.page);
+        setTotalPages(result.data.pagination.pages);
+        setTotalUsers(result.data.pagination.total);
+        setStatistics(result.data.statistics);
       } else {
         setError(result.error || "Failed to fetch users");
       }
@@ -121,11 +150,18 @@ export default function AdminUsersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, searchTerm, statusFilter, roleFilter]);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1);
   }, [fetchUsers]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      fetchUsers(1);
+    }
+  }, [searchTerm, statusFilter, roleFilter]);
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -140,10 +176,8 @@ export default function AdminUsersPage() {
     return matchesSearch && matchesStatus && matchesRole;
   });
 
-  const totalUsers = users.length;
-  const activeUsers = users.filter((user) => user.status === "active").length;
-  const technicians = users.filter((user) => user.role === "technician").length;
-  const admins = users.filter((user) => user.role === "admin").length;
+  // Use statistics from API instead of local calculations
+  // const activeUsers = users.filter((user) => user.status === "active").length;
 
   const handleEditUser = useCallback((user: User) => {
     setSelectedUser(user);
@@ -220,24 +254,11 @@ export default function AdminUsersPage() {
   }, []);
 
   const handleCreateUser = useCallback(
-    async (userData: any) => {
+    async (user: User) => {
       setIsCreating(true);
       try {
-        const response = await fetch("/api/admin/users", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(userData),
-        });
-        const result = await response.json();
         await fetchUsers();
-        if (result.success && result.data) {
-          handleModalClose();
-        } else {
-          console.log(`Failed to create user: ${result.error}`);
-        }
+        handleModalClose();
       } catch (error) {
         console.error("Error creating user:", error);
         console.log("Error creating user. Please try again.");
@@ -245,7 +266,7 @@ export default function AdminUsersPage() {
         setIsCreating(false);
       }
     },
-    [token, fetchUsers, handleModalClose]
+    [fetchUsers, handleModalClose]
   );
 
   return (
@@ -266,59 +287,121 @@ export default function AdminUsersPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Total Users
-              </CardTitle>
-              <Users className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs opacity-75">{activeUsers} active</p>
-            </CardContent>
-          </Card>
+          {user?.role === "company_admin" ? (
+            // Company Admin Cards
+            <>
+              <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Total Technicians
+                  </CardTitle>
+                  <Users className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics.totalTechnicians}</div>
+                <p className="text-xs opacity-75">All technicians</p>
+              </CardContent>
+              </Card>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Technicians
-              </CardTitle>
-              <UserCheck className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{technicians}</div>
-              <p className="text-xs opacity-75">Field workers</p>
-            </CardContent>
-          </Card>
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Active Technicians
+                  </CardTitle>
+                  <UserCheck className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics.activeTechnicians}</div>
+                <p className="text-xs opacity-75">Currently active</p>
+              </CardContent>
+              </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Administrators
-              </CardTitle>
-              <Shield className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{admins}</div>
-              <p className="text-xs opacity-75">System admins</p>
-            </CardContent>
-          </Card>
+              <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Inactive Technicians
+                  </CardTitle>
+                  <UserX className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics.inactiveTechnicians}</div>
+                <p className="text-xs opacity-75">Not active</p>
+              </CardContent>
+              </Card>
 
-          <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium opacity-90">
-                Active Rate
-              </CardTitle>
-              <Calendar className="h-4 w-4 opacity-90" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {totalUsers ? Math.round((activeUsers / totalUsers) * 100) : 0}%
-              </div>
-              <p className="text-xs opacity-75">User engagement</p>
-            </CardContent>
-          </Card>
+              <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Active Rate
+                  </CardTitle>
+                  <Calendar className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {statistics.totalTechnicians ? Math.round((statistics.activeTechnicians / statistics.totalTechnicians) * 100) : 0}%
+                </div>
+                <p className="text-xs opacity-75">Technician engagement</p>
+              </CardContent>
+              </Card>
+            </>
+          ) : (
+            // Super Admin Cards
+            <>
+              <Card className="bg-gradient-to-br from-[#10294B] to-[#006AA1] text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Total Users
+                  </CardTitle>
+                  <Users className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics.totalUsers}</div>
+                <p className="text-xs opacity-75">Technicians + Company Admins</p>
+              </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Total Technicians
+                  </CardTitle>
+                  <UserCheck className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics.totalTechnicians}</div>
+                <p className="text-xs opacity-75">Field workers</p>
+              </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Total Company Admins
+                  </CardTitle>
+                  <Shield className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics.totalAdministrators}</div>
+                <p className="text-xs opacity-75">Company Admin</p>
+              </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-[#E3253D] to-red-600 text-white border-0 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium opacity-90">
+                    Active Rate
+                  </CardTitle>
+                  <Calendar className="h-4 w-4 opacity-90" />
+                </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {statistics.totalUsers ? Math.round((statistics.activeTechnicians / statistics.totalTechnicians) * 100) : 0}%
+                </div>
+                <p className="text-xs opacity-75">User engagement</p>
+              </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {error && (
@@ -360,8 +443,8 @@ export default function AdminUsersPage() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
+                  {/* <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem> */}
                 </SelectContent>
               </Select>
               <Select
@@ -374,8 +457,15 @@ export default function AdminUsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="technician">Technician</SelectItem>
+                  {user?.role === "super_admin" && (
+                    <>
+                      <SelectItem value="company_admin">Company Admin</SelectItem>
+                      <SelectItem value="technician">Technician</SelectItem>
+                    </>
+                  )}
+                  {user?.role === "company_admin" && (
+                    <SelectItem value="technician">Technician</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -460,7 +550,7 @@ export default function AdminUsersPage() {
                                 ?.label
                             }
                           </Badge>
-                          <Badge variant="outline">ID: {user.id}</Badge>
+                          {/* <Badge variant="outline">ID: {user.id}</Badge> */}
                         </div>
                       </div>
 
@@ -524,7 +614,7 @@ export default function AdminUsersPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               handleViewUserDetails(user);
-                              document.activeElement?.blur();
+                              (document.activeElement as HTMLElement)?.blur();
                             }}
                           >
                             <Eye className="mr-2 h-4 w-4" />
@@ -534,7 +624,7 @@ export default function AdminUsersPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditUser(user);
-                              document.activeElement?.blur();
+                              (document.activeElement as HTMLElement)?.blur();
                             }}
                           >
                             <Edit className="mr-2 h-4 w-4" />
@@ -544,7 +634,7 @@ export default function AdminUsersPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeactivateUser(user, () => {
-                                document.activeElement?.blur();
+                                (document.activeElement as HTMLElement)?.blur();
                                 triggerRefs.current.get(user.id)?.focus();
                               });
                             }}
@@ -559,7 +649,7 @@ export default function AdminUsersPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteUser(user, () => {
-                                document.activeElement?.blur();
+                                (document.activeElement as HTMLElement)?.blur();
                                 triggerRefs.current.get(user.id)?.focus();
                               });
                             }}
@@ -575,6 +665,55 @@ export default function AdminUsersPage() {
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-gray-600">
+                  Showing {((currentPage - 1) * 10) + 1} to {Math.min(currentPage * 10, totalUsers)} of {totalUsers} users
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchUsers(currentPage - 1)}
+                    disabled={currentPage === 1 || isLoading}
+                  >
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                      if (pageNum > totalPages) return null;
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => fetchUsers(pageNum)}
+                          disabled={isLoading}
+                          className={currentPage === pageNum ? "bg-[#E3253D] hover:bg-[#E3253D]/90" : ""}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchUsers(currentPage + 1)}
+                    disabled={currentPage === totalPages || isLoading}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {filteredUsers.length === 0 && !isLoading && !error && (

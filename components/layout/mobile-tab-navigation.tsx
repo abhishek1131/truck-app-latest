@@ -15,19 +15,28 @@ const technicianNavigation = [
   { name: "Restock", href: "/restock", icon: RotateCcw },
 ]
 
-const adminNavigation = [
+const baseAdminNavigation = [
   { name: "Dashboard", href: "/admin", icon: Shield },
   { name: "Fleet", href: "/admin/trucks", icon: Truck },
   { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Inventory", href: "/admin/inventory", icon: Package },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
 ]
 
 export function MobileTabNavigation() {
   const pathname = usePathname();
   const { user, logout, loading } = useAuth();
+
+  // Build admin navigation dynamically based on user role
+  const adminNavigation = [
+    ...baseAdminNavigation,
+    ...(user?.role === "super_admin"
+      ? [{ name: "Settings", href: "/admin/settings", icon: Settings }]
+      : []),
+  ];
+
   const navigation =
-    user?.role === "admin" ? adminNavigation : technicianNavigation;
+    (user?.role === "super_admin" || user?.role === "company_admin") ? adminNavigation : technicianNavigation;
 
   // Dynamic grid columns based on navigation items count
   const gridCols = navigation.length === 5 ? "grid-cols-5" : "grid-cols-6";

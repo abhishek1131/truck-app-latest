@@ -14,7 +14,8 @@ interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: "technician" | "admin" | "manager";
+  phone?: string | null;
+  role: "technician" | "super_admin" | "company_admin";
   status: "active" | "inactive" | "suspended" | "pending";
   created_at?: Date;
 }
@@ -25,6 +26,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => Promise<void>;
+  clearAuth: () => void;
   loading: boolean;
 }
 
@@ -33,7 +35,7 @@ interface RegisterData {
   last_name: string;
   email: string;
   password: string;
-  role: "technician" | "admin" | "manager";
+  role: "technician" | "super_admin" | "company_admin";
 }
 
 interface AuthResponse {
@@ -41,7 +43,7 @@ interface AuthResponse {
   data?: {
     user: { id: string; email: string };
     profile: {
-      role: "technician" | "admin" | "manager";
+      role: "technician" | "super_admin" | "company_admin";
       first_name: string;
       last_name: string;
       created_at: Date;
@@ -61,13 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  console.log("user",user);
   useEffect(() => {
     // Check localStorage for existing auth data
     const storedUser = localStorage.getItem("user");
     const storedToken = localStorage.getItem("access_token");
     if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser) as User);
+      const parsedUser = JSON.parse(storedUser) as User;
+      console.log("Parsed user from localStorage:", parsedUser);
+      setUser(parsedUser);
       setToken(storedToken);
     }
     setLoading(false);
@@ -77,9 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Define public routes
     const publicRoutes = ["/", "/login", "/register"];
     
-    // Redirect to login if user is not authenticated and trying to access non-public route
+    // Only redirect if we're not loading and user is not authenticated
     if (!loading && !user && !publicRoutes.includes(pathname)) {
-      router.push("/login");
+      console.log("Redirecting to login - no user found");
+      router.replace("/login");
     }
   }, [user, loading, pathname, router]);
 
@@ -152,10 +156,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         status: "active",
         created_at: profile.created_at,
       };
+            
+      setToken(session.access_token);
+      setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("access_token", session.access_token);
-      setUser(userData);
-      setToken(session.access_token);
 
       return true;
     } catch (error) {
@@ -166,22 +171,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearAuth = (): void => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("access_token");
+    setUser(null);
+    setToken(null);
+  };
+
   const logout = async (): Promise<void> => {
     try {
+      console.log("Logging out user...");
+      
+      // Clear auth data from localStorage
       localStorage.removeItem("user");
       localStorage.removeItem("access_token");
-      localStorage.clear();
+      
+      // Update state immediately
       setUser(null);
       setToken(null);
-      router.push("/login");
+      
+      console.log("Auth state cleared, redirecting to login");
+      
+      // Use router.replace to prevent back button issues
+      router.replace("/login");
+      
+      // Force a small delay to ensure state updates propagate
+      setTimeout(() => {
+        // Double-check if we're still on a protected route
+        const currentPath = window.location.pathname;
+        const publicRoutes = ["/", "/login", "/register"];
+        if (!publicRoutes.includes(currentPath)) {
+          console.log("Still on protected route, forcing redirect");
+          window.location.href = "/login";
+        }
+      }, 100);
+      
     } catch (error) {
       console.error("Logout error:", error);
+      // Fallback: clear everything and force navigation
+      localStorage.clear();
+      window.location.href = "/login";
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, register, logout, loading }}
+      value={{ user, token, login, register, logout, clearAuth, loading }}
     >
       {children}
     </AuthContext.Provider>

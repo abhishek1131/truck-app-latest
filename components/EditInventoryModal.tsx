@@ -16,10 +16,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Package, Pencil, Info } from "lucide-react";
 import { useAuth } from "./auth-provider";
 import { fetchClient } from "@/lib/fetchClient";
+import toast from "react-hot-toast";
 
 interface EditInventoryItemModalProps {
   item: any; // minimal item info (contains internalId)
   onItemUpdated?: (updatedItem: any) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // Categories and units data
@@ -57,9 +60,23 @@ const units = [
 export function EditInventoryItemModal({
   item,
   onItemUpdated,
+  open: externalOpen,
+  onOpenChange,
 }: EditInventoryItemModalProps) {
-  const { token } = useAuth();
-  const [open, setOpen] = useState(false);
+  const { token, user } = useAuth();
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use external open state if provided, otherwise use internal state
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (newOpen: boolean) => {
+    if (externalOpen !== undefined && onOpenChange) {
+      // External control - use external callback
+      onOpenChange(newOpen);
+    } else {
+      // Internal control - use internal state
+      setInternalOpen(newOpen);
+    }
+  };
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -73,6 +90,7 @@ export function EditInventoryItemModal({
   });
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isAddingForAll, setIsAddingForAll] = useState(false);
 
   // Check if device is mobile
   useEffect(() => {
@@ -160,8 +178,42 @@ export function EditInventoryItemModal({
     setOpen(false);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+  };
+
+  const handleAddForAllTechnicians = async () => {
+    setIsAddingForAll(true);
+    try {
+      const response = await fetchClient('/api/inventory/add-for-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          itemId: item.internalId
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        // toast.success(`Success! Added item for ${data.summary.addedCount} technicians. ${data.summary.skippedCount} technicians already had this item.`);
+        toast.success(`Success! Added item for all technicians.`);
+      } else {
+        toast.error(data.error || 'Failed to add item for technicians. Please try again.');
+      }
+    } catch (error) {
+      console.error('Add for all technicians error:', error);
+      toast.error('Error adding item for technicians. Please try again.');
+    } finally {
+      setIsAddingForAll(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Pencil className="h-4 w-4 mr-1" /> Edit
@@ -407,6 +459,36 @@ export function EditInventoryItemModal({
                 </div>
               </div>
             </div>
+
+            {/* Message and Add Button - Only for company_admin */}
+            {user?.role === 'company_admin' && (
+              <div className="px-3 sm:px-0 pb-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <p className="text-sm text-blue-800 font-medium">
+                        This item needs to be added for all technicians
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddForAllTechnicians}
+                      disabled={isAddingForAll}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isAddingForAll ? "Adding..." : "Add"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t">
               <Button

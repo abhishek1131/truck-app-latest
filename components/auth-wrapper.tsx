@@ -43,7 +43,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
         console.log("[v0] User data loaded:", parsedUser.email, parsedUser.role)
 
         if (isPublicRoute) {
-          const redirectUrl = parsedUser.role === "admin" ? "/admin" : "/dashboard"
+          const redirectUrl = (parsedUser.role === "super_admin" || parsedUser.role === "company_admin") ? "/admin" : "/dashboard"
           console.log("[v0] Redirecting authenticated user from", pathname, "to:", redirectUrl)
           router.replace(redirectUrl)
           return

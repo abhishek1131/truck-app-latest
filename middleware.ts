@@ -50,12 +50,12 @@ export async function middleware(request: NextRequest) {
   //   }
 
   //   // Role-based route protection
-  //   if (pathname.startsWith("/admin") && user.role !== "admin") {
+  //   if (pathname.startsWith("/admin") && user.role !== "super_admin" && user.role !== "company_admin") {
   //     console.log("[v0] Non-admin trying to access admin route, redirecting to dashboard")
   //     return NextResponse.redirect(new URL("/dashboard", request.url))
   //   }
 
-  //   if (pathname.startsWith("/dashboard") && user.role === "admin") {
+  //   if (pathname.startsWith("/dashboard") && (user.role === "super_admin" || user.role === "company_admin")) {
   //     console.log("[v0] Admin trying to access dashboard, redirecting to admin")
   //     return NextResponse.redirect(new URL("/admin", request.url))
   //   }

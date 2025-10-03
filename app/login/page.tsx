@@ -37,8 +37,8 @@ export default function LoginPage() {
       if (success) {
         const storedUser = localStorage.getItem("user");
         if (storedUser) {
-          const user = JSON.parse(storedUser) as { role: "admin" | "technician" };
-          const redirectUrl = user.role === "admin" ? "/admin" : "/dashboard";
+          const user = JSON.parse(storedUser) as { role: "super_admin" | "company_admin" | "technician" };
+          const redirectUrl = (user.role === "super_admin" || user.role === "company_admin") ? "/admin" : "/dashboard";
 
           toast.success("Login successful..."); // ✅ Toast on success
           setTimeout(() => router.push(redirectUrl), 1000); // small delay for toast

@@ -217,7 +217,7 @@ export async function PUT(
     }
 
     // Validate role
-    if (!["admin", "manager", "technician"].includes(role)) {
+    if (!["super_admin", "company_admin", "technician"].includes(role)) {
       return NextResponse.json(
         { success: false, error: "Invalid role", code: "BAD_REQUEST" },
         { status: 400 }

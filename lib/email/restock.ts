@@ -21,7 +21,6 @@ export async function sendRestockEmail() {
   try {
     // Get restock items from database
     const restockItems = await getAllRestockItems();
-    console.log("restockItems", restockItems);
     
     if (restockItems.length === 0) {
       return {

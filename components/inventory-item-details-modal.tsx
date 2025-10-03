@@ -62,17 +62,20 @@ interface InventoryItem {
 interface InventoryItemDetailsModalProps {
   item: InventoryItem;
   children: React.ReactNode;
+  hideOrderButton?: boolean;
 }
 
 export function InventoryItemDetailsModal({
   item,
   children,
+  hideOrderButton = false,
 }: InventoryItemDetailsModalProps) {
   const { token } = useAuth();
   const [open, setOpen] = useState(false);
   const [detailedItem, setDetailedItem] = useState<InventoryItem>(item);
   const router = useRouter();
 
+  console.log("detailedItem", detailedItem);
   useEffect(() => {
     if (open) {
       const fetchDetails = async () => {
@@ -136,8 +139,8 @@ export function InventoryItemDetailsModal({
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Item ID</p>
-                  <p className="text-base">{detailedItem.id}</p>
+                  <p className="text-sm font-medium text-gray-500">Item Name</p>
+                  <p className="text-base">{detailedItem.name}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">
@@ -358,9 +361,11 @@ export function InventoryItemDetailsModal({
             <Button variant="outline" onClick={() => setOpen(false)}>
               Close
             </Button>
-            <Button className="bg-[#E3253D] hover:bg-[#E3253D]/90" onClick={()=> router.push('/order')}>
-              Order More
-            </Button>
+            {!hideOrderButton && (
+              <Button className="bg-[#E3253D] hover:bg-[#E3253D]/90" onClick={()=> router.push('/order')}>
+                Order More
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

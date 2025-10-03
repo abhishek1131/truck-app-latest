@@ -64,7 +64,7 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      if (!token || user?.role !== "admin") {
+      if (!token || (user?.role !== "super_admin" && user?.role !== "company_admin")) {
         setError("Admin access required");
         return;
       }
@@ -383,7 +383,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (user?.role !== "admin") {
+  if (user?.role !== "super_admin" && user?.role !== "company_admin") {
     return (
       <Navigation>
         <Card className="border-0 shadow-lg">
@@ -882,7 +882,7 @@ export default function AdminSettingsPage() {
 
               <Separator />
 
-              <div>
+              {/* <div>
                 <h3 className="text-lg font-medium text-[#10294B] mb-4">
                   Change Password
                 </h3>
@@ -944,7 +944,7 @@ export default function AdminSettingsPage() {
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Change Password"}
-              </Button>
+              </Button> */}
             </CardContent>
           </Card>
         </TabsContent>

@@ -1,118 +1,523 @@
-import { createClient } from "@/lib/supabase/server"
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/db";
+import jwt from "jsonwebtoken";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Verify JWT token
+    const authHeader = request.headers.get("authorization");
+    const token =
+      authHeader?.replace("Bearer ", "") ||
+      request.cookies.get("access_token")?.value;
 
-    // Verify admin access
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
-
-    if (!userData || userData.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
+    } catch (err) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url)
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "20")
-    const search = searchParams.get("search") || ""
-    const category = searchParams.get("category") || ""
-    const lowStock = searchParams.get("lowStock") === "true"
+    console.log("inventory decoded", decoded);
+    const userId = decoded.id;
 
-    let query = supabase.from("inventory_items").select("*", { count: "exact" }).order("name", { ascending: true })
+    // Verify admin role (super_admin or company_admin)
+    const [userRows] = await pool.query(
+      "SELECT role FROM users WHERE id = ? AND status = 'active'",
+      [userId]
+    );
+    const userData = (userRows as any[])[0];
 
-    // Apply filters
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,part_number.ilike.%${search}%,description.ilike.%${search}%`)
+    if (!userData || (userData.role !== "super_admin" && userData.role !== "company_admin")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (category) {
-      query = query.eq("category", category)
+    const searchParams = request.nextUrl.searchParams;
+    const itemId = searchParams.get("item");
+
+    // Get pagination parameters
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+
+    // Get filter parameters
+    const searchText = searchParams.get("searchText") || "";
+    const categoryFilter = searchParams.get("category") || "";
+    const technicianFilter = searchParams.get("technician") || "";
+
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: "Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 100" },
+        { status: 400 }
+      );
     }
 
-    if (lowStock) {
-      query = query.lt("stock_quantity", supabase.rpc("min_stock_level"))
+    const offset = (page - 1) * limit;
+
+    if (itemId) {
+      // Fetch detailed item info
+      const [itemRow] = await pool.query(
+        `SELECT 
+           ii.id,
+           ii.part_number AS partNumber,
+           ii.name,
+           ic.name AS category,
+           COALESCE(ii.unit, 'pieces') AS unit,
+           ii.brand,
+           ii.description AS notes,
+           COALESCE(ii.standard_level, ii.max_quantity, 10) AS standardLevel,
+           ii.min_quantity AS lowStockThreshold,
+           ii.unit_price AS unitPrice,
+           ii.cost_price AS costPrice,
+           ii.supplier
+         FROM inventory_items ii
+         JOIN inventory_categories ic ON ii.category_id = ic.id
+         WHERE ii.id = ?`,
+        [itemId]
+      );
+
+      if ((itemRow as any[]).length === 0) {
+        return NextResponse.json({ error: "Item not found" }, { status: 404 });
+      }
+
+      const basic = (itemRow as any[])[0];
+
+      // Total quantity
+      const [totalRow] = await pool.query(
+        `SELECT SUM(ti.quantity) as total_quantity 
+         FROM truck_inventory ti 
+         WHERE ti.item_id = ?
+         AND ti.truck_id IN (SELECT id FROM trucks WHERE assigned_to = ?)`,
+        [itemId, userId]
+      );
+      basic.total_quantity = (totalRow as any)[0].total_quantity || 0;
+
+      // Last ordered
+      const [lastOrderRow] = await pool.query(
+        `SELECT MAX(o.created_at) as lastOrdered 
+         FROM order_items oi 
+         JOIN orders o ON oi.order_id = o.id 
+         WHERE oi.item_id = ?
+         AND o.technician_id = ?`,
+        [itemId, userId]
+      );
+      basic.lastOrdered = (lastOrderRow as any)[0].lastOrdered
+        ? new Date((lastOrderRow as any)[0].lastOrdered)
+          .toISOString()
+          .split("T")[0]
+        : "Never";
+
+      // Last restocked
+      const [lastRestockRow] = await pool.query(
+        `SELECT MAX(ti.last_restocked) as lastRestocked 
+         FROM truck_inventory ti 
+         WHERE ti.item_id = ? 
+         AND ti.truck_id IN (SELECT id FROM trucks WHERE assigned_to = ?)`,
+        [itemId, userId]
+      );
+      basic.lastRestocked = (lastRestockRow as any)[0].lastRestocked
+        ? new Date((lastRestockRow as any)[0].lastRestocked)
+          .toISOString()
+          .split("T")[0]
+        : "Never";
+
+      // Truck bin distribution
+      const [distRows] = await pool.query(
+        `SELECT 
+           t.id as truckId, 
+           t.truck_number as truckName, 
+           t.location as location,
+           tb.id as binId, 
+           tb.bin_code as binName, 
+           ti.quantity
+         FROM truck_inventory ti
+         JOIN trucks t ON ti.truck_id = t.id
+         JOIN truck_bins tb ON ti.bin_id = tb.id
+         WHERE ti.item_id = ?
+         AND t.assigned_to = ?
+         ORDER BY t.truck_number, tb.bin_code`,
+        [itemId, userId]
+      );
+
+      const truckMap = new Map();
+      (distRows as any[]).forEach((row) => {
+        if (!truckMap.has(row.truckId)) {
+          truckMap.set(row.truckId, {
+            truckId: row.truckId,
+            truckName: row.truckName,
+            location: row.location,
+            bins: [],
+          });
+        }
+        truckMap.get(row.truckId).bins.push({
+          binId: row.binId,
+          binName: row.binName,
+          quantity: row.quantity,
+        });
+      });
+      basic.truckBinDistribution = Array.from(truckMap.values());
+
+      // Recent activity (restocks only)
+      const [activityRows] = await pool.query(
+        `SELECT 
+           o.created_at as date,
+           'Restocked' as action,
+           oi.quantity,
+           t.truck_number as truck,
+           tb.bin_code as bin
+         FROM order_items oi
+         JOIN orders o ON oi.order_id = o.id
+         LEFT JOIN trucks t ON o.truck_id = t.id
+         LEFT JOIN truck_bins tb ON oi.bin_id = tb.id
+         WHERE oi.item_id = ?
+         AND o.technician_id = ?
+         AND o.status IN ('delivered', 'shipped')
+         ORDER BY o.created_at DESC
+         LIMIT 10`,
+        [itemId, userId]
+      );
+
+      basic.recentActivity = (activityRows as any[]).map((row) => ({
+        date: new Date(row.date).toLocaleString(),
+        action: row.action,
+        quantity: row.quantity,
+        truck: row.truck || "N/A",
+        bin: row.bin || "N/A",
+      }));
+
+      return NextResponse.json(basic);
+    } else {
+      // Build WHERE clause for filters
+      let whereClause = "";
+      const queryParams = [];
+
+      if (searchText) {
+        whereClause += " AND (ii.part_number LIKE ? OR ii.name LIKE ?)";
+        queryParams.push(`%${searchText}%`, `%${searchText}%`);
+      }
+
+      if (categoryFilter) {
+        whereClause += " AND ic.name = ?";
+        queryParams.push(categoryFilter);
+      }
+
+      // Note: technicianFilter is now handled in role-based filtering logic above
+
+      // Role-based filtering logic
+      let roleBasedWhereClause = "";
+      let roleBasedParams: any[] = [];
+
+      if (userData.role === "company_admin") {
+        // For company_admin: only show items created by technicians under this company admin
+        if (technicianFilter) {
+          // If technicianFilter is provided, show items from that specific technician (if they belong to this company admin)
+          roleBasedWhereClause = `
+            AND ii.created_by = ? 
+            AND ii.created_by IN (
+              SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+            )
+          `;
+          roleBasedParams = [technicianFilter, userId];
+        } else {
+          // Show all items from technicians under this company admin
+          roleBasedWhereClause = `
+            AND ii.created_by IN (
+              SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+            )
+          `;
+          roleBasedParams = [userId];
+        }
+      } else if (userData.role === "super_admin" && technicianFilter) {
+        // For super_admin with company filter: show items from all technicians under the selected company_admin
+        roleBasedWhereClause = `
+          AND ii.created_by IN (
+            SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+          )
+        `;
+        roleBasedParams = [technicianFilter];
+      }
+      // For super_admin: show all items (no additional filtering)
+
+      // Get total count for pagination
+      const [countRows] = await pool.query(
+        `SELECT COUNT(*) as total 
+         FROM inventory_items ii
+         LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
+         WHERE 1=1 ${whereClause} ${roleBasedWhereClause}`,
+        [...queryParams, ...roleBasedParams]
+      );
+      const totalItems = (countRows as any[])[0].total;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      // Get inventory items with role-based filtering
+      const [itemRows] = await pool.query(
+        `SELECT 
+     ii.id AS internal_id,
+     ii.part_number AS id_for_ui,
+     ii.name,
+     COALESCE(ic.name, '') AS category,
+     COALESCE(ii.unit, 'pieces') AS unit,
+     ii.brand,
+     ii.unit_price AS unitPrice,
+     ii.cost_price AS costPrice,
+     ii.description AS notes,
+     COALESCE(ii.standard_level, ii.max_quantity, 10) AS standard_level,
+     ii.min_quantity AS low_stock_threshold,
+     ii.created_by,
+     CONCAT(u.first_name, ' ', u.last_name) AS created_by_name,
+     u.email AS created_by_email,
+     (SELECT SUM(ti.quantity) 
+      FROM truck_inventory ti 
+      JOIN trucks t ON ti.truck_id = t.id 
+      WHERE ti.item_id = ii.id) AS total_quantity,
+     (SELECT GROUP_CONCAT(t.truck_number) 
+      FROM truck_inventory ti 
+      JOIN trucks t ON ti.truck_id = t.id 
+      WHERE ti.item_id = ii.id) AS trucks,
+     (SELECT MAX(o.created_at) 
+      FROM order_items oi 
+      JOIN orders o ON oi.order_id = o.id 
+      WHERE oi.item_id = ii.id) AS last_ordered,
+     ii.created_at
+  FROM inventory_items ii
+  LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
+  LEFT JOIN users u ON ii.created_by = u.id
+  WHERE 1=1 ${whereClause} ${roleBasedWhereClause}
+  ORDER BY ii.created_at DESC
+  LIMIT ? OFFSET ?`,
+        [...queryParams, ...roleBasedParams, limit, offset]
+      );
+
+      // Get statistics with role-based filtering
+      let statsRoleBasedWhereClause = "";
+      let statsRoleBasedParams: any[] = [];
+
+      if (userData.role === "company_admin") {
+        if (technicianFilter) {
+          statsRoleBasedWhereClause = `
+            AND ti.item_id IN (
+              SELECT ii.id 
+              FROM inventory_items ii
+              WHERE ii.created_by = ? 
+              AND ii.created_by IN (
+                SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+              )
+            )
+          `;
+          statsRoleBasedParams = [technicianFilter, userId];
+        } else {
+          statsRoleBasedWhereClause = `
+            AND ti.item_id IN (
+              SELECT ii.id 
+              FROM inventory_items ii
+              WHERE ii.created_by IN (
+                SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+              )
+            )
+          `;
+          statsRoleBasedParams = [userId];
+        }
+      } else if (userData.role === "super_admin" && technicianFilter) {
+        statsRoleBasedWhereClause = `
+          AND ti.item_id IN (
+            SELECT ii.id 
+            FROM inventory_items ii
+            WHERE ii.created_by IN (
+              SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+            )
+          )
+        `;
+        statsRoleBasedParams = [technicianFilter];
+      }
+
+      // Get main statistics (total items and item types)
+      const [statsRows] = await pool.query(
+        `SELECT 
+           COALESCE(SUM(ti.quantity), 0) AS total_items,
+           COUNT(DISTINCT ti.item_id) AS item_types
+         FROM truck_inventory ti
+         JOIN trucks t ON ti.truck_id = t.id
+         JOIN inventory_items ii ON ti.item_id = ii.id
+         LEFT JOIN inventory_categories ic ON ii.category_id = ic.id
+         WHERE 1=1 ${statsRoleBasedWhereClause} ${whereClause}`,
+        [...statsRoleBasedParams, ...queryParams]
+      );
+
+      // Get low stock items count
+      let lowStockRoleBasedWhereClause = "";
+      let lowStockRoleBasedParams: any[] = [];
+
+      if (userData.role === "company_admin") {
+        if (technicianFilter) {
+          lowStockRoleBasedWhereClause = `
+            AND ti2.item_id IN (
+              SELECT ii.id 
+              FROM inventory_items ii
+              WHERE ii.created_by = ? 
+              AND ii.created_by IN (
+                SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+              )
+            )
+          `;
+          lowStockRoleBasedParams = [technicianFilter, userId];
+        } else {
+          lowStockRoleBasedWhereClause = `
+            AND ti2.item_id IN (
+              SELECT ii.id 
+              FROM inventory_items ii
+              WHERE ii.created_by IN (
+                SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+              )
+            )
+          `;
+          lowStockRoleBasedParams = [userId];
+        }
+      } else if (userData.role === "super_admin" && technicianFilter) {
+        lowStockRoleBasedWhereClause = `
+          AND ti2.item_id IN (
+            SELECT ii.id 
+            FROM inventory_items ii
+            WHERE ii.created_by IN (
+              SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+            )
+          )
+        `;
+        lowStockRoleBasedParams = [technicianFilter];
+      }
+
+      const [lowStockRows] = await pool.query(
+        `SELECT COUNT(*) as low_stock_items
+         FROM (
+           SELECT 
+             ii.id,
+             SUM(ti2.quantity) AS total_qty,
+             ii.min_quantity
+           FROM truck_inventory ti2
+           JOIN trucks t2 ON ti2.truck_id = t2.id
+           JOIN inventory_items ii ON ti2.item_id = ii.id
+           LEFT JOIN inventory_categories ic2 ON ii.category_id = ic2.id
+           WHERE 1=1 ${lowStockRoleBasedWhereClause} ${whereClause.replace('ic.name', 'ic2.name')}
+           GROUP BY ii.id, ii.min_quantity
+           HAVING SUM(ti2.quantity) < ii.min_quantity
+         ) AS sub`,
+        [...lowStockRoleBasedParams, ...queryParams]
+      );
+
+      // Get needs restock items count
+      let needsRestockRoleBasedWhereClause = "";
+      let needsRestockRoleBasedParams: any[] = [];
+
+      if (userData.role === "company_admin") {
+        if (technicianFilter) {
+          needsRestockRoleBasedWhereClause = `
+            AND ti3.item_id IN (
+              SELECT ii.id 
+              FROM inventory_items ii
+              WHERE ii.created_by = ? 
+              AND ii.created_by IN (
+                SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+              )
+            )
+          `;
+          needsRestockRoleBasedParams = [technicianFilter, userId];
+        } else {
+          needsRestockRoleBasedWhereClause = `
+            AND ti3.item_id IN (
+              SELECT ii.id 
+              FROM inventory_items ii
+              WHERE ii.created_by IN (
+                SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+              )
+            )
+          `;
+          needsRestockRoleBasedParams = [userId];
+        }
+      } else if (userData.role === "super_admin" && technicianFilter) {
+        needsRestockRoleBasedWhereClause = `
+          AND ti3.item_id IN (
+            SELECT ii.id 
+            FROM inventory_items ii
+            WHERE ii.created_by IN (
+              SELECT id FROM users WHERE created_by = ? AND role = 'technician'
+            )
+          )
+        `;
+        needsRestockRoleBasedParams = [technicianFilter];
+      }
+
+      const [needsRestockRows] = await pool.query(
+        `SELECT COUNT(*) as needs_restock_items
+         FROM (
+           SELECT 
+             ii.id,
+             SUM(ti3.quantity) AS total_qty,
+             COALESCE(ii.standard_level, ii.max_quantity, 10) AS std_level
+           FROM truck_inventory ti3
+           JOIN trucks t3 ON ti3.truck_id = t3.id
+           JOIN inventory_items ii ON ti3.item_id = ii.id
+           LEFT JOIN inventory_categories ic3 ON ii.category_id = ic3.id
+           WHERE 1=1 ${needsRestockRoleBasedWhereClause} ${whereClause.replace('ic.name', 'ic3.name')}
+           GROUP BY ii.id, std_level
+           HAVING SUM(ti3.quantity) < std_level
+         ) AS sub2`,
+        [...needsRestockRoleBasedParams, ...queryParams]
+      );
+
+      // Format inventory items
+      const inventoryItems = (itemRows as any[]).map((item) => ({
+        internalId: item.internal_id,
+        id: item.id_for_ui,
+        name: item.name,
+        category: item.category,
+        totalQuantity: item.total_quantity || 0,
+        lowStockThreshold: item.low_stock_threshold,
+        standardLevel: item.standard_level,
+        lastOrdered: item.last_ordered
+          ? new Date(item.last_ordered).toISOString().split("T")[0]
+          : "Never",
+        trucks: item.trucks ? [...new Set(item.trucks.split(","))] : [],
+        notes: item.notes,
+        unit: item.unit,
+        partNumber: item.id_for_ui,
+        brand: item.brand,
+        costPrice: item.costPrice || 0,
+        unitPrice: item.unitPrice || 0,
+        assigned: (item.total_quantity || 0) > 0 || (item.trucks && item.trucks.length > 0),
+        createdBy: item.created_by,
+        createdByName: item.created_by_name,
+        createdByEmail: item.created_by_email,
+      }));
+
+      const stats = (statsRows as any[])[0];
+      const lowStockStats = (lowStockRows as any[])[0];
+      const needsRestockStats = (needsRestockRows as any[])[0];
+
+      return NextResponse.json({
+        inventoryItems,
+        stats: {
+          totalItems: stats.total_items || 0,
+          assignedItem: stats.item_types || 0,
+          lowStockItems: lowStockStats.low_stock_items || 0,
+          needsRestockItems: needsRestockStats.needs_restock_items || 0,
+        },
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          limit,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1
+        }
+      });
     }
-
-    // Apply pagination
-    const from = (page - 1) * limit
-    const to = from + limit - 1
-    query = query.range(from, to)
-
-    const { data: items, error, count } = await query
-
-    if (error) {
-      console.error("Inventory fetch error:", error)
-      return NextResponse.json({ error: "Failed to fetch inventory" }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      items: items || [],
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit),
-      },
-    })
   } catch (error) {
-    console.error("Inventory API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient()
-
-    // Verify admin access
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
-
-    // if (!userData || userData.role !== "admin") {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    // }
-
-    const body = await request.json()
-    const { part_number, name, description, category, unit_price, stock_quantity, min_stock_level } = body
-
-    const { data: newItem, error } = await supabase
-      .from("inventory_items")
-      .insert({
-        part_number,
-        name,
-        description,
-        category,
-        unit_price,
-        stock_quantity,
-        min_stock_level,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error("Inventory item creation error:", error)
-      return NextResponse.json({ error: "Failed to create inventory item" }, { status: 500 })
-    }
-
-    return NextResponse.json(newItem)
-  } catch (error) {
-    console.error("Create inventory item error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Inventory API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

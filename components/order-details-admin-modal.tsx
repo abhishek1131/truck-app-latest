@@ -122,6 +122,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log("API Response:", response);
       const result = await response.json();
       if (result.success) {
         setStatus("confirmed");

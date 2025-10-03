@@ -48,7 +48,7 @@ export async function GET(
     let effectiveUserId = userId;
 
     // If user is admin, find the technician assigned to the truck via bin
-    if (userData.role === "admin") {
+    if (userData.role === "super_admin" || userData.role === "company_admin") {
       const [truckRows] = await pool.query(
         `
         SELECT t.assigned_to
@@ -252,7 +252,7 @@ export async function POST(
     let effectiveUserId = userId;
 
     // If user is admin, find the technician assigned to the truck via bin
-    if (userData.role === "admin") {
+    if (userData.role === "super_admin" || userData.role === "company_admin") {
       const [truckRows] = await pool.query(
         `
         SELECT t.assigned_to
@@ -399,6 +399,59 @@ export async function POST(
       console.log(
         `Updated inventory item: item_id=${inventory_item_id}, new_quantity=${quantity}`
       );
+
+      // Get item name for notification
+      const [itemRows] = await connection.query(
+        "SELECT name FROM inventory_items WHERE id = ?",
+        [inventory_item_id]
+      );
+      const itemName = (itemRows as any[])[0]?.name || "Unknown Item";
+
+      // Get truck number for notification
+      const [truckRows] = await connection.query(
+        "SELECT truck_number FROM trucks WHERE id = ?",
+        [id]
+      );
+      const truckNumber = (truckRows as any[])[0]?.truck_number || "Unknown Truck";
+
+
+      // Check if notification already exists for same truck, item, and user
+      const [existingNotification] = await connection.query(
+        `SELECT id, used_quantity FROM notifications 
+         WHERE item_id = ? AND truck_id = ? AND user_id = ? AND type = 'item_assign'`,
+        [inventory_item_id, id, userId]
+      );
+
+      if (existingNotification && (existingNotification as any[]).length > 0) {
+        // Update existing notification
+        const existing = (existingNotification as any[])[0];
+        const newQuantity = (existing.used_quantity || 0) + quantity;
+        
+        await connection.query(
+          `UPDATE notifications 
+           SET message = ?, quantity = 0, used_quantity = ?, created_at = NOW()
+           WHERE id = ?`,
+          [
+            `Inventory item "${itemName}" assigned in truck ${truckNumber}`,
+            newQuantity,
+            existing.id
+          ]
+        );
+      } else {
+        // Create new notification
+        await connection.query(
+          `INSERT INTO notifications 
+           (id, message, type, status, item_id, truck_id, quantity, used_quantity, user_id, created_at)
+           VALUES (UUID(), ?, 'item_assign', 'unread', ?, ?, 0, ?, ?, NOW())`,
+          [
+            `Inventory item "${itemName}" assigned in truck ${truckNumber}`,
+            inventory_item_id,
+            id,
+            quantity,
+            userId
+          ]
+        );
+      }
     } else {
       const newId = uuidv4();
       await connection.query(
@@ -408,6 +461,58 @@ export async function POST(
       console.log(
         `Inserted new inventory item: id=${newId}, item_id=${inventory_item_id}, quantity=${quantity}`
       );
+
+      // Get item name for notification
+      const [itemRows] = await connection.query(
+        "SELECT name FROM inventory_items WHERE id = ?",
+        [inventory_item_id]
+      );
+      const itemName = (itemRows as any[])[0]?.name || "Unknown Item";
+
+      // Get truck number for notification
+      const [truckRows] = await connection.query(
+        "SELECT truck_number FROM trucks WHERE id = ?",
+        [id]
+      );
+      const truckNumber = (truckRows as any[])[0]?.truck_number || "Unknown Truck";
+
+      // Check if notification already exists for same truck, item, and user
+      const [existingNotification] = await connection.query(
+        `SELECT id, used_quantity FROM notifications 
+         WHERE item_id = ? AND truck_id = ? AND user_id = ? AND type = 'item_assign'`,
+        [inventory_item_id, id, userId]
+      );
+
+      if (existingNotification && (existingNotification as any[]).length > 0) {
+        // Update existing notification
+        const existing = (existingNotification as any[])[0];
+        const newQuantity = (existing.used_quantity || 0) + quantity;
+        
+        await connection.query(
+          `UPDATE notifications 
+           SET message = ?, quantity = 0, used_quantity = ?, created_at = NOW()
+           WHERE id = ?`,
+          [
+            `Inventory item "${itemName}" assigned to truck ${truckNumber}`,
+            newQuantity,
+            existing.id
+          ]
+        );
+      } else {
+        // Create new notification
+        await connection.query(
+          `INSERT INTO notifications 
+           (id, message, type, status, item_id, truck_id, quantity, used_quantity, user_id, created_at)
+           VALUES (UUID(), ?, 'item_assign', 'unread', ?, ?, 0, ?, ?, NOW())`,
+          [
+            `New inventory item "${itemName}" assigned to truck ${truckNumber}`,
+            inventory_item_id,
+            id,
+            quantity,
+            userId
+          ]
+        );
+      }
     }
     await connection.commit();
     sendLowStockEmailOneItem(inventory_item_id);
@@ -480,7 +585,7 @@ export async function PUT(
     let effectiveUserId = userId;
 
     // If user is admin, find the technician assigned to the truck via bin
-    if (userData.role === "admin") {
+    if (userData.role === "super_admin" || userData.role === "company_admin") {
       const [truckRows] = await pool.query(
         `
         SELECT t.assigned_to
@@ -702,7 +807,7 @@ export async function DELETE(
     let effectiveUserId = userId;
 
     // If user is admin, find the technician assigned to the truck via bin
-    if (userData.role === "admin") {
+    if (userData.role === "super_admin" || userData.role === "company_admin") {
       const [truckRows] = await pool.query(
         `
         SELECT t.assigned_to

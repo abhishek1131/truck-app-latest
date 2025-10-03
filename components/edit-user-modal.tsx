@@ -32,7 +32,7 @@ interface EditUserModalProps {
     last_name: string;
     email: string;
     phone: string | null;
-    role: "admin" | "manager" | "technician";
+    role: "super_admin" | "company_admin" | "technician";
     status: "active" | "inactive" | "pending" | "suspended";
   };
   onUserUpdated: (updatedUser: EditUserModalProps["user"]) => void;
@@ -44,7 +44,7 @@ export function EditUserModal({
   user,
   onUserUpdated,
 }: EditUserModalProps) {
-  const { token } = useAuth();
+  const { token, user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     first_name: user?.first_name || "",
     last_name: user?.last_name || "",
@@ -56,10 +56,22 @@ export function EditUserModal({
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const roles = [
-    // { value: "manager", label: "Manager" },
-    { value: "technician", label: "Technician" },
-  ];
+    // Define available roles based on current user's role
+    const getAvailableRoles = () => {
+      if (currentUser?.role === "super_admin") {
+        return [
+          { value: "company_admin", label: "Company Admin" },
+          { value: "technician", label: "Technician" },
+        ];
+      } else if (currentUser?.role === "company_admin") {
+        return [
+          { value: "technician", label: "Technician" },
+        ];
+      }
+      return [];
+    };
+  
+    const roles = getAvailableRoles();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +90,7 @@ export function EditUserModal({
     setIsLoading(true);
 
     try {
-      const response = await fetchClient(`/api/admin/users/${user.id}`, {
+      const response = await fetchClient(`/api/admin/users/${user?.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -168,7 +180,7 @@ export function EditUserModal({
               <Label htmlFor="role">Role *</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) =>
+                onValueChange={(value: "super_admin" | "company_admin" | "technician") =>
                   setFormData({ ...formData, role: value })
                 }
               >
@@ -188,7 +200,7 @@ export function EditUserModal({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) =>
+                onValueChange={(value: "active" | "inactive" | "pending" | "suspended") =>
                   setFormData({ ...formData, status: value })
                 }
               >
@@ -198,8 +210,8 @@ export function EditUserModal({
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
+                  {/* <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>

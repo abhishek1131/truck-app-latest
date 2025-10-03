@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = decoded.id;
+    console.log("userId", userId);
 
     // Verify technician role
     const [userRows] = await pool.query(
@@ -116,9 +117,24 @@ export async function POST(request: NextRequest) {
       [name]
     );
 
-    await connection.commit();
+    const newItem = (newItemRows as any[])[0];
+    
+    // Create notification for technician
+    if (userId) {
+      await connection.query(
+        `INSERT INTO notifications 
+         (id, message, type, status, item_id, user_id, created_at)
+         VALUES (UUID(), ?, 'item_create', 'unread', ?, ?, NOW())`,
+        [
+          `New inventory item "${name}" has been added`,
+          newItem.id,
+          userId
+        ]
+      );
+    }
 
-    const newItem = (newItemRows as any[])[0];    
+    await connection.commit();
+    
     return NextResponse.json({
       item: {
         id: newItem.id,

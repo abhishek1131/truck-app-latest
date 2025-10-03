@@ -68,6 +68,7 @@ export async function GET(req: Request) {
       //     { status: 403 }
       //   );
       // }
+      console.log("decoded", decoded);
     } catch (error) {
       return NextResponse.json(
         {
@@ -79,45 +80,105 @@ export async function GET(req: Request) {
       );
     }
 
-    // Fetch stats
-    const [technicianStats] = await pool.query(
-      `SELECT 
+    // Get current user details for role-based filtering
+    const [currentUserRows] = await pool.query(
+      `SELECT role, company_name FROM users WHERE id = ?`,
+      [decoded.id]
+    );
+    const currentUser = (currentUserRows as any[])[0];
+    
+    if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "company_admin")) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden", code: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const userCompany = currentUser.company_name;
+
+    // Fetch stats with role-based filtering
+    const technicianQuery = isSuperAdmin 
+    ? `SELECT 
         COUNT(*) as totalTechnicians,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as activeTechnicians
-      FROM users WHERE role = 'technician'`
-    );
+      FROM users WHERE role = 'technician' OR role = 'company_admin'`
+    : `SELECT 
+        COUNT(*) as totalTechnicians,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as activeTechnicians
+      FROM users WHERE role = 'technician' AND (company_name = ? OR created_by = ?)`;
+    
+    const technicianParams = isSuperAdmin ? [] : [userCompany, decoded.id];
+    const [technicianStats] = await pool.query(technicianQuery, technicianParams);
 
-    const [orderStats] = await pool.query(
-      `SELECT 
-        COUNT(*) as totalOrders,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
-        SUM(total_amount) as totalRevenue,
-        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE()) - 1 DAY) THEN total_amount ELSE 0 END) as monthlyRevenue
-      FROM orders`
-    );
+    const orderQuery = isSuperAdmin 
+      ? `SELECT 
+          COUNT(*) as totalOrders,
+          SUM(CASE WHEN o.status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
+          SUM(o.total_amount) as totalRevenue,
+          SUM(CASE WHEN o.created_at >= DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE()) - 1 DAY) THEN o.total_amount ELSE 0 END) as monthlyRevenue
+        FROM orders o`
+      : `SELECT 
+          COUNT(*) as totalOrders,
+          SUM(CASE WHEN o.status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
+          SUM(o.total_amount) as totalRevenue,
+          SUM(CASE WHEN o.created_at >= DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE()) - 1 DAY) THEN o.total_amount ELSE 0 END) as monthlyRevenue
+        FROM orders o
+        INNER JOIN users u ON o.technician_id = u.id
+        WHERE u.company_name = ? OR u.created_by = ?`;
+    
+    const orderParams = isSuperAdmin ? [] : [userCompany, decoded.id];
+    const [orderStats] = await pool.query(orderQuery, orderParams);
 
-    const [creditStats] = await pool.query(
-      `SELECT 
-        SUM(amount) as totalCredits,
-        SUM(CASE WHEN status = 'pending_redemption' THEN 1 ELSE 0 END) as pendingRedemptions
-      FROM credits`
-    );
+    const creditQuery = isSuperAdmin 
+      ? `SELECT 
+          SUM(c.amount) as totalCredits,
+          SUM(CASE WHEN c.status = 'pending_redemption' THEN 1 ELSE 0 END) as pendingRedemptions
+        FROM credits c`
+      : `SELECT 
+          SUM(c.amount) as totalCredits,
+          SUM(CASE WHEN c.status = 'pending_redemption' THEN 1 ELSE 0 END) as pendingRedemptions
+        FROM credits c
+        INNER JOIN users u ON c.user_id = u.id
+        WHERE u.company_name = ? OR u.created_by = ?`;
+    
+    const creditParams = isSuperAdmin ? [] : [userCompany, decoded.id];
+    const [creditStats] = await pool.query(creditQuery, creditParams);
 
-    const [truckStats] = await pool.query(
-      `SELECT COUNT(*) as totalTrucks FROM trucks`
-    );
+    const truckQuery = isSuperAdmin 
+      ? `SELECT COUNT(*) as totalTrucks FROM trucks`
+      : `SELECT COUNT(*) as totalTrucks 
+        FROM trucks t
+        WHERE t.created_by = ?`;
+    
+    const truckParams = isSuperAdmin ? [] : [decoded.id];
+    const [truckStats] = await pool.query(truckQuery, truckParams);
 
-    const [itemStats] = await pool.query(
-      `SELECT COUNT(*) as totalItems FROM inventory_items`
-    );
+    const itemQuery = isSuperAdmin 
+      ? `SELECT COUNT(*) as totalItems FROM inventory_items`
+      : `SELECT COUNT(*) as totalItems 
+        FROM inventory_items i
+        INNER JOIN users u ON i.created_by = u.id
+        WHERE u.company_name = ? OR u.created_by = ?`;
+    
+    const itemParams = isSuperAdmin ? [] : [userCompany, decoded.id];
+    const [itemStats] = await pool.query(itemQuery, itemParams);
 
-    // Fetch recent activities (limit to 5, ordered by created_at)
-    const [recentActivity] = await pool.query(
-      `SELECT id, type, message, status, created_at 
-      FROM activities 
-      ORDER BY created_at DESC 
-      LIMIT 5`
-    );
+    // Fetch recent activities with role-based filtering
+    const activityQuery = isSuperAdmin 
+      ? `SELECT id, type, message, status, created_at 
+        FROM activities 
+        ORDER BY created_at DESC 
+        LIMIT 5`
+      : `SELECT a.id, a.type, a.message, a.status, a.created_at 
+        FROM activities a
+        INNER JOIN users u ON a.user_id = u.id
+        WHERE u.company_name = ? OR u.created_by = ?
+        ORDER BY a.created_at DESC 
+        LIMIT 5`;
+    
+    const activityParams = isSuperAdmin ? [] : [userCompany, decoded.id];
+    const [recentActivity] = await pool.query(activityQuery, activityParams);
 
     // Calculate relative time for activities
     const recentActivityFormatted = (recentActivity as any[]).map((activity: any) => {
@@ -143,25 +204,41 @@ export async function GET(req: Request) {
       };
     });
 
-    // Fetch top performers (limit to 5)
-// Fetch top performers (limit to 5)
-const [topPerformers] = await pool.query(
-  `SELECT 
-    CONCAT(u.first_name, ' ', u.last_name) as name,
-    COUNT(o.id) as orders,
-    COALESCE(SUM(c.amount), 0) as credits,
-    COALESCE(
-      (SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(o.id), 0)) * 100,
-      0
-    ) as efficiency
-  FROM users u
-  LEFT JOIN orders o ON u.id = o.technician_id
-  LEFT JOIN credits c ON u.id = c.user_id
-  WHERE u.role = 'technician'
-  GROUP BY u.id, u.first_name, u.last_name
-  ORDER BY orders DESC
-  LIMIT 5`
-);
+    // Fetch top performers with role-based filtering
+    const topPerformersQuery = isSuperAdmin 
+      ? `SELECT 
+          CONCAT(u.first_name, ' ', u.last_name) as name,
+          COUNT(o.id) as orders,
+          COALESCE(SUM(c.amount), 0) as credits,
+          COALESCE(
+            (SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(o.id), 0)) * 100,
+            0
+          ) as efficiency
+        FROM users u
+        LEFT JOIN orders o ON u.id = o.technician_id
+        LEFT JOIN credits c ON u.id = c.user_id
+        WHERE u.role = 'technician'
+        GROUP BY u.id, u.first_name, u.last_name
+        ORDER BY COUNT(o.id) DESC
+        LIMIT 5`
+      : `SELECT 
+          CONCAT(u.first_name, ' ', u.last_name) as name,
+          COUNT(o.id) as orders,
+          COALESCE(SUM(c.amount), 0) as credits,
+          COALESCE(
+            (SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(o.id), 0)) * 100,
+            0
+          ) as efficiency
+        FROM users u
+        LEFT JOIN orders o ON u.id = o.technician_id
+        LEFT JOIN credits c ON u.id = c.user_id
+        WHERE u.role = 'technician' AND (u.company_name = ? OR u.created_by = ?)
+        GROUP BY u.id, u.first_name, u.last_name
+        ORDER BY COUNT(o.id) DESC
+        LIMIT 5`;
+    
+    const topPerformersParams = isSuperAdmin ? [] : [userCompany, decoded.id];
+    const [topPerformers] = await pool.query(topPerformersQuery, topPerformersParams);
 
 
 
