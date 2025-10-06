@@ -455,7 +455,7 @@ export default function AdminDashboardPage() {
                 <CardDescription>Manage trucks and assignments</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="w-full bg-[#10294B] hover:bg-[#006AA1]">
+                <Button className="w-full bg-[#10294B] hover:bg-[#006AA1] cursor-pointer">
                   {/* <Badge className="mr-2 bg-green-100 text-green-800 text-xs">
                     New
                   </Badge> */}
@@ -475,7 +475,7 @@ export default function AdminDashboardPage() {
                 <CardDescription>Manage all system users</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="w-full bg-[#E3253D] hover:bg-[#E3253D]/90">
+                <Button className="w-full bg-[#E3253D] hover:bg-[#FF002D]/90 cursor-pointer">
                   {/* <Badge className="mr-2 bg-green-100 text-green-800 text-xs">
                     New
                   </Badge> */}
@@ -495,7 +495,7 @@ export default function AdminDashboardPage() {
                 <CardDescription>Manage and monitor inventory</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="w-full bg-[#006AA1] hover:bg-[#006AA1]/90">
+                <Button className="w-full bg-[#006AA1] hover:bg-[#10294B]/90 cursor-pointer">
                   View Inventory
                 </Button>
               </CardContent>

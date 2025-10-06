@@ -172,11 +172,11 @@ export async function GET(req: Request) {
       : `SELECT a.id, a.type, a.message, a.status, a.created_at 
         FROM activities a
         INNER JOIN users u ON a.user_id = u.id
-        WHERE u.company_name = ? OR u.created_by = ?
+        WHERE u.created_by = ?
         ORDER BY a.created_at DESC 
         LIMIT 5`;
     
-    const activityParams = isSuperAdmin ? [] : [userCompany, decoded.id];
+    const activityParams = isSuperAdmin ? [] : [decoded.id];
     const [recentActivity] = await pool.query(activityQuery, activityParams);
 
     // Calculate relative time for activities

@@ -355,8 +355,7 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600 mb-4">Browse all items</p>
               <Button
                 asChild
-                variant="outline"
-                className="w-full bg-transparent"
+                className="w-full bg-[#10294B] hover:bg-[#006AA1] text-white"
               >
                 <Link href="/inventory" onClick={(e) => e.stopPropagation()}>View Inventory</Link>
               </Button>
@@ -374,8 +373,7 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600 mb-4">Review suggestions</p>
               <Button
                 asChild
-                variant="outline"
-                className="w-full bg-transparent"
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
                 <Link href="/restock" onClick={(e) => e.stopPropagation()}>View Restock</Link>
               </Button>

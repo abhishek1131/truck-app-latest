@@ -131,6 +131,7 @@ export function CreateTruckDialog({
         description: "",
         order_approval: false
       });
+      setCreateError(null);
       onClose();
     } catch (error: any) {
       setFormData({
@@ -147,8 +148,8 @@ export function CreateTruckDialog({
         order_approval: false
       });
       console.error("Error creating truck:", error);
-      onClose();
       setCreateError(error.message || "Failed to create truck");
+      onClose();
     }
   };
 
@@ -296,7 +297,7 @@ export function CreateTruckDialog({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>

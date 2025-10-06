@@ -47,7 +47,6 @@ export async function GET(req: Request) {
         { status: 401 }
       );
     }
-    console.log("decoded", decoded);
     const userId = decoded.id;
 
     // ✅ Verify role from DB and get company info
