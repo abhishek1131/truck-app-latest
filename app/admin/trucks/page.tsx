@@ -150,37 +150,37 @@ export default function AdminTrucksPage() {
     }
   }, [token, fetchTrucks]);
 
-  useEffect(() => {
-    const fetchTechnicians = async () => {
-      try {
-        const response = await fetch("/api/admin/users?page=1&limit=50", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error("Failed to fetch technicians");
-        }
-        const data = await response.json();
-        const filteredTechnicians: Technician[] = data.data.users
-          .filter(
-            (user: any) =>
-              user.role === "technician" && user.status === "active"
-          )
-          .map((user: any) => ({
-            id: user.id,
-            name: `${user.first_name} ${user.last_name}`.trim(),
-            email: user.email,
-            status: user.status,
-            assignedTrucks: user.assigned_trucks || [],
-          }));
-        setTechnicians(filteredTechnicians);
-        setTechnicianError(null);
-      } catch (error) {
-        setTechnicianError("Error fetching technicians. Please try again.");
-        console.error("Error fetching technicians:", error);
+  const fetchTechnicians = async () => {
+    try {
+      const response = await fetch("/api/admin/users?page=1&limit=100", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch technicians");
       }
-    };
+      const data = await response.json();
+      const filteredTechnicians: Technician[] = data.data.users
+        .filter(
+          (user: any) =>
+            user.role === "technician" && user.status === "active"
+        )
+        .map((user: any) => ({
+          id: user.id,
+          name: `${user.first_name} ${user.last_name}`.trim(),
+          email: user.email,
+          status: user.status,
+          assignedTrucks: user.assigned_trucks || [],
+        }));
+      setTechnicians(filteredTechnicians);
+      setTechnicianError(null);
+    } catch (error) {
+      setTechnicianError("Error fetching technicians. Please try again.");
+      console.error("Error fetching technicians:", error);
+    }
+  };
+  useEffect(() => {
 
     if (token) {
       fetchTrucks();
@@ -287,6 +287,7 @@ export default function AdminTrucksPage() {
         ? truck.assigned_technician.id
         : null,
     });
+    fetchTechnicians();
     setShowAssignDialog(true);
     setDropdownKey((prev) => prev + 1);
   }, []);

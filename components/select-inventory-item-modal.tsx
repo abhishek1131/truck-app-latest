@@ -165,12 +165,14 @@ export function SelectInventoryItemModal({
                           </div>
                         </div>
                         <div className="text-right">
+                        {item.category && (
                           <Badge
                             variant="outline"
                             className="bg-blue-50 text-blue-700 mb-1"
                           >
                             {item.category}
                           </Badge>
+                        )}
                           <p className="text-xs text-gray-500">{item.unit}</p>
                         </div>
                       </div>

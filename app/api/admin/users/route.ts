@@ -329,8 +329,7 @@ export async function POST(req: Request) {
 
     const token = authHeader.split(" ")[1];
     let decoded: { id: string; role: string };
-    try {
-      console.log("token", token);
+    try {      
       decoded = verify(token, process.env.JWT_SECRET as string) as {
         id: string;
         role: string;
@@ -355,7 +354,6 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-    console.log("decoded", decoded);
 
     const body = await req.json();
     const { first_name, last_name, email, password, phone, role, company_name, status } = body;

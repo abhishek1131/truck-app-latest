@@ -242,7 +242,7 @@ CREATE TABLE `truck_standard_inventory` (
 -- Create table activities
 CREATE TABLE `activities` (
   `id` char(36) NOT NULL,
-  `type` enum('order','technician','redemption','supply_house') NOT NULL,
+  `type` enum('order','technician','redemption','supply_house','truck') NOT NULL,
   `message` varchar(255) NOT NULL,
   `status` enum('new','success','pending','info') NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,

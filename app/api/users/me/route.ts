@@ -8,6 +8,7 @@ interface UserProfile {
   last_name: string;
   email: string;
   phone: string | null;
+  company_name: string | null;
 }
 
 interface PasswordChange {
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, last_name, email, phone FROM users WHERE id = ? AND status = 'active'`,
+      `SELECT id, first_name, last_name, email, phone, company_name FROM users WHERE id = ? AND status = 'active'`,
       [decoded.id]
     );
 
@@ -72,6 +73,7 @@ export async function GET(req: Request) {
       last_name: user.last_name || "",
       email: user.email,
       phone: user.phone || "",
+      company_name: user.company_name || "",
     };
 
     return NextResponse.json({ success: true, data: userProfile });
@@ -122,6 +124,7 @@ export async function PUT(req: Request) {
       last_name,
       email,
       phone,
+      company_name,
       currentPassword,
       newPassword,
     } = body;
@@ -213,12 +216,13 @@ export async function PUT(req: Request) {
 
       // Update user with new password
       await pool.query(
-        `UPDATE users SET first_name = ?, last_name = ?, email = ?, phone = ?, password = ?, updated_at = NOW() WHERE id = ?`,
+        `UPDATE users SET first_name = ?, last_name = ?, email = ?, phone = ?, company_name = ?, password = ?, updated_at = NOW() WHERE id = ?`,
         [
           first_name,
           last_name,
           email,
           phone || null,
+          company_name || null,
           hashedPassword,
           decoded.id,
         ]
@@ -226,14 +230,14 @@ export async function PUT(req: Request) {
     } else {
       // Update user without password change
       await pool.query(
-        `UPDATE users SET first_name = ?, last_name = ?, email = ?, phone = ?, updated_at = NOW() WHERE id = ?`,
-        [first_name, last_name, email, phone || null, decoded.id]
+        `UPDATE users SET first_name = ?, last_name = ?, email = ?, phone = ?, company_name = ?, updated_at = NOW() WHERE id = ?`,
+        [first_name, last_name, email, phone || null, company_name || null, decoded.id]
       );
     }
 
     // Fetch updated user data
     const [updatedRows] = await pool.query(
-      `SELECT first_name, last_name, email, phone FROM users WHERE id = ?`,
+      `SELECT first_name, last_name, email, phone, company_name FROM users WHERE id = ?`,
       [decoded.id]
     );
     const updatedUser = (updatedRows as any[])[0];
@@ -243,6 +247,7 @@ export async function PUT(req: Request) {
       last_name: updatedUser.last_name || "",
       email: updatedUser.email,
       phone: updatedUser.phone || "",
+      company_name: updatedUser.company_name || "",
     };
 
     return NextResponse.json({ success: true, data: userProfile });

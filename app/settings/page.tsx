@@ -23,6 +23,7 @@ export default function SettingsPage() {
     last_name: "",
     email: "",
     phone: "",
+    company_name: "",
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -84,6 +85,7 @@ export default function SettingsPage() {
             last_name: result.data.last_name,
             email: result.data.email,
             phone: result.data.phone || "",
+            company_name: result.data.company_name || "",
           });
         } else {
           toast.error(result.error || "Failed to fetch user details");
@@ -269,6 +271,23 @@ export default function SettingsPage() {
                       />
                     </div>
                   </div>
+
+                  {user?.role === 'company_admin' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="company_name">Company Name</Label>
+                      <Input
+                        id="company_name"
+                        value={profileData.company_name}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            company_name: e.target.value,
+                          })
+                        }
+                        placeholder="Enter company name"
+                      />
+                    </div>
+                  )}
 
                   <Button
                     onClick={handleSaveProfile}

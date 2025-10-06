@@ -370,15 +370,33 @@ export default function UsePartsPage() {
   const addPartToJob = (item: InventoryItem) => {
     console.log("Adding part to job:", item);
     console.log("Current usedParts:", usedParts);
-    const existingPart = usedParts.find(p => p.id === item.id)
+    
+    // Check if item already exists by ID or by name (for items added from suggestions)
+    const existingPartById = usedParts.find(p => p.id === item.id);
+    const existingPartByName = usedParts.find(p => p.name === item.name && !existingPartById);
+    
+    const existingPart = existingPartById || existingPartByName;
     console.log("Existing part found:", existingPart);
     
     if (existingPart) {
       console.log("Updating existing part quantity");
-      setUsedParts(usedParts.map(p => p.id === item.id ? { ...p, count: p.count + 1 } : p))
+      setUsedParts(usedParts.map(p => 
+        (p.id === existingPart.id || (p.name === item.name && p.id === existingPart.id)) 
+          ? { ...p, count: p.count + 1 } 
+          : p
+      ))
     } else {
       console.log("Adding new part to job");
-      setUsedParts([...usedParts, { id: item.id, name: item.name, sku: item.sku || "", count: 1, unit_price:item.unit_price, cost_price: item.cost_price, currentStock: item.currentStock, binLocation: "" }])
+      setUsedParts([...usedParts, { 
+        id: item.id, 
+        name: item.name, 
+        sku: item.sku || "", 
+        count: 1, 
+        unit_price: item.unit_price, 
+        cost_price: item.cost_price, 
+        currentStock: item.currentStock, 
+        binLocation: "" 
+      }])
     }
     
     // Scroll to the "Parts Used on This Job" section
@@ -399,7 +417,11 @@ export default function UsePartsPage() {
   }
 
   const getStockWarning = (item: InventoryItem) => {
-    const usedQuantity = usedParts.find(p => p.id === item.id)?.count || 0
+    // Check for used quantity by both ID and name to handle items added from suggestions
+    const usedPartById = usedParts.find(p => p.id === item.id);
+    const usedPartByName = usedParts.find(p => p.name === item.name && !usedPartById);
+    const usedQuantity = (usedPartById || usedPartByName)?.count || 0;
+    
     const remainingStock = item.currentStock - usedQuantity
     if (remainingStock < 0) return { type: "error", message: "Insufficient stock!" }
     if (remainingStock <= item.standardLevel) return { type: "warning", message: "Will trigger restock" }
@@ -625,7 +647,8 @@ export default function UsePartsPage() {
                       <SelectContent>
                         {trucks.map((truck) => (
                           <SelectItem key={truck.id} value={truck.id}>
-                            {truck.name} ({truck.location})
+                            {truck.name}
+                            {truck.location ? ` (${truck.location})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -760,8 +783,10 @@ export default function UsePartsPage() {
                         <div className="grid gap-3">
                           {filteredAvailableItems.map((item) => {
                           const warning = getStockWarning(item)
-                          const usedQuantity =
-                            usedParts.find((part) => part.id === item.id)?.count || 0
+                          // Check for used quantity by both ID and name to handle items added from suggestions
+                          const usedPartById = usedParts.find(p => p.id === item.id);
+                          const usedPartByName = usedParts.find(p => p.name === item.name && !usedPartById);
+                          const usedQuantity = (usedPartById || usedPartByName)?.count || 0;
 
                           return (
                             <div

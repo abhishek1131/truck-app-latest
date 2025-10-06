@@ -73,7 +73,6 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log("decoded", decoded);
     const { searchParams } = new URL(req.url);
     const page = Number.parseInt(searchParams.get("page") || "1");
     const limit = Number.parseInt(searchParams.get("limit") || "10");

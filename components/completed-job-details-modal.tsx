@@ -302,7 +302,7 @@ ${new Date().toLocaleString()}
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{part.name}</h4>
-                          <Badge variant="outline">{part.sku}</Badge>
+                          {/* <Badge variant="outline">{part.sku}</Badge> */}
                         </div>
                         <div className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                           <Grid3X3 className="h-3 w-3" />

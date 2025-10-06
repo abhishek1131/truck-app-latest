@@ -294,8 +294,7 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-
-    console.log("decoded", decoded);
+    
     const body = await req.json();
     const {
       truck_number,

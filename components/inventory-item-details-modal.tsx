@@ -153,7 +153,7 @@ export function InventoryItemDetailsModal({
                 <div>
                   <p className="text-sm font-medium text-gray-500">Category</p>
                   <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                    {detailedItem.category}
+                    {detailedItem.category || "No category available"}
                   </Badge>
                 </div>
                 <div>
