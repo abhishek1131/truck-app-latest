@@ -553,7 +553,6 @@ export async function POST(request: NextRequest) {
     const newOrder = (newOrderRows as any[])[0];
     newOrder.order_items = newOrder.order_items.filter((item: any) => item.id);
 
-    console.log("Creating the activity record", newOrder);
     try {
       await connection.query(   // ✅ use the same connection
         `

@@ -147,7 +147,6 @@ export default function AdminSettingsPage() {
         category: "platform",
         settings: validatedSettings,
       };
-      console.log("Sending payload:", JSON.stringify(payload));
 
       const response = await fetch("/api/admin/settings", {
         method: "POST",

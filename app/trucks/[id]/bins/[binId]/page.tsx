@@ -50,7 +50,6 @@ export default function BinDetailPage() {
   const [binItems, setBinItems] = useState<any[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
 
-  console.log("binItems", binItems);
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
@@ -68,7 +67,6 @@ export default function BinDetailPage() {
         }
       );
       const data = await response.json();
-      console.log("data", data);
       if (response.ok) {
         const mappedItems = data.inventory.map((item: any) => ({
           id: item.id,

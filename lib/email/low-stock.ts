@@ -79,9 +79,7 @@ export async function sendLowStockEmail() {
 export async function sendLowStockEmailOneItem(itemId: string) {
   try {
     // Get the specific low stock item
-    console.log("itemId", itemId);
     const lowStockItem = await getLowStockItemById(itemId);
-    console.log("lowStockItem", lowStockItem);
     if (!lowStockItem) {
       return {
         success: false,

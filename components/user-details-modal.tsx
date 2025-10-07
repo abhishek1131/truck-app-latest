@@ -157,7 +157,6 @@ export function UserDetailsModal({
             headers: { Authorization: `Bearer ${token}` },
           });
           const orderResult = await orderResponse.json();        
-          console.log("API Response:", orderResult);
           
           // Handle the /api/orders/previous response structure
           if (orderResult.previousOrders) {

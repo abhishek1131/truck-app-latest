@@ -103,7 +103,6 @@ export default function TruckDetailPage() {
   };
 
   const handleStandardLevelsSet = (levels: any) => {
-    console.log("Standard levels set:", levels);
     // In real app, this would save to backend
   };
 
@@ -247,7 +246,7 @@ export default function TruckDetailPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search bins by name, location, or category..."
+                placeholder="Search bins by name or location"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"

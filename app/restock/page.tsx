@@ -83,7 +83,6 @@ export default function RestockPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [technicianName, setTechnicianName] = useState<string>("Unknown");
   const [isDownloading, setIsDownloading] = useState(false);
-  console.log("restockItems", restockItems)
 
   // Fetch technician name on mount
   useEffect(() => {

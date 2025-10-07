@@ -95,8 +95,6 @@ export default function UsePartsPage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
 
-  console.log("usedParts", usedParts)
-  console.log("user", user)
   // Fetch suggestions from API
   const fetchSuggestions = async (searchTerm: string) => {
     if (!searchTerm.trim() || !token) {
@@ -167,7 +165,6 @@ export default function UsePartsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("API Response:", data);
         toast.success("Item added successfully!");
         setQuickAddItem("");
         
@@ -182,7 +179,6 @@ export default function UsePartsPage() {
           currentStock: 0,
           binLocation: ""
         };
-        console.log("Creating new item:", newItem);
         setUsedParts([...usedParts, newItem]);
         
         // Scroll to the "Parts Used on This Job" section
@@ -242,7 +238,6 @@ export default function UsePartsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("API Response:", data);
         toast.success("Item added successfully!");
         setQuickAddItem("");
         
@@ -257,7 +252,6 @@ export default function UsePartsPage() {
           currentStock: 0,
           binLocation: ""
         };
-        console.log("Creating new item from suggestion:", newItem);
         setUsedParts([...usedParts, newItem]);
         
         // Scroll to the "Parts Used on This Job" section
@@ -368,25 +362,19 @@ export default function UsePartsPage() {
   }
 
   const addPartToJob = (item: InventoryItem) => {
-    console.log("Adding part to job:", item);
-    console.log("Current usedParts:", usedParts);
-    
     // Check if item already exists by ID or by name (for items added from suggestions)
     const existingPartById = usedParts.find(p => p.id === item.id);
     const existingPartByName = usedParts.find(p => p.name === item.name && !existingPartById);
     
     const existingPart = existingPartById || existingPartByName;
-    console.log("Existing part found:", existingPart);
     
     if (existingPart) {
-      console.log("Updating existing part quantity");
       setUsedParts(usedParts.map(p => 
         (p.id === existingPart.id || (p.name === item.name && p.id === existingPart.id)) 
           ? { ...p, count: p.count + 1 } 
           : p
       ))
     } else {
-      console.log("Adding new part to job");
       setUsedParts([...usedParts, { 
         id: item.id, 
         name: item.name, 

@@ -30,7 +30,6 @@ export async function PUT(
     // Verify JWT token
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("No or invalid authorization header");
       return NextResponse.json(
         {
           success: false,

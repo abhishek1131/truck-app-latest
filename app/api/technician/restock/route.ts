@@ -75,7 +75,6 @@ export async function GET(request: NextRequest) {
       [userId, userId]
     );
 
-    console.log("rows", rows);
     // Group items by id
     const restockItems: Record<string, any> = {};
 

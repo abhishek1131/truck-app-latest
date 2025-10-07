@@ -177,7 +177,6 @@ export default function OrderPage() {
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
-  console.log("previousOrders", previousOrders);
   useEffect(() => {
     const fetchTechnicianName = async () => {
       if (!user || !token) return;
@@ -318,7 +317,7 @@ export default function OrderPage() {
           const prefilledOrderItems = Array.from(orderItemsMap.values());
 
           setOrderItems(prefilledOrderItems);
-          console.log("Restock data:", data);
+          
         } else {
           setError(data.error || "Failed to fetch restock items");
         }
@@ -609,7 +608,6 @@ export default function OrderPage() {
       });
       setIsModalOpen(true);
       setTimeout(() => {
-        console.log("Attempting redirect to /order"); // Debug log
         router.push("/order");
       }, 500);
     } catch (error) {

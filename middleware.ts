@@ -4,7 +4,6 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow all routes to pass through since authentication is now handled client-side
-  console.log("[v0] Middleware allowing all routes (client-side auth enabled)")
   return NextResponse.next()
 
   // Public routes that don't require authentication

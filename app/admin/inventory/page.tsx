@@ -148,7 +148,6 @@ export default function AdminInventoryPage() {
   const fetchInventory = async () => {
     if (!user || !token) return;
 
-    console.log("Fetching inventory for user:", user.role, "Token:", !!token);
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
@@ -160,7 +159,6 @@ export default function AdminInventoryPage() {
       });
 
       const url = `/api/admin/inventory?${params}`;
-      console.log("API URL:", url);
       
       const response = await fetchClient(url, {
         headers: {
@@ -168,9 +166,7 @@ export default function AdminInventoryPage() {
         },
       });
 
-      console.log("Response status:", response.status);
       const data = await response.json();
-      console.log("API Response:", data); // Debug log
       
       if (response.ok) {
         // Map API response to UI format

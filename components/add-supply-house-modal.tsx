@@ -67,12 +67,10 @@ export function AddSupplyHouseModal({
       !formData.email ||
       !formData.manager
     ) {
-      console.log("Please fill in all required fields");
       return;
     }
 
     // Here you would typically make an API call to create the supply house
-    console.log("Creating supply house:", formData);
     onClose();
 
     // Reset form

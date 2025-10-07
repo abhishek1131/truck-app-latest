@@ -33,15 +33,6 @@ export function ContactSupplyHouseModal({ isOpen, onClose, supplyHouse, orderId 
   const [department, setDepartment] = useState("orders")
 
   const handleSend = () => {
-    console.log("Sending message to supply house:", {
-      supplyHouse: supplyHouse.name,
-      method: contactMethod,
-      department,
-      subject,
-      message,
-      priority,
-      orderId,
-    })
     onClose()
     // Reset form
     setSubject(orderId ? `Regarding Order #${orderId}` : "")

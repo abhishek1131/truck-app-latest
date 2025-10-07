@@ -69,7 +69,6 @@ export function EditTruckDialog({
     "Unassigned",
   ];
 
-  console.log("truck", truck)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -96,7 +95,6 @@ export function EditTruckDialog({
         throw new Error(errorData.error || "Failed to update truck");
       }
 
-      console.log("Updated truck:", updatedTruck);
       onClose();
     } catch (error) {
       console.error("Error updating truck:", error);

@@ -85,11 +85,8 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
 
   // Debug logging for modal state changes
   useEffect(() => {
-    console.log("[v0] Modal state changed:", isOpen);
     if (isOpen) {
-      console.log("[v0] Modal opened for order:", order.id);
     } else {
-      console.log("[v0] Modal closed for order:", order.id);
       setTimeout(() => {
         if (triggerRef.current) {
           triggerRef.current.focus();

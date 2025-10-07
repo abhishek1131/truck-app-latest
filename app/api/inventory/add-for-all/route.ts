@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
     );
     const userData = (userRows as any[])[0];
 
-    console.log("userData", userData);
     // Only company_admin can use this API
     if (userData.role !== "company_admin") {
       return NextResponse.json({ error: "Access denied. Only company admin can add items for all technicians." }, { status: 403 });
@@ -70,7 +69,6 @@ export async function POST(request: NextRequest) {
 
     const item = itemRows[0] as any;
 
-    console.log("item", item);
     // Get all technicians under this company admin
     const [technicianRows] = await pool.query(
       `SELECT id, first_name, last_name, email 
@@ -89,7 +87,6 @@ export async function POST(request: NextRequest) {
     }
 
     const technicians = technicianRows as any[];
-    console.log("technicians", technicians);
     const addedItems = [];
     const skippedItems = [];
 

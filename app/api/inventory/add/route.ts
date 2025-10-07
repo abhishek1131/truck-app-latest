@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = decoded.id;
-    console.log("userId", userId);
 
     // Verify technician role
     const [userRows] = await pool.query(

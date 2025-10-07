@@ -142,8 +142,7 @@ export default function SupplyHousesPage() {
     setShowOrdersModal(true)
   }
 
-  const handleDeactivate = (house: (typeof mockSupplyHouses)[0]) => {
-    console.log("Deactivate:", house.name)
+  const handleDeactivate = (house: (typeof mockSupplyHouses)[0]) => {    
     // Implement deactivate functionality
   }
 

@@ -72,7 +72,6 @@ export async function GET(req: Request) {
         { status: 401 }
       );
     }
-    console.log("decoded", decoded);
     // Get current user details for role-based filtering
     const [currentUserRows] = await pool.query(
       `SELECT role, company_name FROM users WHERE id = ?`,

@@ -145,7 +145,7 @@ export default function TechniciansPage() {
   }
 
   const handleDeactivate = (technician: (typeof mockTechnicians)[0]) => {
-    console.log("Deactivate technician:", technician.name)
+
   }
 
   return (
