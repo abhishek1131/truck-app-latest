@@ -55,6 +55,7 @@ interface Order {
   commission_amount: number | null;
   total_credit: number | null;
   created_at: string;
+  confirmed_at: string | null;
   items: {
     id: string;
     part_name: string;
@@ -224,7 +225,6 @@ export default function AdminOrdersPage() {
           },
         });
         const result = await response.json();
-        console.log("API Response:", result);
         if (result.success && result.data) {
           setOrders((prev) =>
             prev.map((o) =>
@@ -378,7 +378,8 @@ export default function AdminOrdersPage() {
     (sum, order) => sum + (order.total_credit || 0),
     0
   );
-  const totalOrders = orders.length;
+  // const totalOrders = orders.length;
+  const totalOrders = pagination.total || orders.length;
 
   return (
     <Navigation

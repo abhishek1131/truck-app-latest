@@ -17,6 +17,7 @@ interface Order {
   commission: number;
   credit: number;
   created_at: string;
+  confirmed_at: string | null;
   items: {
     id: string;
     part_name: string;
@@ -96,6 +97,7 @@ export async function GET(req: Request) {
         o.commission,
         o.credit,
         o.created_at,
+        o.confirmed_at,
         oi.id as item_id,
         oi.part_number,
         oi.bin_code,
@@ -235,7 +237,8 @@ export async function GET(req: Request) {
           total_amount: parseFloat(row.total_amount || 0),
           commission: parseFloat(row.commission || 0),
           credit: parseFloat(row.credit || 0),
-          created_at: new Date(row.created_at).toISOString().split("T")[0],
+          created_at: new Date(row.created_at).toISOString(),
+          confirmed_at: row.confirmed_at ? new Date(row.confirmed_at).toISOString() : new Date(row.created_at).toISOString(),
           items: [],
         };
       }

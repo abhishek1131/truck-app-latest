@@ -56,6 +56,7 @@ interface OrderDetailsAdminModalProps {
     commission: number | null;
     credit: number | null;
     created_at: string;
+    confirmed_at: string | null;
     items?: OrderItem[];
   };
 }
@@ -99,6 +100,23 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
 
   const formatCurrency = (value: number | null | undefined): string => {
     return value ? `$${value.toFixed(2)}` : "$0.00";
+  };
+
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      return "Invalid Date";
+    }
   };
 
   const parseBinCode = (binCode: string | undefined): { aisle: string; bay: string; shelf: string } => {
@@ -239,7 +257,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             <div className="flex flex-wrap items-center gap-3 text-xs sm:text-xs text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {order.created_at}
+                                {formatDate(order.created_at)}
                               </span>
                               <span className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
@@ -449,7 +467,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-sm sm:text-sm">Order Placed</p>
                               <p className="text-xs sm:text-xs text-gray-600">
-                                {order.created_at} at 10:30 AM
+                                {formatDate(order.created_at)}
                               </p>
                               <p className="text-xs sm:text-xs text-gray-500">
                                 Order submitted by {order.technician}
@@ -457,42 +475,16 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             </div>
                           </div>
 
-                          {status !== "pending" && (
-                            <div className="flex items-center gap-3 p-2 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                              <Package className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm sm:text-sm">Order Confirmed</p>
-                                <p className="text-xs sm:text-xs text-gray-600">
-                                  {order.created_at} at 11:15 AM
-                                </p>
-                                <p className="text-xs sm:text-xs text-gray-500">Order processing started</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {(status === "shipped" || status === "delivered") && (
-                            <div className="flex items-center gap-3 p-2 bg-purple-50 rounded-lg border-l-4 border-purple-500">
-                              <Truck className="h-5 w-5 text-purple-600 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm sm:text-sm">Order Shipped</p>
-                                <p className="text-xs sm:text-xs text-gray-600">
-                                  {order.created_at} at 2:45 PM
-                                </p>
-                                <p className="text-xs sm:text-xs text-gray-500">Tracking: TRK123456789</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {status === "delivered" && (
+                          {status === "confirmed" && (
                             <div className="flex items-center gap-3 p-2 bg-green-50 rounded-lg border-l-4 border-green-500">
                               <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm sm:text-sm">Order Delivered</p>
+                                <p className="font-semibold text-sm sm:text-sm">Order Confirmed</p>
                                 <p className="text-xs sm:text-xs text-gray-600">
-                                  {order.created_at} at 4:20 PM
+                                  {formatDate(order.confirmed_at)}
                                 </p>
                                 <p className="text-xs sm:text-xs text-gray-500">
-                                  Delivered and confirmed by technician
+                                   Order Confirmed by Admin
                                 </p>
                               </div>
                             </div>
@@ -504,7 +496,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm sm:text-sm">Order Cancelled</p>
                                 <p className="text-xs sm:text-xs text-gray-600">
-                                  {order.created_at} at 3:00 PM
+                                  {formatDate(order.created_at)}
                                 </p>
                                 <p className="text-xs sm:text-xs text-gray-500">
                                   Cancelled due to unavailability
@@ -661,7 +653,7 @@ export function OrderDetailsAdminModal({ isOpen, onClose, order }: OrderDetailsA
                             </div>
                             <div className="flex justify-between">
                               <span>Date:</span>
-                              <span>{order.created_at}</span>
+                              <span>{formatDate(order.created_at)}</span>
                             </div>
                           </div>
                         </div>

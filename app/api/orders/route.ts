@@ -563,12 +563,11 @@ export async function POST(request: NextRequest) {
         [
           uuidv4(),
           "order",
-          `Created order ${newOrder.order_number} with ${newOrder.order_items.length} item(s)`,
+          `Created order ${newOrder.order_number} with ${newOrder.order_items.length} item`,
           "new",
           userId,
         ]
       );
-      console.log(`Activity logged: Created order ${newOrder.order_number} by user ${userId}`);
     } catch (activityError: any) {
       console.error("Failed to log activity:", activityError);
     }

@@ -43,6 +43,7 @@ interface OrderDetailsModalProps {
     commission: number | null;
     credit: number | null;
     created_at: string;
+    confirmed_at: string | null;
     quantity: number;
     items: {
       id: string;
@@ -337,37 +338,11 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                 <div>
                   <p className="font-medium">Order Placed</p>
                   <p className="text-sm text-gray-600">
-                    {order?.created_at} at 10:30 AM
+                    {order?.created_at}
                   </p>
                 </div>
               </div>
-              {order?.status !== "pending" && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Package className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Order Confirmed</p>
-                    <p className="text-sm text-gray-600">
-                      {order?.created_at} at 11:15 AM
-                    </p>
-                  </div>
-                </div>
-              )}
-              {(order?.status === "shipped" || order?.status === "completed") && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Package className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Order Shipped</p>
-                    <p className="text-sm text-gray-600">
-                      {order.created_at} at 2:45 PM
-                    </p>
-                  </div>
-                </div>
-              )}
-              {order.status === "completed" && (
+              {order.status == "completed" && (
                 <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                     <CheckCircle className="h-4 w-4 text-green-600" />
@@ -375,7 +350,7 @@ export function OrderDetailsModal({ order }: OrderDetailsModalProps) {
                   <div>
                     <p className="font-medium">Order Completed</p>
                     <p className="text-sm text-gray-600">
-                      {order.created_at} at 4:20 PM
+                      {order?.confirmed_at}
                     </p>
                   </div>
                 </div>
